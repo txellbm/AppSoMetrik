@@ -292,7 +292,7 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
               <TableHead>Entrenamiento</TableHead>
               <TableHead className="text-right">Distancia</TableHead>
               <TableHead className="text-right">Calorías</TableHead>
-              <TableHead className="text-right">Duración</TableHead>
+              <TableHead className="text-right">Duración (h)</TableHead>
               <TableHead className="text-right">FC Promedio</TableHead>
             </TableRow>
           </TableHeader>
@@ -304,7 +304,7 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
                   <TableCell className="font-medium">{workout.name}</TableCell>
                   <TableCell className="text-right">{workout.distance.toFixed(1)} km</TableCell>
                   <TableCell className="text-right">{workout.calories} kcal</TableCell>
-                  <TableCell className="text-right">{workout.duration.toFixed(2)} h</TableCell>
+                  <TableCell className="text-right">{workout.duration.toFixed(2)}</TableCell>
                   <TableCell className="text-right">{workout.averageHeartRate} bpm</TableCell>
                 </TableRow>
               ))
@@ -321,3 +321,5 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
     </Card>
   );
 }
+
+    
