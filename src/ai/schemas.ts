@@ -38,7 +38,7 @@ const WorkoutSchema = z.object({
   name: z.string().describe("El nombre o tipo de entrenamiento (ej. Correr, Ciclismo)."),
   distance: z.number().describe("La distancia del entrenamiento en kilómetros."),
   calories: z.number().describe("Las calorías quemadas durante el entrenamiento."),
-  duration: z.number().describe("La duración del entrenamiento en horas."),
+  duration: z.string().describe("La duración del entrenamiento en formato hh:mm:ss."),
   averageHeartRate: z.number().describe("La frecuencia cardíaca promedio durante el entrenamiento en lpm."),
   startTime: z.string().describe("La hora de inicio del entrenamiento (ej. 18:30)."),
   endTime: z.string().describe("La hora de finalización del entrenamiento (ej. 19:30)."),

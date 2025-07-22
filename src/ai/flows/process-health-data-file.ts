@@ -36,9 +36,9 @@ Instrucciones de Procesamiento:
     -   Si es un archivo de **entrenos detallados** (múltiples filas por sesión), sigue estas reglas:
         a.  **Agrupa** las filas por entreno usando las columnas 'Fecha', 'Entrenamiento' y 'Entrenamiento-Tipo'.
         b.  Para cada grupo, **identifica la hora de inicio y fin** extrayendo la hora de la columna 'ISO' del primer y último registro del grupo.
-        c.  Para cada grupo, **calcula la duración total en horas** basándote en la diferencia entre la hora de inicio y fin. Si no es posible, usa la fórmula: \`(Número de filas * 5) / 3600\`.
+        c.  Para cada grupo, **extrae la duración del campo 'Duración'** y devuélvela tal cual, en formato hh:mm:ss. Si no está disponible, calcula la duración basándote en la diferencia entre la hora de inicio y fin.
         d.  Para cada grupo, **calcula la frecuencia cardíaca promedio (lpm)**, promediando los valores de la columna 'lpm'.
-        e.  Crea un objeto de entreno para cada grupo con todos los datos (fecha, nombre, distancia, calorías, hora de inicio, hora de fin, duración calculada y FC promedio calculada).
+        e.  Crea un objeto de entreno para cada grupo con todos los datos (fecha, nombre, distancia, calorías, hora de inicio, hora de fin, duración y FC promedio calculada).
 4.  **Extrae Datos de Sueño**: Proporciona los datos de sueño de los últimos 7 días si están disponibles. Los días deben ser abreviaturas (Lun, Mar, Mié, Jue, Vie, Sáb, Dom).
 5.  **Calcula Anillos de Actividad**: Calcula los porcentajes para los anillos de Moverse, Ejercicio y Pararse basándote en objetivos estándar (ej. 600 kcal, 30 min, 12 horas). Si los datos no están disponibles, haz una estimación razonable o devuélvelos como 0.
 6.  **Consolidación**: El objetivo es devolver solo los datos extraídos del archivo actual. La consolidación de múltiples archivos se realizará fuera de este flujo. No intentes unificar datos aquí.

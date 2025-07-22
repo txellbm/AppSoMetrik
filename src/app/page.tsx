@@ -106,7 +106,7 @@ export default function Home() {
     setReportContent("");
 
     try {
-        const workoutDetails = healthData.workouts.map(w => `${w.date} - ${w.name}: ${w.distance.toFixed(1)}km, ${w.calories}kcal, ${w.duration.toFixed(2)}h, ${w.averageHeartRate}bpm`).join('; ');
+        const workoutDetails = healthData.workouts.map(w => `${w.date} - ${w.name}: ${w.distance.toFixed(1)}km, ${w.calories}kcal, ${w.duration}h, ${w.averageHeartRate}bpm`).join('; ');
         const input: HealthSummaryInput = {
             sleepData: `Sueño promedio: ${healthData.averageSleep.toFixed(1)}h. Datos de los últimos días: ${healthData.sleepData.map(d => `${d.day}: ${d.hours}h`).join(', ')}`,
             exerciseData: `Calorías activas: ${healthData.activeCalories}, Entrenamientos: ${workoutDetails}. Anillos: Moverse ${healthData.movePercentage}%, Ejercicio ${healthData.exercisePercentage}%, Pararse ${healthData.standPercentage}%`,
@@ -292,10 +292,10 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
               <TableHead>Entrenamiento</TableHead>
               <TableHead>Hora Inicio</TableHead>
               <TableHead>Hora Fin</TableHead>
-              <TableHead className="text-right">Duración (h)</TableHead>
+              <TableHead className="text-right">Duración</TableHead>
               <TableHead className="text-right">Distancia (km)</TableHead>
               <TableHead className="text-right">Calorías</TableHead>
-              <TableHead className="text-right">FC Promedio</TableHead>
+              <TableHead className="text-right">FC Promedio (lpm)</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -306,7 +306,7 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
                   <TableCell className="font-medium">{workout.name}</TableCell>
                   <TableCell>{workout.startTime}</TableCell>
                   <TableCell>{workout.endTime}</TableCell>
-                  <TableCell className="text-right">{workout.duration.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">{workout.duration}</TableCell>
                   <TableCell className="text-right">{workout.distance.toFixed(1)}</TableCell>
                   <TableCell className="text-right">{workout.calories}</TableCell>
                   <TableCell className="text-right">{workout.averageHeartRate}</TableCell>
