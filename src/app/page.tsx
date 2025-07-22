@@ -347,11 +347,9 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
             <TableRow>
               <TableHead>Fecha</TableHead>
               <TableHead>Entrenamiento</TableHead>
-              <TableHead>Hora Inicio</TableHead>
-              <TableHead>Hora Fin</TableHead>
-              <TableHead className="text-right">Duración</TableHead>
               <TableHead className="text-right">Distancia (km)</TableHead>
               <TableHead className="text-right">Calorías</TableHead>
+              <TableHead className="text-right">Duración</TableHead>
               <TableHead className="text-right">FC Promedio</TableHead>
             </TableRow>
           </TableHeader>
@@ -361,17 +359,15 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
                 <TableRow key={index}>
                   <TableCell>{new Date(workout.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</TableCell>
                   <TableCell className="font-medium">{workout.name}</TableCell>
-                  <TableCell>{workout.startTime}</TableCell>
-                  <TableCell>{workout.endTime}</TableCell>
-                  <TableCell className="text-right">{workout.duration}</TableCell>
                   <TableCell className="text-right">{workout.distance.toFixed(2)}</TableCell>
                   <TableCell className="text-right">{workout.calories}</TableCell>
+                  <TableCell className="text-right">{workout.duration}</TableCell>
                   <TableCell className="text-right">{workout.averageHeartRate} bpm</TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground">
+                <TableCell colSpan={6} className="text-center text-muted-foreground">
                   No hay datos de entrenamiento
                 </TableCell>
               </TableRow>
@@ -382,7 +378,3 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
     </Card>
   );
 }
-
-    
-
-    
