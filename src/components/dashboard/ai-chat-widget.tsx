@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { useFormState, useFormStatus } from "react-dom";
+import { useState, useRef, useEffect, useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import { aiAssistantChat, AiAssistantChatInput } from "@/ai/flows/ai-assistant-chat";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -98,7 +98,7 @@ function ChatForm({ onNewMessage }: { onNewMessage: (message: Message) => void }
     }
   };
   
-  const [state, dispatch] = useFormState(formAction, null);
+  const [state, dispatch] = useActionState(formAction, null);
 
   return (
     <form ref={formRef} action={dispatch} className="flex items-center gap-2">
