@@ -16,18 +16,18 @@ export default function DataActions() {
     setSummary("");
     try {
       const result = await generateHealthSummary({
-        sleepData: "User averaged 7.2 hours of sleep this week, with some inconsistencies on Friday and Saturday.",
-        exerciseData: "User completed 3 Pilates sessions and 2 cardio workouts.",
-        heartRateData: "Resting heart rate is stable at 62 bpm.",
-        menstruationData: "Currently in the follicular phase.",
-        supplementData: "Daily intake of Vitamin D and Magnesium.",
-        foodIntakeData: "Generally balanced diet, with higher carb intake on workout days.",
-        calendarData: "Work-heavy week with two evening social events.",
+        sleepData: "El usuario promedió 7.2 horas de sueño esta semana, con algunas inconsistencias el viernes y sábado.",
+        exerciseData: "El usuario completó 3 sesiones de Pilates y 2 entrenamientos de cardio.",
+        heartRateData: "La frecuencia cardíaca en reposo es estable a 62 lpm.",
+        menstruationData: "Actualmente en la fase folicular.",
+        supplementData: "Ingesta diaria de Vitamina D y Magnesio.",
+        foodIntakeData: "Dieta generalmente equilibrada, con mayor ingesta de carbohidratos en los días de entrenamiento.",
+        calendarData: "Semana pesada de trabajo con dos eventos sociales por la noche.",
       });
       setSummary(result.summary);
     } catch (error) {
-      console.error("Failed to generate summary:", error);
-      setSummary("Sorry, there was an error generating your health summary.");
+      console.error("No se pudo generar el resumen:", error);
+      setSummary("Lo sentimos, hubo un error al generar tu resumen de salud.");
     } finally {
       setIsLoading(false);
     }
@@ -36,28 +36,28 @@ export default function DataActions() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Data Management</CardTitle>
+        <CardTitle>Gestión de Datos</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="p-4 border-2 border-dashed rounded-lg text-center space-y-2">
             <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Drag & drop CSV/PDF files or</p>
-            <Button variant="outline" size="sm"><FileText className="mr-2 h-4 w-4" /> Upload Files</Button>
+            <p className="text-sm text-muted-foreground">Arrastra y suelta archivos CSV/PDF o</p>
+            <Button variant="outline" size="sm"><FileText className="mr-2 h-4 w-4" /> Subir Archivos</Button>
         </div>
         <Button variant="secondary" className="w-full" disabled>
-          <Apple className="mr-2 h-4 w-4" /> Connect to Apple Health
+          <Apple className="mr-2 h-4 w-4" /> Conectar a Apple Health
         </Button>
         <div className="space-y-2">
           <Button onClick={handleGenerateSummary} disabled={isLoading} className="w-full">
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Generate Health Summary
+            Generar Resumen de Salud
           </Button>
           {summary && (
             <Textarea
               readOnly
               value={summary}
               className="mt-2 h-32 text-sm"
-              placeholder="Your health summary will appear here..."
+              placeholder="Tu resumen de salud aparecerá aquí..."
             />
           )}
         </div>

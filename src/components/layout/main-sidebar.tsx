@@ -14,16 +14,16 @@ import { BrainCircuit, LayoutDashboard, Bot, Settings, Upload, Calendar, PenSqua
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const menuItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "#", label: "Data Upload", icon: Upload },
-  { href: "#", label: "Calendar", icon: Calendar },
-  { href: "#", label: "Log Entry", icon: PenSquare },
-  { href: "#", label: "AI Assistant", icon: Bot },
+  { href: "/", label: "Panel", icon: LayoutDashboard },
+  { href: "#", label: "Subir Datos", icon: Upload },
+  { href: "#", label: "Calendario", icon: Calendar },
+  { href: "#", label: "Registrar Entrada", icon: PenSquare },
+  { href: "#", label: "Asistente IA", icon: Bot },
 ];
 
 const bottomMenuItems = [
-    { href: "#", label: "Settings", icon: Settings },
-    { href: "#", label: "Support", icon: LifeBuoy },
+    { href: "#", label: "Configuración", icon: Settings },
+    { href: "#", label: "Soporte", icon: LifeBuoy },
 ]
 
 export function MainSidebar() {
@@ -64,7 +64,7 @@ export function MainSidebar() {
               </Avatar>
               <div className="group-data-[collapsible=icon]:hidden">
                 <p className="text-sm font-semibold">Meri</p>
-                <p className="text-xs text-muted-foreground">Personal Plan</p>
+                <p className="text-xs text-muted-foreground">Plan Personal</p>
               </div>
             </div>
       </SidebarFooter>

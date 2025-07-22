@@ -18,30 +18,30 @@ export default function Home() {
       <div className="lg:col-span-4">
         <Card className="bg-primary/10 border-primary/20">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-primary">Welcome to SoMetrik</CardTitle>
+            <CardTitle className="text-2xl font-bold text-primary">Bienvenido a SoMetrik</CardTitle>
             <CardDescription>
-              Your personal AI wellness assistant. Here's a snapshot of your week.
+              Tu asistente personal de bienestar IA. Aquí tienes un resumen de tu semana.
             </CardDescription>
           </CardHeader>
         </Card>
       </div>
 
-      <StatCard icon={<Moon className="text-primary" />} title="Avg Sleep" value="7.2h" />
-      <StatCard icon={<Flame className="text-primary" />} title="Active Calories" value="450" />
-      <StatCard icon={<HeartPulse className="text-primary" />} title="Resting HR" value="62 bpm" />
-      <StatCard icon={<Droplets className="text-primary" />} title="Hydration" value="1.8 L" />
+      <StatCard icon={<Moon className="text-primary" />} title="Sueño Promedio" value="7.2h" />
+      <StatCard icon={<Flame className="text-primary" />} title="Calorías Activas" value="450" />
+      <StatCard icon={<HeartPulse className="text-primary" />} title="FC en Reposo" value="62 bpm" />
+      <StatCard icon={<Droplets className="text-primary" />} title="Hidratación" value="1.8 L" />
 
       <SleepChart />
       
       <Card className="md:col-span-2 lg:col-span-2">
         <CardHeader>
-          <CardTitle>Activity Overview</CardTitle>
-          <CardDescription>Your daily goals progress.</CardDescription>
+          <CardTitle>Resumen de Actividad</CardTitle>
+          <CardDescription>El progreso de tus metas diarias.</CardDescription>
         </CardHeader>
         <CardContent className="flex justify-center items-center gap-4 pt-4">
-            <ActivityRing percentage={75} color="hsl(var(--primary))" label="Move" />
-            <ActivityRing percentage={60} color="hsl(var(--accent))" label="Exercise" />
-            <ActivityRing percentage={90} color="hsl(var(--chart-2))" label="Stand" />
+            <ActivityRing percentage={75} color="hsl(var(--primary))" label="Moverse" />
+            <ActivityRing percentage={60} color="hsl(var(--accent))" label="Ejercicio" />
+            <ActivityRing percentage={90} color="hsl(var(--chart-2))" label="Pararse" />
         </CardContent>
       </Card>
 

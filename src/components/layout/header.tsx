@@ -21,12 +21,12 @@ export function AppHeader() {
         <SidebarTrigger />
       </div>
       <div className="flex-1">
-        <h1 className="text-lg font-semibold tracking-tight">SoMetrik Dashboard</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Panel de SoMetrik</h1>
       </div>
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon">
           <Bell className="h-5 w-5" />
-          <span className="sr-only">Toggle notifications</span>
+          <span className="sr-only">Alternar notificaciones</span>
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -49,20 +49,20 @@ export function AppHeader() {
             <DropdownMenuSeparator />
             <DropdownMenuItem>
               <User className="mr-2 h-4 w-4" />
-              <span>Profile</span>
+              <span>Perfil</span>
             </DropdownMenuItem>
             <DropdownMenuItem>
               <Settings className="mr-2 h-4 w-4" />
-              <span>Settings</span>
+              <span>Configuración</span>
             </DropdownMenuItem>
             <DropdownMenuItem>
               <LifeBuoy className="mr-2 h-4 w-4" />
-              <span>Support</span>
+              <span>Soporte</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem>
               <LogOut className="mr-2 h-4 w-4" />
-              <span>Log out</span>
+              <span>Cerrar sesión</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

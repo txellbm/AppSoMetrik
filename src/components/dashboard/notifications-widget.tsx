@@ -20,10 +20,10 @@ const iconMap: { [key: string]: React.ReactNode } = {
 
 const getIconForNotification = (text: string) => {
     const lowerText = text.toLowerCase();
-    if (lowerText.includes('cycle') || lowerText.includes('period') || lowerText.includes('follicular')) return iconMap.cycle;
-    if (lowerText.includes('sleep')) return iconMap.sleep;
-    if (lowerText.includes('mood') || lowerText.includes('feeling')) return iconMap.mood;
-    if (lowerText.includes('workout') || lowerText.includes('pilates') || lowerText.includes('gym')) return iconMap.workout;
+    if (lowerText.includes('ciclo') || lowerText.includes('período') || lowerText.includes('folicular')) return iconMap.cycle;
+    if (lowerText.includes('sueño')) return iconMap.sleep;
+    if (lowerText.includes('ánimo') || lowerText.includes('sentimiento')) return iconMap.mood;
+    if (lowerText.includes('entrenamiento') || lowerText.includes('pilates') || lowerText.includes('gimnasio')) return iconMap.workout;
     return iconMap.default;
 };
 
@@ -36,10 +36,10 @@ export default function NotificationsWidget() {
             setIsLoading(true);
             try {
                 const result = await generatePersonalizedNotifications({
-                    cycles: "Follicular phase, day 8.",
-                    mood: "Feeling energetic and positive.",
-                    workouts: "Pilates session scheduled for tomorrow evening.",
-                    workSchedule: "Busy day with back-to-back meetings.",
+                    cycles: "Fase folicular, día 8.",
+                    mood: "Sintiéndose enérgica y positiva.",
+                    workouts: "Sesión de Pilates programada para mañana por la tarde.",
+                    workSchedule: "Día ocupado con reuniones consecutivas.",
                 });
                 const formattedNotifications = result.notifications.map(n => ({
                     text: n,
@@ -47,8 +47,8 @@ export default function NotificationsWidget() {
                 }));
                 setNotifications(formattedNotifications);
             } catch (error) {
-                console.error("Failed to fetch notifications:", error);
-                setNotifications([{ text: "Could not load notifications.", icon: iconMap.default }]);
+                console.error("No se pudieron obtener las notificaciones:", error);
+                setNotifications([{ text: "No se pudieron cargar las notificaciones.", icon: iconMap.default }]);
             } finally {
                 setIsLoading(false);
             }
@@ -60,8 +60,8 @@ export default function NotificationsWidget() {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>For You</CardTitle>
-                <CardDescription>Personalized insights and reminders.</CardDescription>
+                <CardTitle>Para Ti</CardTitle>
+                <CardDescription>Ideas y recordatorios personalizados.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="space-y-4">

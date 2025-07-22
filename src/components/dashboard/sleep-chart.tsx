@@ -10,21 +10,21 @@ import {
 } from "@/components/ui/card";
 
 const sleepData = [
-  { day: "Mon", hours: 6.5 },
-  { day: "Tue", hours: 7 },
-  { day: "Wed", hours: 8 },
-  { day: "Thu", hours: 7.5 },
-  { day: "Fri", hours: 6 },
-  { day: "Sat", hours: 9 },
-  { day: "Sun", hours: 8.5 },
+  { day: "Lun", hours: 6.5 },
+  { day: "Mar", hours: 7 },
+  { day: "Mié", hours: 8 },
+  { day: "Jue", hours: 7.5 },
+  { day: "Vie", hours: 6 },
+  { day: "Sáb", hours: 9 },
+  { day: "Dom", hours: 8.5 },
 ];
 
 export default function SleepChart() {
   return (
     <Card className="md:col-span-2 lg:col-span-2">
       <CardHeader>
-        <CardTitle>Sleep Analysis</CardTitle>
-        <CardDescription>Your sleep duration for the last 7 days.</CardDescription>
+        <CardTitle>Análisis de Sueño</CardTitle>
+        <CardDescription>La duración de tu sueño durante los últimos 7 días.</CardDescription>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={250}>

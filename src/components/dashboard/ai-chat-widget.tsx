@@ -38,7 +38,7 @@ export default function AIChatWidget() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Bot className="text-primary" />
-          AI Wellness Assistant
+          Asistente de Bienestar IA
         </CardTitle>
       </CardHeader>
       <CardContent className="flex-grow flex flex-col gap-4">
@@ -50,7 +50,7 @@ export default function AIChatWidget() {
               </Avatar>
               <div className="bg-muted p-3 rounded-lg max-w-xs">
                 <p className="text-sm">
-                  Hello! I'm your SoMetrik assistant. How can I help you understand your wellness data today?
+                  ¡Hola! Soy tu asistente SoMetrik. ¿Cómo puedo ayudarte a entender tus datos de bienestar hoy?
                 </p>
               </div>
             </div>
@@ -94,7 +94,7 @@ function ChatForm({ onNewMessage }: { onNewMessage: (message: Message) => void }
       const { response } = await aiAssistantChat(input);
       onNewMessage({ role: "assistant", content: response });
     } catch (e) {
-      onNewMessage({ role: "assistant", content: "Sorry, I encountered an error. Please try again." });
+      onNewMessage({ role: "assistant", content: "Lo siento, encontré un error. Por favor, inténtalo de nuevo." });
     }
   };
   
@@ -104,7 +104,7 @@ function ChatForm({ onNewMessage }: { onNewMessage: (message: Message) => void }
     <form ref={formRef} action={dispatch} className="flex items-center gap-2">
       <Input
         name="message"
-        placeholder="Ask about your health data..."
+        placeholder="Pregunta sobre tus datos de salud..."
         className="flex-grow"
         autoComplete="off"
       />

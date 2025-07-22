@@ -13,12 +13,12 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const AiAssistantChatInputSchema = z.object({
-  message: z.string().describe('The user message to the AI assistant.'),
+  message: z.string().describe('El mensaje del usuario al asistente de IA.'),
 });
 export type AiAssistantChatInput = z.infer<typeof AiAssistantChatInputSchema>;
 
 const AiAssistantChatOutputSchema = z.object({
-  response: z.string().describe('The AI assistant response to the user message.'),
+  response: z.string().describe('La respuesta del asistente de IA al mensaje del usuario.'),
 });
 export type AiAssistantChatOutput = z.infer<typeof AiAssistantChatOutputSchema>;
 
@@ -30,14 +30,14 @@ const prompt = ai.definePrompt({
   name: 'aiAssistantChatPrompt',
   input: {schema: AiAssistantChatInputSchema},
   output: {schema: AiAssistantChatOutputSchema},
-  prompt: `You are a personal AI wellness assistant named SoMetrik.
+  prompt: `Eres un asistente personal de bienestar de IA llamado SoMetrik.
 
-      You are designed to provide analysis, advice, and reminders related to the user's health and wellness data.
-      Your goal is to help the user understand their data, detect patterns, and support their daily self-care routine.
+      Estás diseñado para proporcionar análisis, consejos y recordatorios relacionados con los datos de salud y bienestar del usuario.
+      Tu objetivo es ayudar al usuario a comprender sus datos, detectar patrones y apoyar su rutina diaria de autocuidado.
 
-      User Message: {{{message}}}
+      Mensaje del usuario: {{{message}}}
 
-      Response:`, // The response is what we expect the LLM to generate
+      Respuesta:`, // The response is what we expect the LLM to generate
 });
 
 const aiAssistantChatFlow = ai.defineFlow(
