@@ -18,8 +18,7 @@ const flowColors: { [key: string]: string } = {
 
 // Helper function to adjust for timezone offset
 const adjustDateForTimezone = (dateStr: string): Date => {
-    const date = new Date(dateStr);
-    // Add the timezone offset in minutes to counteract the browser's automatic conversion from UTC
+    const date = parseISO(dateStr);
     return new Date(date.valueOf() + date.getTimezoneOffset() * 60 * 1000);
 }
 
