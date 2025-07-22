@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -8,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { HeartPulse, Moon, Flame, Droplets } from "lucide-react";
+import { HeartPulse, Moon, Flame, Droplets, Dumbbell } from "lucide-react";
 
 import AIChatWidget from "@/components/dashboard/ai-chat-widget";
 import DataActions from "@/components/dashboard/data-actions";
@@ -35,6 +36,10 @@ const initialHealthData: HealthData = {
     { day: "Sáb", hours: 9 },
     { day: "Dom", hours: 8.5 },
   ],
+  workoutSummary: {
+    totalDistance: 5.2,
+    totalCalories: 350,
+  }
 };
 
 export default function Home() {
@@ -75,6 +80,8 @@ export default function Home() {
             <ActivityRing percentage={healthData.standPercentage} color="hsl(var(--chart-2))" label="Pararse" />
         </CardContent>
       </Card>
+      
+      <WorkoutSummaryCard workoutSummary={healthData.workoutSummary} />
 
       <div className="md:col-span-2 lg:col-span-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
@@ -135,4 +142,28 @@ function ActivityRing({ percentage, color, label }: { percentage: number; color:
       <p className="text-sm font-medium text-muted-foreground">{label}</p>
     </div>
   )
+}
+
+function WorkoutSummaryCard({ workoutSummary }: { workoutSummary: HealthData['workoutSummary'] }) {
+    return (
+        <Card className="md:col-span-2 lg:col-span-2">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Dumbbell className="text-primary" />
+                    Resumen de Entrenamiento
+                </CardTitle>
+                <CardDescription>Tu actividad de entrenamiento de la semana.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-4 pt-4">
+                <div>
+                    <p className="text-sm text-muted-foreground">Distancia Total</p>
+                    <p className="text-2xl font-bold">{workoutSummary.totalDistance.toFixed(1)} km</p>
+                </div>
+                <div>
+                    <p className="text-sm text-muted-foreground">Calorías Totales</p>
+                    <p className="text-2xl font-bold">{workoutSummary.totalCalories} kcal</p>
+                </div>
+            </CardContent>
+        </Card>
+    );
 }

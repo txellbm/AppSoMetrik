@@ -5,7 +5,7 @@
  *
  * - processHealthDataFile - Una función que toma el contenido de un archivo y devuelve un resumen y datos estructurados.
  * - ProcessHealthDataFileInput - El tipo de entrada para la función.
- * - ProcessHealthDataFileOutput - El tipo de salida para la función.
+ * - ProcessHealthDataFileOutput - El tipo de salida para lación.
  */
 
 import {ai} from '@/ai/genkit';
@@ -30,6 +30,10 @@ const HealthDataSchema = z.object({
     day: z.string().describe("Día de la semana (ej. Lun, Mar)"),
     hours: z.number().describe("Horas de sueño para ese día"),
   })).describe('Datos de sueño de los últimos 7 días.'),
+  workoutSummary: z.object({
+    totalDistance: z.number().describe("La distancia total de entrenamiento en kilómetros."),
+    totalCalories: z.number().describe("El total de calorías quemadas durante los entrenamientos."),
+  }).describe("Un resumen de los datos de entrenamiento."),
 });
 
 const ProcessHealthDataFileOutputSchema = z.object({
@@ -56,6 +60,7 @@ const prompt = ai.definePrompt({
 
 Para los datos de sueño, proporciona los datos de los últimos 7 días. Si hay más, utiliza los 7 más recientes. Los días deben ser abreviaturas (Lun, Mar, Mié, Jue, Vie, Sáb, Dom).
 Calcula los porcentajes de los anillos de actividad basándote en objetivos estándar (p. ej., 600 calorías para moverse, 30 minutos para ejercicio, 12 horas para pararse). Si los datos no están disponibles, haz una estimación razonable.
+Extrae los datos de entrenamiento, como la distancia y las calorías quemadas, para rellenar el objeto workoutSummary. Si los datos no están disponibles, proporciona una estimación razonable.
 
 Contenido del Archivo:
 {{{fileContent}}}
