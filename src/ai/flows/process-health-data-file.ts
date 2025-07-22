@@ -24,15 +24,15 @@ const prompt = ai.definePrompt({
 
 **Instrucciones Clave:**
 1.  **Detección del Tipo de Archivo**: Analiza las cabeceras (para CSV) o la estructura (para JSON) para identificar el tipo de datos. Los nombres de archivo como 'AutoSleep', 'HeartWatch' o 'measurements.json' son pistas importantes.
-2.  **Extracción Precisa**: Presta mucha atención a las unidades y formatos. Convierte duraciones a horas o minutos según corresponda. Asegúrate de que los campos numéricos (calorías, distancia, HRV) se procesen como números (por ejemplo, usando parseFloat), no como texto. Si un valor no está presente o es inválido (ej. 'unknown'), usa los valores por defecto del esquema (ej. 0).
+2.  **Extracción Precisa**: Presta mucha atención a las unidades y formatos. Convierte duraciones a horas o minutos según corresponda. Asegúrate de que los campos numéricos (calorías, distancia, HRV, calidad, respiración) se procesen como números (por ejemplo, usando parseFloat), no como texto. Si un valor no está presente o es inválido (ej. 'unknown', 'N/A'), usa los valores por defecto del esquema (ej. 0). No dejes campos como NaN.
 3.  **Manejo de Archivos Específicos**:
-    *   **AutoSleep CSV**: Extrae 'Sleep Session End Date', 'inBed', 'awake', 'deep', 'light', 'rem', 'quality'. Calcula la duración total del sueño ('totalSleep') sumando 'deep', 'light' y 'rem'.
-    *   **HeartWatch CSV**: Extrae 'Date', 'Heart Rate Resting', 'HRV', 'Respiration'.
+    *   **AutoSleep CSV**: Extrae 'Sleep Session End Date', 'inBed', 'awake', 'deep', 'light', 'rem', 'quality' (calidad). Calcula la duración total del sueño ('totalSleep') sumando 'deep', 'light' y 'rem'.
+    *   **HeartWatch CSV**: Extrae 'Date', 'Heart Rate Resting', 'HRV', 'Respiration' (Frecuencia Respiratoria). Estos datos a menudo se corresponden con una fecha de sueño. Intenta asociarlos a la entrada de sueño correcta si es posible.
     *   **HeartWatch Entrenamientos CSV**: Extrae 'Date', 'Activity', 'Duration (mins)', 'Active Calories', 'Distance (km)'.
     *   **measurements.json (Clue)**: Procesa cada entrada. Si 'type' es 'period', extrae 'date' y 'value.option' (que corresponde al 'flow'). El 'dayOfCycle' y la 'phase' deberán ser calculados posteriormente, pero puedes dejar los valores por defecto.
 4.  **Generación de Respuesta**:
     -   Crea un resumen de 1-2 frases sobre el contenido del archivo.
-    -   **IMPORTANTE**: Rellena los arrays correspondientes en el objeto de salida ('workouts', 'sleepData', 'menstrualData'). Si un archivo solo contiene datos de sueño, el array 'workouts' debe estar vacío.
+    -   **IMPORTANTE**: Rellena los arrays correspondientes en el objeto de salida ('workouts', 'sleepData', 'menstrualData'). Si un archivo solo contiene datos de sueño, el array 'workouts' y 'menstrualData' deben estar vacíos.
     -   Tu respuesta final debe ser **únicamente** el objeto JSON que se adhiere al esquema. No incluyas ningún texto, explicación o carácter adicional fuera del JSON.
 
 **Contenido del Archivo (Pista de nombre: \`{{{fileName}}}\`):**

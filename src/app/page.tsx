@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { HeartPulse, Moon, Flame, Droplets, Dumbbell, FileText, Activity, ShieldCheck, Heart, Stethoscope, BrainCircuit, Wind, Calendar } from "lucide-react";
+import { HeartPulse, Moon, Flame, Droplets, Dumbbell, FileText, Activity, ShieldCheck, Heart, Stethoscope, BrainCircuit, Wind, Calendar, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -184,9 +184,9 @@ export default function Home() {
 
   // Calculate aggregate metrics for StatCards
   const avgSleep = dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + s.totalSleep, 0) / dashboardData.sleepData.length : 0;
-  const totalCalories = dashboardData.workouts.reduce((acc, w) => acc + w.calories, 0);
   const avgRestingHR = dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + (s.restingHeartRate || 0), 0) / dashboardData.sleepData.filter(s => s.restingHeartRate).length : 0;
   const avgHRV = dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + (s.hrv || 0), 0) / dashboardData.sleepData.filter(s => s.hrv).length : 0;
+  const avgSleepQuality = dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + s.quality, 0) / dashboardData.sleepData.filter(s => s.quality).length : 0;
   const latestMenstrualData = dashboardData.menstrualData.length > 0 ? dashboardData.menstrualData.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] : null;
 
 
@@ -197,28 +197,17 @@ export default function Home() {
           <CardHeader>
             <CardTitle className="text-2xl font-bold text-primary">Bienvenido a SoMetrik</CardTitle>
             <CardDescription>
-              Tu asistente personal de bienestar IA. Aquí tienes un resumen de tu semana.
+              Tu asistente personal de bienestar IA. Aquí tienes un resumen de tus métricas clave.
             </CardDescription>
           </CardHeader>
         </Card>
 
-        <Card>
-            <CardHeader>
-                <CardTitle>Panel de Salud y Bienestar</CardTitle>
-                <CardDescription>Métricas clave de tu salud general.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                <StatCard icon={<Moon className="text-primary" />} title="Sueño Promedio" value={`${!isNaN(avgSleep) ? avgSleep.toFixed(1) : '0.0'}h`} />
-                <StatCard icon={<Flame className="text-primary" />} title="Calorías Activas" value={String(totalCalories || 0)} />
-                <StatCard icon={<HeartPulse className="text-primary" />} title="FC en Reposo" value={`${!isNaN(avgRestingHR) ? avgRestingHR.toFixed(0) : '0'} bpm`} />
-                <StatCard icon={<Droplets className="text-primary" />} title="Hidratación" value={`N/A`} />
-                <StatCard icon={<Activity className="text-primary" />} title="VFC (HRV)" value={`${!isNaN(avgHRV) ? avgHRV.toFixed(1) : '0.0'} ms`} />
-                <StatCard icon={<ShieldCheck className="text-primary" />} title="Recuperación" value={`N/A`} />
-                <StatCard icon={<Wind className="text-primary" />} title="Respiración" value={`N/A`} />
-                <StatCard icon={<BrainCircuit className="text-primary" />} title="Nivel Energía" value={`N/A`} />
-                <StatCard icon={<Calendar className="text-primary" />} title="Fase Actual" value={latestMenstrualData?.currentPhase || "N/A"} />
-            </CardContent>
-        </Card>
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
+             <StatCard icon={<HeartPulse className="text-primary" />} title="FC en Reposo" value={`${!isNaN(avgRestingHR) ? avgRestingHR.toFixed(0) : '0'} bpm`} description="Promedio semanal" />
+             <StatCard icon={<Activity className="text-primary" />} title="VFC (HRV)" value={`${!isNaN(avgHRV) ? avgHRV.toFixed(1) : '0'} ms`} description="Promedio semanal" />
+             <StatCard icon={<Zap className="text-primary" />} title="Calidad Sueño" value={`${!isNaN(avgSleepQuality) ? avgSleepQuality.toFixed(0) : '0'}%`} description="Promedio semanal" />
+             <StatCard icon={<Calendar className="text-primary" />} title="Fase Actual" value={latestMenstrualData?.currentPhase || "N/A"} description={latestMenstrualData ? `Día ${latestMenstrualData.currentDay}`: "Sin datos"} />
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <SleepChart data={dashboardData.sleepData} />
@@ -274,16 +263,17 @@ export default function Home() {
   );
 }
 
-function StatCard({ icon, title, value }: { icon: React.ReactNode; title: string; value: string }) {
+function StatCard({ icon, title, value, description }: { icon: React.ReactNode; title: string; value: string, description: string }) {
   return (
-    <Card className="text-center flex-1">
-      <CardHeader className="flex flex-col items-center justify-center space-y-2 pb-2">
-        {icon}
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-      </CardContent>
+    <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{title}</CardTitle>
+            {icon}
+        </CardHeader>
+        <CardContent>
+            <div className="text-2xl font-bold">{value}</div>
+            <p className="text-xs text-muted-foreground">{description}</p>
+        </CardContent>
     </Card>
   );
 }
@@ -295,7 +285,7 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
   
   const startOfLastWeek = startOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
   const endOfLastWeek = endOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
-
+    
   const thisWeekWorkouts = workouts
     .filter(w => isWithinInterval(parseISO(w.date), { start: startOfThisWeek, end: endOfThisWeek }))
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
