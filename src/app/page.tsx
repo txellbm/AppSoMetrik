@@ -73,8 +73,14 @@ export default function Home() {
         const newWorkouts = newHealth.workouts.filter(w => !existingWorkoutKeys.has(`${w.date}-${w.name}-${w.startTime}`));
 
         // Average non-zero metrics
-        const updateAverage = (oldVal: number, newVal: number) => (oldVal > 0 && newVal > 0) ? (oldVal + newVal) / 2 : (oldVal > 0 ? oldVal : newVal);
-
+        const updateAverage = (oldVal: number, newVal: number) => {
+            const oldIsValid = typeof oldVal === 'number' && oldVal > 0;
+            const newIsValid = typeof newVal === 'number' && newVal > 0;
+            if (oldIsValid && newIsValid) return (oldVal + newVal) / 2;
+            if (newIsValid) return newVal;
+            return oldVal;
+        };
+        
         acc.averageSleep = updateAverage(acc.averageSleep, newHealth.averageSleep);
         acc.restingHeartRate = updateAverage(acc.restingHeartRate, newHealth.restingHeartRate);
         acc.hrv = updateAverage(acc.hrv, newHealth.hrv);
@@ -108,7 +114,10 @@ export default function Home() {
 
       // Clean up averages for display
       if (combinedData.sleepData.length > 0) {
-        combinedData.averageSleep = combinedData.sleepData.reduce((sum, s) => sum + s.hours, 0) / combinedData.sleepData.length;
+        const totalSleepHours = combinedData.sleepData.reduce((sum, s) => sum + s.hours, 0);
+        if (totalSleepHours > 0) {
+            combinedData.averageSleep = totalSleepHours / combinedData.sleepData.length;
+        }
       }
 
       return combinedData;
@@ -124,7 +133,7 @@ export default function Home() {
         const workoutDetails = healthData.workouts.map(w => `${w.date} - ${w.name}: ${w.distance.toFixed(1)}km, ${w.calories}kcal, ${w.duration}, ${w.averageHeartRate}bpm (Inicio: ${w.startTime}, Fin: ${w.endTime})`).join('; ');
         const input: HealthSummaryInput = {
             sleepData: `Sueño promedio: ${healthData.averageSleep.toFixed(1)}h. Datos de los últimos días: ${healthData.sleepData.map(d => `${d.day}: ${d.hours}h`).join(', ')}`,
-            exerciseData: `Calorías activas: ${healthData.activeCalories}, Entrenamientos: ${workoutDetails}. Anillos: Moverse ${healthData.movePercentage}%, Ejercicio ${healthData.exercisePercentage}%, Pararse ${healthData.standPercentage}%`,
+            exerciseData: `Calorías activas: ${healthData.activeCalories}, Entrenamientos: ${workoutDetails}. Anillos: Moverse ${healthData.movePercentage}% Ejercicio ${healthData.exercisePercentage}% Pararse ${healthData.standPercentage}%`,
             heartRateData: `Frecuencia cardíaca en reposo: ${healthData.restingHeartRate.toFixed(0)} bpm. VFC: ${healthData.hrv.toFixed(1)} ms. Recuperación: ${healthData.recoveryPercentage.toFixed(0)}%. Respiración: ${healthData.respiration.toFixed(1)} rpm. Nivel de energía: ${healthData.energyLevel.toFixed(0)}%`,
             menstruationData: `Fase del ciclo: ${healthData.menstrualCyclePhase}.`,
             supplementData: "No hay datos de suplementos disponibles.",
@@ -326,7 +335,7 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
             {workouts.length > 0 ? (
               workouts.map((workout, index) => (
                 <TableRow key={index}>
-                  <TableCell>{new Date(workout.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' })}</TableCell>
+                  <TableCell>{new Date(workout.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</TableCell>
                   <TableCell className="font-medium">{workout.name}</TableCell>
                   <TableCell>{workout.startTime}</TableCell>
                   <TableCell>{workout.endTime}</TableCell>
@@ -349,5 +358,3 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
     </Card>
   );
 }
-
-    

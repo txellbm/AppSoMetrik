@@ -37,33 +37,33 @@ export type ProcessHealthDataFileInput = z.infer<
 const WorkoutSchema = z.object({
   date: z.string().describe("La fecha del entrenamiento (ej. 2023-10-27)."),
   name: z.string().describe("El nombre o tipo de entrenamiento (ej. Correr, Ciclismo)."),
-  distance: z.number().describe("La distancia del entrenamiento en kilómetros."),
-  calories: z.number().describe("Las calorías quemadas durante el entrenamiento."),
-  duration: z.string().describe("La duración del entrenamiento en formato hh:mm:ss."),
-  averageHeartRate: z.number().describe("La frecuencia cardíaca promedio durante el entrenamiento en lpm."),
-  startTime: z.string().describe("La hora de inicio del entrenamiento (ej. '18:30:05')."),
-  endTime: z.string().describe("La hora de finalización del entrenamiento (ej. '19:30:10')."),
+  distance: z.number().describe("La distancia del entrenamiento en kilómetros.").default(0),
+  calories: z.number().describe("Las calorías quemadas durante el entrenamiento.").default(0),
+  duration: z.string().describe("La duración del entrenamiento en formato hh:mm:ss.").default("00:00:00"),
+  averageHeartRate: z.number().describe("La frecuencia cardíaca promedio durante el entrenamiento en lpm.").default(0),
+  startTime: z.string().describe("La hora de inicio del entrenamiento (ej. '18:30:05').").default("00:00:00"),
+  endTime: z.string().describe("La hora de finalización del entrenamiento (ej. '19:30:10').").default("00:00:00"),
 });
 export type Workout = z.infer<typeof WorkoutSchema>;
 
 export const HealthDataSchema = z.object({
-  averageSleep: z.number().describe('Las horas de sueño promedio.'),
-  activeCalories: z.number().describe('Las calorías activas quemadas.'),
-  restingHeartRate: z.number().describe('La frecuencia cardíaca en reposo en lpm.'),
-  hydrationLiters: z.number().describe('La ingesta de hidratación en litros.'),
+  averageSleep: z.number().describe('Las horas de sueño promedio.').default(0),
+  activeCalories: z.number().describe('Las calorías activas quemadas.').default(0),
+  restingHeartRate: z.number().describe('La frecuencia cardíaca en reposo en lpm.').default(0),
+  hydrationLiters: z.number().describe('La ingesta de hidratación en litros.').default(0),
   hrv: z.number().describe("La variabilidad de la frecuencia cardíaca (VFC) en ms.").default(0),
   recoveryPercentage: z.number().describe("El porcentaje de recuperación (ej. 85 para 85%).").default(0),
   respiration: z.number().describe("La frecuencia respiratoria promedio en respiraciones por minuto (rpm).").default(0),
   energyLevel: z.number().describe("El nivel de energía estimado (%).").default(0),
   menstrualCyclePhase: z.string().describe("La fase actual del ciclo menstrual (ej. Folicular, Lútea, Menstruación).").default("No disponible"),
-  movePercentage: z.number().describe('El porcentaje del objetivo de movimiento.'),
-  exercisePercentage: z.number().describe('El porcentaje del objetivo de ejercicio.'),
-  standPercentage: z.number().describe('El porcentaje del objetivo de pararse.'),
+  movePercentage: z.number().describe('El porcentaje del objetivo de movimiento.').default(0),
+  exercisePercentage: z.number().describe('El porcentaje del objetivo de ejercicio.').default(0),
+  standPercentage: z.number().describe('El porcentaje del objetivo de pararse.').default(0),
   sleepData: z.array(z.object({
     day: z.string().describe("Día de la semana (ej. Lun, Mar)"),
     hours: z.number().describe("Horas de sueño para ese día"),
-  })).describe('Datos de sueño de los últimos 7 días.'),
-  workouts: z.array(WorkoutSchema).describe("Una lista de los entrenamientos realizados."),
+  })).describe('Datos de sueño de los últimos 7 días.').default([]),
+  workouts: z.array(WorkoutSchema).describe("Una lista de los entrenamientos realizados.").default([]),
 });
 export type HealthData = z.infer<typeof HealthDataSchema>;
 
