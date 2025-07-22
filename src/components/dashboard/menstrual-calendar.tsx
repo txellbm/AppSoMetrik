@@ -7,7 +7,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Stethoscope, Droplet } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import * as React from "react";
-import { addDays, parseISO } from "date-fns";
+import { parseISO } from "date-fns";
 
 const flowColors: { [key: string]: string } = {
   spotting: 'text-red-300',
@@ -15,6 +15,13 @@ const flowColors: { [key: string]: string } = {
   medium: 'text-red-500',
   heavy: 'text-red-600',
 };
+
+// Helper function to adjust for timezone offset
+const adjustDateForTimezone = (dateStr: string): Date => {
+    const date = new Date(dateStr);
+    // Add the timezone offset in minutes to counteract the browser's automatic conversion from UTC
+    return new Date(date.valueOf() + date.getTimezoneOffset() * 60 * 1000);
+}
 
 export default function MenstrualCalendar({ data }: { data: MenstrualCycleData[] }) {
   const [date, setDate] = React.useState<Date | undefined>(new Date());
@@ -39,9 +46,8 @@ export default function MenstrualCalendar({ data }: { data: MenstrualCycleData[]
   }
 
   const modifiers = data.reduce((acc, entry) => {
-    // Dates from firestore are strings, so we need to parse them.
-    // Also, Firestore dates might be off by one day due to timezone issues, so we adjust.
-    const date = addDays(parseISO(entry.date), 1);
+    // Dates from firestore are strings, so we need to parse them and adjust for timezone.
+    const date = adjustDateForTimezone(entry.date);
     if (entry.flow) {
       acc[entry.flow] = [...(acc[entry.flow] || []), date];
     }
@@ -57,7 +63,7 @@ export default function MenstrualCalendar({ data }: { data: MenstrualCycleData[]
 
   const DayWithFlow = ({ date }: { date: Date }) => {
     const entryForDay = data.find(d => {
-        const entryDate = addDays(parseISO(d.date), 1);
+        const entryDate = adjustDateForTimezone(d.date);
         return entryDate.getDate() === date.getDate() &&
                entryDate.getMonth() === date.getMonth() &&
                entryDate.getFullYear() === date.getFullYear();
