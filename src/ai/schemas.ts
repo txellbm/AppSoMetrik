@@ -40,6 +40,8 @@ const WorkoutSchema = z.object({
   calories: z.number().describe("Las calorías quemadas durante el entrenamiento."),
   duration: z.number().describe("La duración del entrenamiento en horas."),
   averageHeartRate: z.number().describe("La frecuencia cardíaca promedio durante el entrenamiento en lpm."),
+  startTime: z.string().describe("La hora de inicio del entrenamiento (ej. 18:30)."),
+  endTime: z.string().describe("La hora de finalización del entrenamiento (ej. 19:30)."),
 });
 export type Workout = z.infer<typeof WorkoutSchema>;
 
