@@ -45,7 +45,7 @@ import AIChatWidget from "@/components/dashboard/ai-chat-widget";
 import DataActions from "@/components/dashboard/data-actions";
 import NotificationsWidget from "@/components/dashboard/notifications-widget";
 import SleepChart from "@/components/dashboard/sleep-chart";
-import MenstrualCalendar from "@/components/dashboard/menstrual-calendar";
+import MenstrualCyclePanel from "@/components/dashboard/menstrual-cycle-panel";
 import { collection, writeBatch, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { startOfWeek, endOfWeek, subWeeks, isWithinInterval, parseISO } from "date-fns";
@@ -187,7 +187,7 @@ export default function Home() {
   const avgRestingHR = dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + (s.restingHeartRate || 0), 0) / dashboardData.sleepData.filter(s => s.restingHeartRate).length : 0;
   const avgHRV = dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + (s.hrv || 0), 0) / dashboardData.sleepData.filter(s => s.hrv).length : 0;
   const avgSleepQuality = dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + s.quality, 0) / dashboardData.sleepData.filter(s => s.quality).length : 0;
-  const latestMenstrualData = dashboardData.menstrualData.length > 0 ? dashboardData.menstrualData.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] : null;
+  const latestMenstrualData = dashboardData.menstrualData.length > 0 ? [...dashboardData.menstrualData].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] : null;
 
 
   return (
@@ -214,7 +214,7 @@ export default function Home() {
 
             <WorkoutSummaryCard workouts={dashboardData.workouts} />
 
-            <MenstrualCalendar data={dashboardData.menstrualData} />
+            <MenstrualCyclePanel data={latestMenstrualData} />
 
             <div className="md:col-span-2 lg:col-span-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
