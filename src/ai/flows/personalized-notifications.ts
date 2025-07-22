@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -12,10 +13,10 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const PersonalizedNotificationsInputSchema = z.object({
-  cycles: z.string().describe('Información sobre los ciclos del usuario (por ejemplo, ciclo menstrual).'),
-  mood: z.string().describe('El estado de ánimo actual del usuario.'),
-  workouts: z.string().describe('Información sobre el horario de entrenamiento del usuario.'),
-  workSchedule: z.string().describe('El horario de trabajo del usuario.'),
+  cycles: z.string().describe('Un resumen del estado actual del usuario, incluyendo ciclo menstrual, sueño y actividad física reciente.'),
+  mood: z.string().describe('El estado de ánimo actual del usuario (puede no estar disponible).'),
+  workouts: z.string().describe('Información sobre el horario de entrenamiento del usuario (puede no estar disponible).'),
+  workSchedule: z.string().describe('El horario de trabajo del usuario (puede no estar disponible).'),
 });
 export type PersonalizedNotificationsInput = z.infer<
   typeof PersonalizedNotificationsInputSchema
@@ -24,7 +25,7 @@ export type PersonalizedNotificationsInput = z.infer<
 const PersonalizedNotificationsOutputSchema = z.object({
   notifications: z
     .array(z.string())
-    .describe('Un array de mensajes de notificación personalizados.'),
+    .describe('Un array de 2-3 mensajes de notificación personalizados, cortos y accionables.'),
 });
 export type PersonalizedNotificationsOutput = z.infer<
   typeof PersonalizedNotificationsOutputSchema
@@ -40,16 +41,13 @@ const prompt = ai.definePrompt({
   name: 'personalizedNotificationsPrompt',
   input: {schema: PersonalizedNotificationsInputSchema},
   output: {schema: PersonalizedNotificationsOutputSchema},
-  prompt: `Eres un asistente personal de salud y bienestar. Basado en los
-  ciclos, estado de ánimo, entrenamientos y horario de trabajo del usuario, genera una lista de
-  notificaciones personalizadas para ayudarle a gestionar su salud y bienestar.
+  prompt: `Eres un asistente personal de salud y bienestar conciso, proactivo y amigable.
+  Tu tarea es generar 2 o 3 notificaciones cortas, relevantes y accionables para la usuaria basándote en el siguiente contexto.
+  Céntrate en dar consejos prácticos y oportunos que ella pueda aplicar hoy. Evita ser demasiado genérico.
 
-  Ciclos: {{{cycles}}}
-  Estado de ánimo: {{{mood}}}
-  Entrenamientos: {{{workouts}}}
-  Horario de trabajo: {{{workSchedule}}}
+  Contexto de la usuaria: {{{cycles}}}
 
-  Notificaciones:`,
+  Genera las notificaciones:`,
 });
 
 const personalizedNotificationsFlow = ai.defineFlow(

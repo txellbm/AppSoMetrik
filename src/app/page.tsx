@@ -49,7 +49,7 @@ import MenstrualCyclePanel from "@/components/dashboard/menstrual-cycle-panel";
 import MenstrualCalendar from "@/components/dashboard/menstrual-calendar";
 import { collection, writeBatch, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { startOfWeek, endOfWeek, subWeeks, isWithinInterval, parseISO } from "date-fns";
+import { startOfWeek, endOfWeek, subWeeks, isWithinInterval, parseISO, differenceInDays, startOfToday } from "date-fns";
 import { doc } from "firebase/firestore";
 
 const initialDashboardData: DashboardData = {
@@ -190,19 +190,63 @@ export default function Home() {
   const avgSleepQuality = dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + s.quality, 0) / dashboardData.sleepData.filter(s => s.quality).length : 0;
 
   const calculatedCycleData = useMemo<CalculatedCycleData>(() => {
-    if (dashboardData.menstrualData.length === 0) {
+    const sortedData = [...dashboardData.menstrualData]
+        .filter(d => d.flow && d.flow !== 'spotting')
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    if (sortedData.length === 0) {
       return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
     }
-    // Sort by date descending to find the latest entry
-    const sortedData = [...dashboardData.menstrualData].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    const latestEntry = sortedData[0];
+
+    // Find the start of the most recent period
+    let lastPeriodStartDate: Date | null = null;
+    let consecutiveDays: Date[] = [];
+
+    if (sortedData.length > 0) {
+        const firstEntryDate = parseISO(sortedData[0].date);
+        consecutiveDays.push(firstEntryDate);
+
+        for (let i = 1; i < sortedData.length; i++) {
+            const currentDate = parseISO(sortedData[i].date);
+            const prevDate = parseISO(sortedData[i - 1].date);
+            if (differenceInDays(prevDate, currentDate) === 1) {
+                consecutiveDays.push(currentDate);
+            } else {
+                // Break when we find a gap, meaning a new period cycle
+                break;
+            }
+        }
+        lastPeriodStartDate = consecutiveDays[consecutiveDays.length - 1];
+    }
+
+
+    if (!lastPeriodStartDate) {
+        return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
+    }
+
+    const today = startOfToday();
+    const currentDay = differenceInDays(today, lastPeriodStartDate) + 1;
     
-    // This is a placeholder logic and needs to be improved
-    // For now, it just shows the data from the latest entry
+    let currentPhase = "No disponible";
+    const isBleedingToday = dashboardData.menstrualData.some(d => parseISO(d.date).getTime() === today.getTime() && d.flow && d.flow !== 'spotting');
+
+    if (isBleedingToday || (currentDay >= 1 && currentDay <= 7)) { // Assuming period lasts up to 7 days
+        currentPhase = "Menstruación";
+    } else if (currentDay > 7 && currentDay < 14) {
+        currentPhase = "Folicular";
+    } else if (currentDay >= 14 && currentDay <= 15) {
+        currentPhase = "Ovulación";
+    } else if (currentDay > 15) {
+        currentPhase = "Lútea";
+    }
+    
+    // Placeholder for symptoms, should be fetched for the current day
+    const symptomsToday = dashboardData.menstrualData.find(d => parseISO(d.date).getTime() === today.getTime())?.symptoms || [];
+
     return {
-      currentDay: latestEntry.currentDay || 0,
-      currentPhase: latestEntry.currentPhase || "No disponible",
-      symptoms: latestEntry.symptoms || [],
+      currentDay: currentDay,
+      currentPhase: currentPhase,
+      symptoms: symptomsToday
     };
   }, [dashboardData.menstrualData]);
 
@@ -243,7 +287,11 @@ export default function Home() {
                     <AIChatWidget />
                 </div>
               <div className="lg:col-span-1 space-y-6">
-                <NotificationsWidget />
+                <NotificationsWidget
+                    sleepData={dashboardData.sleepData}
+                    workoutData={dashboardData.workouts}
+                    cycleData={calculatedCycleData}
+                />
                 <DataActions onDataProcessed={handleDataProcessed} onGenerateReport={handleGenerateReport} />
               </div>
             </div>
@@ -309,15 +357,33 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
   const endOfLastWeek = endOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
     
   const thisWeekWorkouts = workouts
-    .filter(w => isWithinInterval(parseISO(w.date), { start: startOfThisWeek, end: endOfThisWeek }))
+    .filter(w => {
+        try {
+            return isWithinInterval(parseISO(w.date), { start: startOfThisWeek, end: endOfThisWeek })
+        } catch {
+            return false;
+        }
+    })
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const lastWeekWorkouts = workouts
-    .filter(w => isWithinInterval(parseISO(w.date), { start: startOfLastWeek, end: endOfLastWeek }))
+    .filter(w => {
+        try {
+            return isWithinInterval(parseISO(w.date), { start: startOfLastWeek, end: endOfLastWeek })
+        } catch {
+            return false;
+        }
+    })
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     
   const olderWorkouts = workouts
-    .filter(w => !isWithinInterval(parseISO(w.date), { start: startOfLastWeek, end: endOfThisWeek }))
+    .filter(w => {
+        try {
+            return !isWithinInterval(parseISO(w.date), { start: startOfLastWeek, end: endOfThisWeek })
+        } catch {
+            return false;
+        }
+    })
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const WorkoutTable = ({ data }: { data: Workout[] }) => (
@@ -387,5 +453,6 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
     
 
     
+
 
 
