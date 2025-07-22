@@ -69,16 +69,29 @@ export default function Home() {
   const [reportContent, setReportContent] = useState("");
   const [isReportLoading, setIsReportLoading] = useState(false);
   const { toast } = useToast();
-  
-  const userId = "user_test_id"; // In a real app, this would be dynamic
+
+  const userId = "user_test_id";
 
   useEffect(() => {
+    // Try to load data from localStorage first for faster development reloads
+    const savedData = localStorage.getItem(`healthData_${userId}`);
+    if (savedData) {
+      setHealthData(JSON.parse(savedData));
+    }
+
+    // Set up Firestore listener
     const docRef = doc(db, "healthData", userId);
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
-        setHealthData(docSnap.data() as HealthData);
+        const dataFromFirestore = docSnap.data() as HealthData;
+        setHealthData(dataFromFirestore);
+        // Also update localStorage with the latest from Firestore
+        localStorage.setItem(`healthData_${userId}`, JSON.stringify(dataFromFirestore));
       } else {
         console.log("No health data found in Firestore for this user.");
+        // If nothing in Firestore, ensure we start with initial data and clear localStorage
+        setHealthData(initialHealthData);
+        localStorage.removeItem(`healthData_${userId}`);
       }
     });
 
@@ -87,12 +100,18 @@ export default function Home() {
 
 
   const handleDataProcessed = async (processedData: ProcessHealthDataFileOutput[]) => {
-    const newHealthData = processedData.reduce((acc, current) => {
-      const { healthData: newHealth } = current;
-      
-      const existingWorkoutKeys = new Set(acc.workouts.map(w => `${w.date}-${w.name}-${w.startTime}`));
-      const newWorkouts = newHealth.workouts.filter(w => !existingWorkoutKeys.has(`${w.date}-${w.name}-${w.startTime}`));
+    // Create a deep copy of the current health data to avoid direct state mutation
+    const newHealthData = JSON.parse(JSON.stringify(healthData));
 
+    processedData.forEach(current => {
+      const { healthData: newHealth } = current;
+
+      // Consolidate workouts, avoiding duplicates
+      const existingWorkoutKeys = new Set(newHealthData.workouts.map((w: Workout) => `${w.date}-${w.name}-${w.startTime}`));
+      const newWorkouts = newHealth.workouts.filter(w => !existingWorkoutKeys.has(`${w.date}-${w.name}-${w.startTime}`));
+      newHealthData.workouts.push(...newWorkouts);
+
+      // Helper to average metrics, ignoring zeros or invalid values
       const updateAverage = (oldVal: number, newVal: number) => {
           const oldIsValid = typeof oldVal === 'number' && oldVal > 0;
           const newIsValid = typeof newVal === 'number' && newVal > 0;
@@ -100,53 +119,63 @@ export default function Home() {
           if (newIsValid) return newVal;
           return oldVal;
       };
-      
-      acc.averageSleep = updateAverage(acc.averageSleep, newHealth.averageSleep);
-      acc.restingHeartRate = updateAverage(acc.restingHeartRate, newHealth.restingHeartRate);
-      acc.hrv = updateAverage(acc.hrv, newHealth.hrv);
-      acc.recoveryPercentage = updateAverage(acc.recoveryPercentage, newHealth.recoveryPercentage);
-      acc.respiration = updateAverage(acc.respiration, newHealth.respiration);
-      acc.energyLevel = updateAverage(acc.energyLevel, newHealth.energyLevel);
-      
+
+      // Update averages
+      newHealthData.averageSleep = updateAverage(newHealthData.averageSleep, newHealth.averageSleep);
+      newHealthData.restingHeartRate = updateAverage(newHealthData.restingHeartRate, newHealth.restingHeartRate);
+      newHealthData.hrv = updateAverage(newHealthData.hrv, newHealth.hrv);
+      newHealthData.recoveryPercentage = updateAverage(newHealthData.recoveryPercentage, newHealth.recoveryPercentage);
+      newHealthData.respiration = updateAverage(newHealthData.respiration, newHealth.respiration);
+      newHealthData.energyLevel = updateAverage(newHealthData.energyLevel, newHealth.energyLevel);
+
+      // Update menstrual cycle data if new data is valid
       if (newHealth.menstrualCycleData && newHealth.menstrualCycleData.currentPhase !== "No disponible") {
-        acc.menstrualCycleData = newHealth.menstrualCycleData;
+        newHealthData.menstrualCycleData = newHealth.menstrualCycleData;
       }
-      
-      acc.activeCalories += newHealth.activeCalories;
-      acc.hydrationLiters += newHealth.hydrationLiters;
-      
-      if (newHealth.movePercentage > 0) acc.movePercentage = newHealth.movePercentage;
-      if (newHealth.exercisePercentage > 0) acc.exercisePercentage = newHealth.exercisePercentage;
-      if (newHealth.standPercentage > 0) acc.standPercentage = newHealth.standPercentage;
-      
-      const sleepMap = new Map((acc.sleepData || []).map(s => [s.day, s.hours]));
+
+      // Sum cumulative data
+      newHealthData.activeCalories += newHealth.activeCalories;
+      newHealthData.hydrationLiters += newHealth.hydrationLiters;
+
+      // Update percentages if they are provided
+      if (newHealth.movePercentage > 0) newHealthData.movePercentage = newHealth.movePercentage;
+      if (newHealth.exercisePercentage > 0) newHealthData.exercisePercentage = newHealth.exercisePercentage;
+      if (newHealth.standPercentage > 0) newHealthData.standPercentage = newHealth.standPercentage;
+
+      // Consolidate sleep data for the last 7 days
+      const sleepMap = new Map((newHealthData.sleepData || []).map((s: SleepEntry) => [s.day, s.hours]));
       if (Array.isArray(newHealth.sleepData)) {
           newHealth.sleepData.forEach(s => sleepMap.set(s.day, s.hours));
       }
-      acc.sleepData = Array.from(sleepMap, ([day, hours]) => ({ day, hours })).slice(-7);
-
-      acc.workouts.push(...newWorkouts);
-
-      return acc;
-
-    }, { ...healthData, workouts: [...healthData.workouts], sleepData: [...(healthData.sleepData || [])] });
-
+      newHealthData.sleepData = Array.from(sleepMap, ([day, hours]) => ({ day, hours })).slice(-7);
+    });
+    
+    // Recalculate average sleep from consolidated data
     if (newHealthData.sleepData && newHealthData.sleepData.length > 0) {
-      const totalSleepHours = newHealthData.sleepData.reduce((sum, s) => sum + s.hours, 0);
+      const totalSleepHours = newHealthData.sleepData.reduce((sum: number, s: SleepEntry) => sum + s.hours, 0);
       if (totalSleepHours > 0) {
         newHealthData.averageSleep = totalSleepHours / newHealthData.sleepData.length;
       }
     }
-    
+
     try {
       const docRef = doc(db, "healthData", userId);
+      // Use setDoc with merge:true to create or update the document
       await setDoc(docRef, newHealthData, { merge: true });
-      setHealthData(newHealthData)
+      // The onSnapshot listener will automatically update the state,
+      // so no need to call setHealthData here.
+      console.log("Health data saved to Firestore.");
     } catch (error) {
       console.error("Error saving to Firestore", error);
+      toast({
+        variant: "destructive",
+        title: "Error al guardar los datos",
+        description: "No se pudieron guardar los datos en la nube.",
+      });
     }
   };
-  
+
+
   const handleGenerateReport = async () => {
     setIsReportDialogOpen(true);
     setIsReportLoading(true);
@@ -220,7 +249,7 @@ export default function Home() {
                 </CardContent>
             </Card>
         </div>
-        
+
         <Card className="md:col-span-2 lg:col-span-2">
           <CardHeader>
             <CardTitle>Resumen de Actividad</CardTitle>
@@ -232,11 +261,11 @@ export default function Home() {
               <ActivityRing percentage={healthData.standPercentage} color="hsl(var(--chart-2))" label="Pararse" />
           </CardContent>
         </Card>
-        
+
         <SleepChart data={healthData.sleepData} />
-        
+
         <WorkoutSummaryCard workouts={healthData.workouts} />
-        
+
         <MenstrualCyclePanel data={healthData.menstrualCycleData} />
 
         <div className="md:col-span-2 lg:col-span-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -245,7 +274,7 @@ export default function Home() {
             </div>
           <div className="lg:col-span-1 space-y-6">
             <NotificationsWidget />
-            <DataActions onDataProcessed={handleDataProcessed} />
+            <DataActions onDataProcessed={handleDataProcessed} onGenerateReport={handleGenerateReport} />
           </div>
         </div>
       </div>
@@ -356,8 +385,8 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {workouts.length > 0 ? (
-              workouts.map((workout, index) => (
+            {workouts && workouts.length > 0 ? (
+              workouts.slice(0, 5).map((workout, index) => ( // Show last 5 workouts
                 <TableRow key={index}>
                   <TableCell>{new Date(workout.date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</TableCell>
                   <TableCell className="font-medium">{workout.name}</TableCell>
