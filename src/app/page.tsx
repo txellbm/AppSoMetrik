@@ -218,64 +218,62 @@ export default function Home() {
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <div className="lg:col-span-4">
-          <Card className="bg-primary/10 border-primary/20">
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold text-primary">Bienvenido a SoMetrik</CardTitle>
-              <CardDescription>
-                Tu asistente personal de bienestar IA. Aquí tienes un resumen de tu semana.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
-
-        <div className="lg:col-span-4">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Panel de Salud y Bienestar</CardTitle>
-                    <CardDescription>Métricas clave de tu salud general.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                    <StatCard icon={<Moon className="text-primary" />} title="Sueño Promedio" value={`${(healthData.averageSleep || 0).toFixed(1)}h`} />
-                    <StatCard icon={<Flame className="text-primary" />} title="Calorías Activas" value={String(healthData.activeCalories || 0)} />
-                    <StatCard icon={<HeartPulse className="text-primary" />} title="FC en Reposo" value={`${(healthData.restingHeartRate || 0).toFixed(0)} bpm`} />
-                    <StatCard icon={<Droplets className="text-primary" />} title="Hidratación" value={`${(healthData.hydrationLiters || 0).toFixed(1)} L`} />
-                    <StatCard icon={<Activity className="text-primary" />} title="VFC (HRV)" value={`${(healthData.hrv || 0).toFixed(1)} ms`} />
-                    <StatCard icon={<ShieldCheck className="text-primary" />} title="Recuperación" value={`${(healthData.recoveryPercentage || 0).toFixed(0)}%`} />
-                    <StatCard icon={<Wind className="text-primary" />} title="Respiración" value={`${(healthData.respiration || 0).toFixed(1)} rpm`} />
-                    <StatCard icon={<BrainCircuit className="text-primary" />} title="Nivel Energía" value={`${(healthData.energyLevel || 0).toFixed(0)}%`} />
-                    <StatCard icon={<Calendar className="text-primary" />} title="Fase Actual" value={healthData.menstrualCycleData.currentPhase} />
-                </CardContent>
-            </Card>
-        </div>
-
-        <Card className="md:col-span-2 lg:col-span-2">
+      <div className="flex flex-col gap-6">
+        <Card className="bg-primary/10 border-primary/20">
           <CardHeader>
-            <CardTitle>Resumen de Actividad</CardTitle>
-            <CardDescription>El progreso de tus metas diarias.</CardDescription>
+            <CardTitle className="text-2xl font-bold text-primary">Bienvenido a SoMetrik</CardTitle>
+            <CardDescription>
+              Tu asistente personal de bienestar IA. Aquí tienes un resumen de tu semana.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="flex justify-center items-center gap-4 pt-4">
-              <ActivityRing percentage={healthData.movePercentage} color="hsl(var(--primary))" label="Moverse" />
-              <ActivityRing percentage={healthData.exercisePercentage} color="hsl(var(--accent))" label="Ejercicio" />
-              <ActivityRing percentage={healthData.standPercentage} color="hsl(var(--chart-2))" label="Pararse" />
-          </CardContent>
         </Card>
 
-        <SleepChart data={healthData.sleepData} />
+        <Card>
+            <CardHeader>
+                <CardTitle>Panel de Salud y Bienestar</CardTitle>
+                <CardDescription>Métricas clave de tu salud general.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-4">
+                <StatCard icon={<Moon className="text-primary" />} title="Sueño Promedio" value={`${(healthData.averageSleep || 0).toFixed(1)}h`} />
+                <StatCard icon={<Flame className="text-primary" />} title="Calorías Activas" value={String(healthData.activeCalories || 0)} />
+                <StatCard icon={<HeartPulse className="text-primary" />} title="FC en Reposo" value={`${(healthData.restingHeartRate || 0).toFixed(0)} bpm`} />
+                <StatCard icon={<Droplets className="text-primary" />} title="Hidratación" value={`${(healthData.hydrationLiters || 0).toFixed(1)} L`} />
+                <StatCard icon={<Activity className="text-primary" />} title="VFC (HRV)" value={`${(healthData.hrv || 0).toFixed(1)} ms`} />
+                <StatCard icon={<ShieldCheck className="text-primary" />} title="Recuperación" value={`${(healthData.recoveryPercentage || 0).toFixed(0)}%`} />
+                <StatCard icon={<Wind className="text-primary" />} title="Respiración" value={`${(healthData.respiration || 0).toFixed(1)} rpm`} />
+                <StatCard icon={<BrainCircuit className="text-primary" />} title="Nivel Energía" value={`${(healthData.energyLevel || 0).toFixed(0)}%`} />
+                <StatCard icon={<Calendar className="text-primary" />} title="Fase Actual" value={healthData.menstrualCycleData.currentPhase} />
+            </CardContent>
+        </Card>
 
-        <WorkoutSummaryCard workouts={healthData.workouts} />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="md:col-span-2 lg:col-span-2">
+              <CardHeader>
+                <CardTitle>Resumen de Actividad</CardTitle>
+                <CardDescription>El progreso de tus metas diarias.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex justify-center items-center gap-4 pt-4">
+                  <ActivityRing percentage={healthData.movePercentage} color="hsl(var(--primary))" label="Moverse" />
+                  <ActivityRing percentage={healthData.exercisePercentage} color="hsl(var(--accent))" label="Ejercicio" />
+                  <ActivityRing percentage={healthData.standPercentage} color="hsl(var(--chart-2))" label="Pararse" />
+              </CardContent>
+            </Card>
 
-        <MenstrualCyclePanel data={healthData.menstrualCycleData} />
+            <SleepChart data={healthData.sleepData} />
 
-        <div className="md:col-span-2 lg:col-span-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-                <AIChatWidget />
+            <WorkoutSummaryCard workouts={healthData.workouts} />
+
+            <MenstrualCyclePanel data={healthData.menstrualCycleData} />
+
+            <div className="md:col-span-2 lg:col-span-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                    <AIChatWidget />
+                </div>
+              <div className="lg:col-span-1 space-y-6">
+                <NotificationsWidget />
+                <DataActions onDataProcessed={handleDataProcessed} onGenerateReport={handleGenerateReport} />
+              </div>
             </div>
-          <div className="lg:col-span-1 space-y-6">
-            <NotificationsWidget />
-            <DataActions onDataProcessed={handleDataProcessed} onGenerateReport={handleGenerateReport} />
-          </div>
         </div>
       </div>
       <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
@@ -316,7 +314,7 @@ export default function Home() {
 
 function StatCard({ icon, title, value }: { icon: React.ReactNode; title: string; value: string }) {
   return (
-    <Card className="text-center">
+    <Card className="text-center flex-1">
       <CardHeader className="flex flex-col items-center justify-center space-y-2 pb-2">
         {icon}
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
