@@ -1,1 +1,6 @@
-// Flows will be imported for their side effects in this file.
+import { config } from 'dotenv';
+config();
+
+import '@/ai/flows/ai-assistant-chat.ts';
+import '@/ai/flows/ai-health-summary.ts';
+import '@/ai/flows/personalized-notifications.ts';
