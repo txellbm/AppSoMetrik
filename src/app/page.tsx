@@ -186,7 +186,7 @@ export default function Home() {
                     <CardTitle>Panel de Salud y Bienestar</CardTitle>
                     <CardDescription>Métricas clave de tu salud general.</CardDescription>
                 </CardHeader>
-                <CardContent className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                     <StatCard icon={<Moon className="text-primary" />} title="Sueño Promedio" value={`${(healthData.averageSleep || 0).toFixed(1)}h`} />
                     <StatCard icon={<Flame className="text-primary" />} title="Calorías Activas" value={String(healthData.activeCalories || 0)} />
                     <StatCard icon={<HeartPulse className="text-primary" />} title="FC en Reposo" value={`${(healthData.restingHeartRate || 0).toFixed(0)} bpm`} />
@@ -361,5 +361,3 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
     </Card>
   );
 }
-
-    
