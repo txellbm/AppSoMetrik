@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { HeartPulse, Moon, Flame, Droplets, Dumbbell, FileText, Activity, ShieldCheck, Heart, Stethoscope, BrainCircuit, Wind } from "lucide-react";
+import { HeartPulse, Moon, Flame, Droplets, Dumbbell, FileText, Activity, ShieldCheck, Heart, Stethoscope, BrainCircuit, Wind, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,7 +22,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { generateHealthSummary } from "@/ai/flows/ai-health-summary";
-import { HealthSummaryInput, ProcessHealthDataFileOutput, HealthData, Workout, SleepEntry } from "@/ai/schemas";
+import { HealthSummaryInput, ProcessHealthDataFileOutput, HealthData, Workout, SleepEntry, MenstrualCycleData } from "@/ai/schemas";
 
 import {
   Table,
@@ -194,7 +194,7 @@ export default function Home() {
                     <StatCard icon={<ShieldCheck className="text-primary" />} title="Recuperación" value={`${(healthData.recoveryPercentage || 0).toFixed(0)}%`} />
                     <StatCard icon={<Wind className="text-primary" />} title="Respiración" value={`${(healthData.respiration || 0).toFixed(1)} rpm`} />
                     <StatCard icon={<BrainCircuit className="text-primary" />} title="Nivel Energía" value={`${(healthData.energyLevel || 0).toFixed(0)}%`} />
-                    <StatCard icon={<Stethoscope className="text-primary" />} title="Fase Actual" value={healthData.menstrualCycleData.currentPhase} />
+                    <StatCard icon={<Calendar className="text-primary" />} title="Fase Actual" value={healthData.menstrualCycleData.currentPhase} />
                 </CardContent>
             </Card>
         </div>
