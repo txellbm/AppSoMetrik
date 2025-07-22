@@ -24,19 +24,19 @@ const prompt = ai.definePrompt({
 
 **Instrucciones de Procesamiento:**
 
-1.  **Detección Automática del Tipo de Archivo**:
-    -   Analiza las cabeceras (para CSV) o las claves (para JSON) para identificar qué tipo de datos contiene el archivo.
-    -   **Entrenamientos**: Busca cabeceras como 'Activity', 'Duration', 'Distance', 'Calories', 'Heart Rate'.
-    -   **Sueño**: Busca cabeceras como 'Sleep Duration', 'Sleep Quality', 'Sleep Start', 'Sleep End'.
-    -   **Salud General**: Busca cabeceras como 'Heart Rate Resting', 'HRV', 'Respiration'.
-    -   **Ciclo Menstrual**: Para archivos JSON, busca claves como 'period', 'symptoms', 'flow', 'startDate', 'endDate'. Para CSV, busca cabeceras similares.
+1.  **Detección del Tipo de Archivo**:
+    -   **Para archivos JSON**: Busca claves como 'period', 'symptoms', 'flow', 'startDate', 'endDate'. Si las encuentras, procesa el archivo como datos del ciclo menstrual.
+    -   **Para archivos CSV**: Analiza las cabeceras para identificar qué tipo de datos contiene:
+        -   **Entrenamientos**: Busca 'Activity', 'Duration', 'Distance', 'Calories', 'Heart Rate'.
+        -   **Sueño**: Busca 'Sleep Duration', 'Sleep Quality', 'Sleep Start', 'Sleep End'.
+        -   **Salud General**: Busca 'Heart Rate Resting', 'HRV', 'Respiration'.
     -   Usa el nombre del archivo solo como una pista secundaria si está disponible: \`{{{fileName}}}\`.
 
 2.  **Extracción y Homogeneización de Datos**:
     -   **Fechas**: Normaliza todas las fechas al formato YYYY-MM-DD.
     -   **Duración**: Convierte duraciones a formato 'hh:mm:ss'.
     -   **Métricas Numéricas**: Redondea los valores decimales a 1 o 2 decimales.
-    -   **Valores Faltantes**: Si una métrica no está presente, usa su valor por defecto del esquema (0, "No disponible", o un array vacío) sin que cause un error.
+    -   **Valores Faltantes**: Usa los valores por defecto del esquema (0, "No disponible", array vacío) si falta alguna métrica.
     -   **Tiempos**: Mantén los \`startTime\` y \`endTime\` como strings simples ('18:30:05') sin procesar zonas horarias.
 
 3.  **Generación de Respuesta**:
