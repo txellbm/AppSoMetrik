@@ -10,7 +10,7 @@ import { Upload, FileText, Apple, Loader2, BrainCircuit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 type DataActionsProps = {
-  onDataProcessed: (data: ProcessHealthDataFileOutput) => void;
+  onDataProcessed: (data: ProcessHealthDataFileOutput[]) => void;
   onGenerateReport: () => void;
 };
 
@@ -20,7 +20,7 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const processFile = (file: File): Promise<void> => {
+  const processFile = (file: File): Promise<ProcessHealthDataFileOutput> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = async (e) => {
@@ -30,8 +30,7 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
                     throw new Error(`El archivo ${file.name} está vacío.`);
                 }
                 const result = await processHealthDataFile({ fileContent: content });
-                onDataProcessed(result);
-                resolve();
+                resolve(result);
             } catch (error) {
                 reject(error);
             }
@@ -52,9 +51,10 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
       setFileName(`${fileCount} archivo${fileCount > 1 ? 's' : ''}`);
       
       try {
-        for (const file of Array.from(files)) {
-            await processFile(file);
-        }
+        const processingPromises = Array.from(files).map(file => processFile(file));
+        const results = await Promise.all(processingPromises);
+        onDataProcessed(results);
+
         toast({
           title: "Archivos procesados",
           description: `${fileCount} archivo${fileCount > 1 ? 's' : ''} procesado${fileCount > 1 ? 's' : ''} correctamente. El panel ha sido actualizado.`,

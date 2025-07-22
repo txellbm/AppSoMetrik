@@ -47,6 +47,8 @@ export const HealthDataSchema = z.object({
   activeCalories: z.number().describe('Las calorías activas quemadas.'),
   restingHeartRate: z.number().describe('La frecuencia cardíaca en reposo en lpm.'),
   hydrationLiters: z.number().describe('La ingesta de hidratación en litros.'),
+  hrv: z.number().describe("La variabilidad de la frecuencia cardíaca (VFC) en ms.").default(0),
+  recoveryPercentage: z.number().describe("El porcentaje de recuperación (ej. 85 para 85%).").default(0),
   movePercentage: z.number().describe('El porcentaje del objetivo de movimiento.'),
   exercisePercentage: z.number().describe('El porcentaje del objetivo de ejercicio.'),
   standPercentage: z.number().describe('El porcentaje del objetivo de pararse.'),

@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { HeartPulse, Moon, Flame, Droplets, Dumbbell, FileText, Clock, Heart, Calendar } from "lucide-react";
+import { HeartPulse, Moon, Flame, Droplets, Dumbbell, FileText, Activity, ShieldCheck, Heart, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -43,6 +43,8 @@ const initialHealthData: HealthData = {
   activeCalories: 0,
   restingHeartRate: 0,
   hydrationLiters: 0,
+  hrv: 0,
+  recoveryPercentage: 0,
   movePercentage: 0,
   exercisePercentage: 0,
   standPercentage: 0,
@@ -57,31 +59,44 @@ export default function Home() {
   const [isReportLoading, setIsReportLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleDataProcessed = (newData: ProcessHealthDataFileOutput) => {
+  const handleDataProcessed = (processedData: ProcessHealthDataFileOutput[]) => {
+    // This function now receives an array of processed data from multiple files
     setHealthData((prevData) => {
-      // Simple aggregation logic. This can be improved.
-      const newSleepData = [...prevData.sleepData, ...newData.healthData.sleepData]
-        .slice(-7); // Keep last 7 days
+      const combinedData = processedData.reduce((acc, current) => {
+        const { healthData: newHealth } = current;
+        
+        // Combine workouts, avoiding duplicates based on date and name
+        const existingWorkoutKeys = new Set(acc.workouts.map(w => `${w.date}-${w.name}`));
+        const newWorkouts = newHealth.workouts.filter(w => !existingWorkoutKeys.has(`${w.date}-${w.name}`));
 
-      const newAverageSleep = newSleepData.length > 0 
-        ? newSleepData.reduce((acc, item) => acc + item.hours, 0) / newSleepData.length
-        : 0;
+        // Average non-zero metrics
+        acc.averageSleep = (acc.averageSleep + newHealth.averageSleep) / (acc.averageSleep && newHealth.averageSleep ? 2 : 1);
+        acc.restingHeartRate = (acc.restingHeartRate + newHealth.restingHeartRate) / (acc.restingHeartRate && newHealth.restingHeartRate ? 2 : 1);
+        acc.hrv = (acc.hrv + newHealth.hrv) / (acc.hrv && newHealth.hrv ? 2 : 1);
+        acc.recoveryPercentage = (acc.recoveryPercentage + newHealth.recoveryPercentage) / (acc.recoveryPercentage && newHealth.recoveryPercentage ? 2 : 1);
+        
+        // Sum cumulative metrics
+        acc.activeCalories += newHealth.activeCalories;
+        acc.hydrationLiters += newHealth.hydrationLiters;
+        acc.movePercentage = Math.min(100, acc.movePercentage + newHealth.movePercentage);
+        acc.exercisePercentage = Math.min(100, acc.exercisePercentage + newHealth.exercisePercentage);
+        acc.standPercentage = Math.min(100, acc.standPercentage + newHealth.standPercentage);
+        
+        // Combine sleep data, keeping it to the last 7 entries and removing duplicates
+        const sleepMap = new Map(acc.sleepData.map(s => [s.day, s.hours]));
+        newHealth.sleepData.forEach(s => sleepMap.set(s.day, s.hours));
+        acc.sleepData = Array.from(sleepMap, ([day, hours]) => ({ day, hours })).slice(-7);
 
-      const newRestingHeartRate = prevData.restingHeartRate > 0 && newData.healthData.restingHeartRate > 0
-        ? Math.round((prevData.restingHeartRate + newData.healthData.restingHeartRate) / 2)
-        : prevData.restingHeartRate || newData.healthData.restingHeartRate;
+        acc.workouts.push(...newWorkouts);
 
-      return {
-        averageSleep: newAverageSleep,
-        activeCalories: prevData.activeCalories + newData.healthData.activeCalories,
-        restingHeartRate: newRestingHeartRate,
-        hydrationLiters: prevData.hydrationLiters + newData.healthData.hydrationLiters,
-        movePercentage: Math.min(100, prevData.movePercentage + newData.healthData.movePercentage),
-        exercisePercentage: Math.min(100, prevData.exercisePercentage + newData.healthData.exercisePercentage),
-        standPercentage: Math.min(100, prevData.standPercentage + newData.healthData.standPercentage),
-        sleepData: newSleepData,
-        workouts: [...prevData.workouts, ...newData.healthData.workouts],
-      };
+        return acc;
+
+      }, { ...prevData, workouts: [...prevData.workouts], sleepData: [...prevData.sleepData] }); // Start with a deep enough copy
+
+      // Clean up averages for display
+      combinedData.averageSleep = combinedData.sleepData.length > 0 ? combinedData.sleepData.reduce((sum, s) => sum + s.hours, 0) / combinedData.sleepData.length : 0;
+
+      return combinedData;
     });
   };
 
@@ -91,11 +106,11 @@ export default function Home() {
     setReportContent("");
 
     try {
-        const workoutDetails = healthData.workouts.map(w => `${w.date} - ${w.name}: ${w.distance}km, ${w.calories}kcal, ${w.duration.toFixed(2)}h, ${w.averageHeartRate}bpm`).join('; ');
+        const workoutDetails = healthData.workouts.map(w => `${w.date} - ${w.name}: ${w.distance.toFixed(1)}km, ${w.calories}kcal, ${w.duration.toFixed(2)}h, ${w.averageHeartRate}bpm`).join('; ');
         const input: HealthSummaryInput = {
             sleepData: `Sueño promedio: ${healthData.averageSleep.toFixed(1)}h. Datos de los últimos días: ${healthData.sleepData.map(d => `${d.day}: ${d.hours}h`).join(', ')}`,
             exerciseData: `Calorías activas: ${healthData.activeCalories}, Entrenamientos: ${workoutDetails}. Anillos: Moverse ${healthData.movePercentage}%, Ejercicio ${healthData.exercisePercentage}%, Pararse ${healthData.standPercentage}%`,
-            heartRateData: `Frecuencia cardíaca en reposo: ${healthData.restingHeartRate} bpm`,
+            heartRateData: `Frecuencia cardíaca en reposo: ${healthData.restingHeartRate.toFixed(0)} bpm. VFC: ${healthData.hrv.toFixed(1)} ms. Recuperación: ${healthData.recoveryPercentage.toFixed(0)}%`,
             menstruationData: "No hay datos de menstruación disponibles.",
             supplementData: "No hay datos de suplementos disponibles.",
             foodIntakeData: `Hidratación: ${healthData.hydrationLiters.toFixed(1)} L`,
@@ -141,10 +156,13 @@ export default function Home() {
 
         <StatCard icon={<Moon className="text-primary" />} title="Sueño Promedio" value={`${healthData.averageSleep.toFixed(1)}h`} />
         <StatCard icon={<Flame className="text-primary" />} title="Calorías Activas" value={String(healthData.activeCalories)} />
-        <StatCard icon={<HeartPulse className="text-primary" />} title="FC en Reposo" value={`${healthData.restingHeartRate} bpm`} />
+        <StatCard icon={<HeartPulse className="text-primary" />} title="FC en Reposo" value={`${healthData.restingHeartRate.toFixed(0)} bpm`} />
         <StatCard icon={<Droplets className="text-primary" />} title="Hidratación" value={`${healthData.hydrationLiters.toFixed(1)} L`} />
 
-        <SleepChart data={healthData.sleepData} />
+        <div className="lg:col-span-2 grid grid-cols-2 gap-6">
+          <StatCard icon={<Activity className="text-primary" />} title="VFC (HRV)" value={`${healthData.hrv.toFixed(1)} ms`} />
+          <StatCard icon={<ShieldCheck className="text-primary" />} title="Recuperación" value={`${healthData.recoveryPercentage.toFixed(0)}%`} />
+        </div>
         
         <Card className="md:col-span-2 lg:col-span-2">
           <CardHeader>
@@ -157,6 +175,8 @@ export default function Home() {
               <ActivityRing percentage={healthData.standPercentage} color="hsl(var(--chart-2))" label="Pararse" />
           </CardContent>
         </Card>
+        
+        <SleepChart data={healthData.sleepData} />
         
         <WorkoutSummaryCard workouts={healthData.workouts} />
 
