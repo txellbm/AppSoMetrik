@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Activity, Calendar, Dumbbell, FileText, HeartPulse, Zap } from "lucide-react";
+import { Activity, Calendar, Dumbbell, FileText, HeartPulse, Zap, Shield, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -185,68 +185,75 @@ export default function Home() {
   }
 
   // Calculate aggregate metrics for StatCards
-  const avgRestingHR = dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + (s.restingHeartRate || 0), 0) / dashboardData.sleepData.filter(s => s.restingHeartRate).length : 0;
-  const avgHRV = dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + (s.hrv || 0), 0) / dashboardData.sleepData.filter(s => s.hrv).length : 0;
-  const avgSleepQuality = dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + s.quality, 0) / dashboardData.sleepData.filter(s => s.quality).length : 0;
-
+  const avgRestingHR = useMemo(() => dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + (s.restingHeartRate || 0), 0) / dashboardData.sleepData.filter(s => s.restingHeartRate).length : 0, [dashboardData.sleepData]);
+  const avgHRV = useMemo(() => dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + (s.hrv || 0), 0) / dashboardData.sleepData.filter(s => s.hrv).length : 0, [dashboardData.sleepData]);
+  const avgSleepQuality = useMemo(() => dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + s.quality, 0) / dashboardData.sleepData.filter(s => s.quality).length : 0, [dashboardData.sleepData]);
+  const avgReadiness = useMemo(() => dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + (s.readiness || 0), 0) / dashboardData.sleepData.filter(s => s.readiness).length : 0, [dashboardData.sleepData]);
+  const avgRespiration = useMemo(() => dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + (s.respiration || 0), 0) / dashboardData.sleepData.filter(s => s.respiration).length : 0, [dashboardData.sleepData]);
+  
   const calculatedCycleData = useMemo<CalculatedCycleData>(() => {
     const sortedData = [...dashboardData.menstrualData]
-        .filter(d => d.flow && d.flow !== 'spotting')
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
+      .filter((d) => d.flow && d.flow !== "spotting")
+      .sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
+  
     if (sortedData.length === 0) {
       return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
     }
-
-    // Find the start of the most recent period
+  
     let lastPeriodStartDate: Date | null = null;
-    let consecutiveDays: Date[] = [];
-
     if (sortedData.length > 0) {
-        const firstEntryDate = parseISO(sortedData[0].date);
-        consecutiveDays.push(firstEntryDate);
-
+        // Find groups of consecutive days
+        const periods = [];
+        let currentPeriod = [parseISO(sortedData[0].date)];
+        
         for (let i = 1; i < sortedData.length; i++) {
             const currentDate = parseISO(sortedData[i].date);
-            const prevDate = parseISO(sortedData[i - 1].date);
-            if (differenceInDays(prevDate, currentDate) === 1) {
-                consecutiveDays.push(currentDate);
+            const prevDate = parseISO(sortedData[i-1].date);
+            if (differenceInDays(currentDate, prevDate) === 1) {
+                currentPeriod.push(currentDate);
             } else {
-                // Break when we find a gap, meaning a new period cycle
-                break;
+                periods.push(currentPeriod);
+                currentPeriod = [currentDate];
             }
         }
-        lastPeriodStartDate = consecutiveDays[consecutiveDays.length - 1];
+        periods.push(currentPeriod);
+        
+        const lastPeriod = periods[periods.length - 1];
+        if(lastPeriod && lastPeriod.length > 0){
+            lastPeriodStartDate = lastPeriod[0];
+        }
     }
-
-
+  
     if (!lastPeriodStartDate) {
-        return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
+      return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
     }
-
+  
     const today = startOfToday();
     const currentDay = differenceInDays(today, lastPeriodStartDate) + 1;
-    
+  
     let currentPhase = "No disponible";
-    const isBleedingToday = dashboardData.menstrualData.some(d => parseISO(d.date).getTime() === today.getTime() && d.flow && d.flow !== 'spotting');
-
-    if (isBleedingToday || (currentDay >= 1 && currentDay <= 7)) { // Assuming period lasts up to 7 days
-        currentPhase = "Menstruación";
+    const isBleedingToday = dashboardData.menstrualData.some(
+      (d) => parseISO(d.date).getTime() === today.getTime() && d.flow && d.flow !== "spotting"
+    );
+  
+    if (isBleedingToday || (currentDay >= 1 && currentDay <= 7)) {
+      currentPhase = "Menstruación";
     } else if (currentDay > 7 && currentDay < 14) {
-        currentPhase = "Folicular";
+      currentPhase = "Folicular";
     } else if (currentDay >= 14 && currentDay <= 15) {
-        currentPhase = "Ovulación";
+      currentPhase = "Ovulación";
     } else if (currentDay > 15) {
-        currentPhase = "Lútea";
+      currentPhase = "Lútea";
     }
-    
-    // Placeholder for symptoms, should be fetched for the current day
-    const symptomsToday = dashboardData.menstrualData.find(d => parseISO(d.date).getTime() === today.getTime())?.symptoms || [];
-
+  
+    const symptomsToday =
+      dashboardData.menstrualData.find((d) => parseISO(d.date).getTime() === today.getTime())
+        ?.symptoms || [];
+  
     return {
       currentDay: currentDay,
       currentPhase: currentPhase,
-      symptoms: symptomsToday
+      symptoms: symptomsToday,
     };
   }, [dashboardData.menstrualData]);
 
@@ -263,15 +270,15 @@ export default function Home() {
           </CardHeader>
         </Card>
 
-        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
-             <StatCard icon={<HeartPulse className="text-primary" />} title="FC en Reposo" value={`${!isNaN(avgRestingHR) ? avgRestingHR.toFixed(0) : '0'} bpm`} description="Promedio semanal" />
-             <StatCard icon={<Activity className="text-primary" />} title="VFC (HRV)" value={`${!isNaN(avgHRV) ? avgHRV.toFixed(1) : '0'} ms`} description="Promedio semanal" />
-             <StatCard icon={<Zap className="text-primary" />} title="Calidad Sueño" value={`${!isNaN(avgSleepQuality) ? avgSleepQuality.toFixed(0) : '0'}%`} description="Promedio semanal" />
-             <StatCard icon={<Calendar className="text-primary" />} title="Fase Actual" value={calculatedCycleData.currentPhase} description={calculatedCycleData.currentDay > 0 ? `Día ${calculatedCycleData.currentDay}`: "Sin datos"} />
-        </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <SleepChart data={dashboardData.sleepData} />
+            
+            <VitalsCard 
+                readiness={avgReadiness}
+                hrv={avgHRV}
+                respiration={avgRespiration}
+                restingHR={avgRestingHR}
+            />
 
             <div className="md:col-span-2 lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <MenstrualCyclePanel data={calculatedCycleData} />
@@ -348,6 +355,41 @@ function StatCard({ icon, title, value, description }: { icon: React.ReactNode; 
   );
 }
 
+function VitalsCard({ readiness, hrv, respiration, restingHR }: { readiness: number, hrv: number, respiration: number, restingHR: number }) {
+    return (
+        <Card className="md:col-span-2 lg:col-span-2">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Shield className="text-primary" />
+                    Vitales y Recuperación
+                </CardTitle>
+                <CardDescription>Métricas clave de recuperación de la última noche.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-4 pt-2">
+                 <div className="flex flex-col items-center justify-center p-4 bg-muted rounded-lg text-center space-y-1">
+                    <p className="text-sm text-muted-foreground">Recuperación</p>
+                    <p className="text-3xl font-bold text-primary">{!isNaN(readiness) ? readiness.toFixed(0) : '0'}<span className="text-lg">%</span></p>
+                 </div>
+                 <div className="grid grid-cols-2 gap-4">
+                    <div className="p-2 bg-muted/50 rounded-lg text-center">
+                        <p className="text-xs text-muted-foreground">VFC (HRV)</p>
+                        <p className="text-lg font-semibold">{!isNaN(hrv) ? hrv.toFixed(1) : '0'} <span className="text-sm">ms</span></p>
+                    </div>
+                    <div className="p-2 bg-muted/50 rounded-lg text-center">
+                        <p className="text-xs text-muted-foreground">FC Reposo</p>
+                        <p className="text-lg font-semibold">{!isNaN(restingHR) ? restingHR.toFixed(0) : '0'} <span className="text-sm">bpm</span></p>
+                    </div>
+                    <div className="p-2 bg-muted/50 rounded-lg text-center col-span-2">
+                        <p className="text-xs text-muted-foreground">Frec. Respiratoria</p>
+                        <p className="text-lg font-semibold">{!isNaN(respiration) ? respiration.toFixed(1) : '0'} <span className="text-sm">rpm</span></p>
+                    </div>
+                 </div>
+            </CardContent>
+        </Card>
+    )
+}
+
+
 function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
   const now = new Date();
   const startOfThisWeek = startOfWeek(now, { weekStartsOn: 1 });
@@ -392,9 +434,9 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
         <TableRow>
           <TableHead>Fecha</TableHead>
           <TableHead>Entrenamiento</TableHead>
-          <TableHead className="text-right">Distancia</TableHead>
-          <TableHead className="text-right">Calorías</TableHead>
           <TableHead className="text-right">Duración</TableHead>
+          <TableHead className="text-right">Calorías</TableHead>
+          <TableHead className="text-right">Intensidad (FC)</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -403,9 +445,9 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
             <TableRow key={index}>
               <TableCell>{new Date(workout.date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</TableCell>
               <TableCell className="font-medium">{workout.name}</TableCell>
-              <TableCell className="text-right">{workout.distance.toFixed(2)} km</TableCell>
-              <TableCell className="text-right">{workout.calories}</TableCell>
               <TableCell className="text-right">{workout.duration} min</TableCell>
+              <TableCell className="text-right">{workout.calories}</TableCell>
+              <TableCell className="text-right">{workout.averageHeartRate > 0 ? `${workout.averageHeartRate} bpm` : '-'}</TableCell>
             </TableRow>
           ))
         ) : (
@@ -449,10 +491,3 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
     </Card>
   );
 }
-
-    
-
-    
-
-
-
