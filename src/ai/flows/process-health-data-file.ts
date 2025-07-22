@@ -28,7 +28,7 @@ Calcula los porcentajes de los anillos de actividad basándote en objetivos est�
 Para los datos de entrenamiento, que pueden venir en un archivo CSV como el de HeartWatch, sigue estas instrucciones específicas:
 1. Agrupa las filas por entrenamiento usando las columnas 'Fecha', 'Entrenamiento' y 'Entrenamiento-Tipo'.
 2. Para cada grupo, cuenta el número total de filas.
-3. Calcula la duración total en minutos para cada entrenamiento usando la fórmula: (Número de filas * 5) / 60.
+3. Calcula la duración total en horas para cada entrenamiento usando la fórmula: (Número de filas * 5) / 3600.
 4. Calcula la frecuencia cardíaca promedio (lpm) para cada entrenamiento, promediando los valores de la columna 'lpm' para ese grupo.
 5. Rellena la lista 'workouts' con un objeto por cada entrenamiento, incluyendo la fecha, nombre, distancia, calorías, la duración calculada y la frecuencia cardíaca promedio calculada.
 

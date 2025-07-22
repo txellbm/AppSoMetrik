@@ -91,7 +91,7 @@ export default function Home() {
     setReportContent("");
 
     try {
-        const workoutDetails = healthData.workouts.map(w => `${w.date} - ${w.name}: ${w.distance}km, ${w.calories}kcal, ${w.duration}min, ${w.averageHeartRate}bpm`).join('; ');
+        const workoutDetails = healthData.workouts.map(w => `${w.date} - ${w.name}: ${w.distance}km, ${w.calories}kcal, ${w.duration.toFixed(2)}h, ${w.averageHeartRate}bpm`).join('; ');
         const input: HealthSummaryInput = {
             sleepData: `Sueño promedio: ${healthData.averageSleep.toFixed(1)}h. Datos de los últimos días: ${healthData.sleepData.map(d => `${d.day}: ${d.hours}h`).join(', ')}`,
             exerciseData: `Calorías activas: ${healthData.activeCalories}, Entrenamientos: ${workoutDetails}. Anillos: Moverse ${healthData.movePercentage}%, Ejercicio ${healthData.exercisePercentage}%, Pararse ${healthData.standPercentage}%`,
@@ -284,7 +284,7 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
                   <TableCell className="font-medium">{workout.name}</TableCell>
                   <TableCell className="text-right">{workout.distance.toFixed(1)} km</TableCell>
                   <TableCell className="text-right">{workout.calories} kcal</TableCell>
-                  <TableCell className="text-right">{workout.duration} min</TableCell>
+                  <TableCell className="text-right">{workout.duration.toFixed(2)} h</TableCell>
                   <TableCell className="text-right">{workout.averageHeartRate} bpm</TableCell>
                 </TableRow>
               ))
