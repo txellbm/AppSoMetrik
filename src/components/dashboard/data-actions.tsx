@@ -20,47 +20,60 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setIsLoading(true);
-      setFileName(file.name);
+  const processFile = (file: File): Promise<void> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const content = e.target?.result as string;
+                if (!content) {
+                    throw new Error(`El archivo ${file.name} está vacío.`);
+                }
+                const result = await processHealthDataFile({ fileContent: content });
+                onDataProcessed(result);
+                resolve();
+            } catch (error) {
+                reject(error);
+            }
+        };
+        reader.onerror = () => {
+            console.error(`Error al leer el archivo ${file.name}`);
+            reject(new Error(`Error al leer el archivo ${file.name}`));
+        };
+        reader.readAsText(file);
+    });
+  }
 
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const content = e.target?.result as string;
-          if (!content) {
-            throw new Error("El archivo está vacío.");
-          }
-          const result = await processHealthDataFile({ fileContent: content });
-          onDataProcessed(result);
-          toast({
-            title: "Archivo procesado",
-            description: "Los datos del panel se han actualizado con la nueva información.",
-          });
-        } catch (error) {
-          console.error("No se pudo procesar el archivo:", error);
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      setIsLoading(true);
+      const fileCount = files.length;
+      setFileName(`${fileCount} archivo${fileCount > 1 ? 's' : ''}`);
+      
+      try {
+        for (const file of Array.from(files)) {
+            await processFile(file);
+        }
+        toast({
+          title: "Archivos procesados",
+          description: `${fileCount} archivo${fileCount > 1 ? 's' : ''} procesado${fileCount > 1 ? 's' : ''} correctamente. El panel ha sido actualizado.`,
+        });
+      } catch (error) {
+          console.error("No se pudieron procesar los archivos:", error);
           const errorMessage = error instanceof Error ? error.message : "Error desconocido";
           toast({
             variant: "destructive",
             title: "Error de procesamiento",
-            description: `No se pudo procesar el archivo: ${errorMessage}`,
+            description: `No se pudo procesar uno o más archivos: ${errorMessage}`,
           });
-        } finally {
+      } finally {
           setIsLoading(false);
-        }
-      };
-      reader.onerror = () => {
-        console.error("Error al leer el archivo");
-        toast({
-            variant: "destructive",
-            title: "Error de Lectura",
-            description: "Lo sentimos, hubo un error al leer el archivo.",
-          });
-        setIsLoading(false);
+          // Reset file input
+          if(fileInputRef.current) {
+            fileInputRef.current.value = "";
+          }
       }
-      reader.readAsText(file);
     }
   };
 
@@ -81,6 +94,7 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
           onChange={handleFileChange}
           className="hidden"
           accept=".csv,.txt,.json"
+          multiple
         />
         <div className="p-4 border-2 border-dashed rounded-lg text-center space-y-2">
           {isLoading ? (
@@ -91,9 +105,9 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
           ) : (
             <div className="flex flex-col items-center justify-center space-y-2 h-24">
               <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Arrastra y suelta o sube un archivo</p>
+              <p className="text-sm text-muted-foreground">Arrastra y suelta o sube archivos</p>
               <Button variant="outline" size="sm" onClick={handleUploadClick}>
-                <FileText className="mr-2 h-4 w-4" /> Subir Archivo
+                <FileText className="mr-2 h-4 w-4" /> Subir Archivos
               </Button>
             </div>
           )}
