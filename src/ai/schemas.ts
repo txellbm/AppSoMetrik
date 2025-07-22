@@ -33,6 +33,7 @@ export type ProcessHealthDataFileInput = z.infer<
 >;
 
 const WorkoutSchema = z.object({
+  date: z.string().describe("La fecha del entrenamiento (ej. 2023-10-27)."),
   name: z.string().describe("El nombre o tipo de entrenamiento (ej. Correr, Ciclismo)."),
   distance: z.number().describe("La distancia del entrenamiento en kilómetros."),
   calories: z.number().describe("Las calorías quemadas durante el entrenamiento."),
