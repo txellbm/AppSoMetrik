@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -23,7 +23,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { generateHealthSummary } from "@/ai/flows/ai-health-summary";
-import { HealthSummaryInput, ProcessHealthDataFileOutput, Workout, SleepEntry, MenstrualCycleData, DashboardData } from "@/ai/schemas";
+import { HealthSummaryInput, ProcessHealthDataFileOutput, Workout, SleepEntry, MenstrualCycleData, DashboardData, CalculatedCycleData } from "@/ai/schemas";
 
 import {
   Table,
@@ -49,7 +49,7 @@ import MenstrualCyclePanel from "@/components/dashboard/menstrual-cycle-panel";
 import MenstrualCalendar from "@/components/dashboard/menstrual-calendar";
 import { collection, writeBatch, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { startOfWeek, endOfWeek, subWeeks, isWithinInterval, parseISO } from "date-fns";
+import { startOfWeek, endOfWeek, subWeeks, isWithinInterval, parseISO, differenceInDays } from "date-fns";
 import { doc } from "firebase/firestore";
 
 const initialDashboardData: DashboardData = {
@@ -188,7 +188,45 @@ export default function Home() {
   const avgRestingHR = dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + (s.restingHeartRate || 0), 0) / dashboardData.sleepData.filter(s => s.restingHeartRate).length : 0;
   const avgHRV = dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + (s.hrv || 0), 0) / dashboardData.sleepData.filter(s => s.hrv).length : 0;
   const avgSleepQuality = dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + s.quality, 0) / dashboardData.sleepData.filter(s => s.quality).length : 0;
-  const latestMenstrualData = dashboardData.menstrualData.length > 0 ? [...dashboardData.menstrualData].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] : null;
+
+  const calculatedCycleData = useMemo<CalculatedCycleData>(() => {
+    if (dashboardData.menstrualData.length === 0) {
+      return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
+    }
+    
+    // Find the most recent start of a period
+    const sortedData = [...dashboardData.menstrualData].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
+    const lastPeriodStartDate = sortedData.find(d => d.flow && ['light', 'medium', 'heavy'].includes(d.flow))?.date;
+
+    if (!lastPeriodStartDate) {
+       return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
+    }
+
+    const today = new Date();
+    const cycleStartDate = parseISO(lastPeriodStartDate);
+    const currentDay = differenceInDays(today, cycleStartDate) + 1;
+
+    let currentPhase = "No disponible";
+    // Simplified phase calculation based on a 28-day cycle model
+    if (currentDay <= 5) {
+      currentPhase = "Menstruación";
+    } else if (currentDay <= 13) {
+      currentPhase = "Folicular";
+    } else if (currentDay <= 15) {
+      currentPhase = "Ovulación";
+    } else if (currentDay <= 28) {
+      currentPhase = "Lútea";
+    } else {
+      // If cycle is longer than 28 days, it could still be Luteal or a new cycle is expected
+      currentPhase = "Lútea (Extendida)"; 
+    }
+    
+    // Find symptoms for today
+    const todayStr = today.toISOString().split('T')[0];
+    const todaySymptoms = dashboardData.menstrualData.find(d => d.date === todayStr)?.symptoms || [];
+
+    return { currentDay, currentPhase, symptoms: todaySymptoms };
+  }, [dashboardData.menstrualData]);
 
 
   return (
@@ -207,7 +245,7 @@ export default function Home() {
              <StatCard icon={<HeartPulse className="text-primary" />} title="FC en Reposo" value={`${!isNaN(avgRestingHR) ? avgRestingHR.toFixed(0) : '0'} bpm`} description="Promedio semanal" />
              <StatCard icon={<Activity className="text-primary" />} title="VFC (HRV)" value={`${!isNaN(avgHRV) ? avgHRV.toFixed(1) : '0'} ms`} description="Promedio semanal" />
              <StatCard icon={<Zap className="text-primary" />} title="Calidad Sueño" value={`${!isNaN(avgSleepQuality) ? avgSleepQuality.toFixed(0) : '0'}%`} description="Promedio semanal" />
-             <StatCard icon={<Calendar className="text-primary" />} title="Fase Actual" value={latestMenstrualData?.currentPhase || "N/A"} description={latestMenstrualData ? `Día ${latestMenstrualData.currentDay}`: "Sin datos"} />
+             <StatCard icon={<Calendar className="text-primary" />} title="Fase Actual" value={calculatedCycleData.currentPhase} description={calculatedCycleData.currentDay > 0 ? `Día ${calculatedCycleData.currentDay}`: "Sin datos"} />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -215,7 +253,7 @@ export default function Home() {
 
             <WorkoutSummaryCard workouts={dashboardData.workouts} />
             
-            <MenstrualCyclePanel data={latestMenstrualData} />
+            <MenstrualCyclePanel data={calculatedCycleData} />
 
             <MenstrualCalendar data={dashboardData.menstrualData} />
 

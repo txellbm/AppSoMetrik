@@ -2,7 +2,7 @@
 "use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { MenstrualCycleData } from "@/ai/schemas";
+import { CalculatedCycleData } from "@/ai/schemas";
 import { Stethoscope, Droplet, CalendarDays, Shield, Zap, Wind } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 
@@ -22,7 +22,7 @@ const getSymptomIcon = (symptom: string) => {
 };
 
 
-export default function MenstrualCyclePanel({ data }: { data: MenstrualCycleData | null }) {
+export default function MenstrualCyclePanel({ data }: { data: CalculatedCycleData | null }) {
     
   if (!data || data.currentPhase === "No disponible" || data.currentDay === 0) {
     return (

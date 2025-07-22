@@ -29,7 +29,7 @@ const prompt = ai.definePrompt({
     *   **AutoSleep CSV**: Extrae 'Sleep Session End Date', 'inBed', 'awake', 'deep', 'light', 'rem', 'quality' (calidad). Calcula la duración total del sueño ('totalSleep') sumando 'deep', 'light' y 'rem'.
     *   **HeartWatch CSV**: Extrae 'Date', 'Heart Rate Resting', 'HRV', 'Respiration' (Frecuencia Respiratoria). Estos datos a menudo se corresponden con una fecha de sueño. Intenta asociarlos a la entrada de sueño correcta si es posible.
     *   **HeartWatch Entrenamientos CSV**: Extrae 'Date', 'Activity', 'Duration (mins)', 'Active Calories', 'Distance (km)'.
-    *   **measurements.json (Clue)**: Procesa cada entrada. Si 'type' es 'period', extrae 'date' y 'value.option' (que corresponde al 'flow'). Calcula el 'currentDay' y la 'currentPhase' basándote en la fecha del registro y asumiendo un ciclo promedio si no hay más datos. Por ejemplo, si un registro de sangrado es el más reciente, es el día 1, fase 'Menstruación'. Si han pasado 10 días, es el día 11, fase 'Folicular'.
+    *   **measurements.json (Clue)**: Procesa cada entrada. Si 'type' es 'period', extrae 'date' y 'value.option' (que corresponde al 'flow').
 4.  **Generación de Respuesta**:
     -   Crea un resumen de 1-2 frases sobre el contenido del archivo.
     -   **IMPORTANTE**: Rellena los arrays correspondientes en el objeto de salida ('workouts', 'sleepData', 'menstrualData'). Si un archivo solo contiene datos de sueño, el array 'workouts' y 'menstrualData' deben estar vacíos.
@@ -57,3 +57,4 @@ const processHealthDataFileFlow = ai.defineFlow(
     
 
     
+

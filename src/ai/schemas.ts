@@ -65,10 +65,17 @@ export const MenstrualCycleDataSchema = z.object({
     date: z.string().describe("La fecha del registro (YYYY-MM-DD)."),
     flow: z.enum(['light', 'medium', 'heavy', 'spotting']).describe("El nivel de sangrado.").optional(),
     symptoms: z.array(z.string()).describe("Una lista de síntomas registrados.").default([]),
-    currentPhase: z.string().describe("La fase del ciclo menstrual (ej. Folicular, Lútea, Menstruación).").default("No disponible"),
-    currentDay: z.number().describe("El día actual dentro del ciclo menstrual.").default(0),
 });
 export type MenstrualCycleData = z.infer<typeof MenstrualCycleDataSchema>;
+
+
+export const CalculatedCycleDataSchema = z.object({
+    currentPhase: z.string().describe("La fase del ciclo menstrual (ej. Folicular, Lútea, Menstruación).").default("No disponible"),
+    currentDay: z.number().describe("El día actual dentro del ciclo menstrual.").default(0),
+    symptoms: z.array(z.string()).describe("Una lista de síntomas registrados.").default([]),
+});
+export type CalculatedCycleData = z.infer<typeof CalculatedCycleDataSchema>;
+
 
 export const ProcessHealthDataFileOutputSchema = z.object({
   summary: z
