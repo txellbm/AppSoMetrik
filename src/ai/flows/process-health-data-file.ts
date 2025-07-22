@@ -37,10 +37,10 @@ const prompt = ai.definePrompt({
     -   **Duración**: Convierte duraciones a formato 'hh:mm:ss'.
     -   **Métricas Numéricas**: Redondea los valores decimales a 1 o 2 decimales.
     -   **Valores Faltantes**: Si una métrica no está presente, usa su valor por defecto del esquema (0, "No disponible", o un array vacío) sin que cause un error.
+    -   **Tiempos**: Mantén los \`startTime\` y \`endTime\` como strings simples (\'18:30:05\') sin procesar zonas horarias.
 
 3.  **Generación de Respuesta**:
-    -   Crea un resumen de 1-2 frases sobre el contenido del archivo.
-    -   Si no puedes clasificar el archivo, el resumen debe indicarlo y el objeto \`healthData\` debe contener los valores por defecto.
+    -   Crea un resumen de 1-2 frases sobre el contenido del archivo. Si no puedes clasificarlo, el resumen debe indicarlo y el objeto \`healthData\` debe contener los valores por defecto.
     -   **IMPORTANTE**: Tu respuesta final debe ser únicamente el objeto JSON que se adhiere al esquema de salida. No incluyas ningún texto, explicación o carácter adicional fuera del JSON.
 
 **Contenido del Archivo:**
