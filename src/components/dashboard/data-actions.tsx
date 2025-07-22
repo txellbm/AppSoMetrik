@@ -1,16 +1,13 @@
 
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import { processHealthDataFile } from "@/ai/flows/process-health-data-file";
 import { ProcessHealthDataFileOutput } from "@/ai/schemas";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Upload, FileText, Apple, Loader2, BrainCircuit, Trash2 } from "lucide-react";
+import { Upload, FileText, Loader2, BrainCircuit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { storage } from "@/lib/firebase";
-import { ref, uploadBytes } from "firebase/storage";
 import { cn } from "@/lib/utils";
 
 type DataActionsProps = {
@@ -56,12 +53,12 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
     setFiles(files.filter((_, i) => i !== index));
   }
 
-  const processAndUploadFiles = async () => {
+  const processFiles = async () => {
     if (files.length === 0) {
       toast({
         variant: "destructive",
         title: "No hay archivos seleccionados",
-        description: "Por favor, selecciona o arrastra los archivos que deseas subir.",
+        description: "Por favor, selecciona o arrastra los archivos que deseas procesar.",
       });
       return;
     }
@@ -69,20 +66,20 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
     setIsLoading(true);
     
     try {
-      const uploadPromises = files.map(file => {
-        const storageRef = ref(storage, `uploads/${file.name}`);
-        return uploadBytes(storageRef, file).then(() => file); // Pass the file along
-      });
-
-      const uploadedFiles = await Promise.all(uploadPromises);
-
-      const processingPromises = uploadedFiles.map(file => {
+      const processingPromises = files.map(file => {
           return new Promise<ProcessHealthDataFileOutput>((resolve, reject) => {
               const reader = new FileReader();
               reader.onload = async (e) => {
                   try {
                       const content = e.target?.result as string;
-                      if (!content) throw new Error(`El archivo ${file.name} está vacío.`);
+                      if (!content) {
+                        toast({
+                          variant: "destructive",
+                          title: "Archivo vacío",
+                          description: `El archivo ${file.name} parece estar vacío.`,
+                        });
+                        return reject(new Error(`El archivo ${file.name} está vacío.`));
+                      }
                       const result = await processHealthDataFile({ fileContent: content, fileName: file.name });
                       resolve(result);
                   } catch (error) {
@@ -98,13 +95,13 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
       onDataProcessed(results);
 
       toast({
-        title: "Archivos subidos y procesados",
-        description: `${files.length} archivo(s) procesado(s) correctamente. Tu panel se ha actualizado.`,
+        title: "Archivos procesados correctamente",
+        description: `${files.length} archivo(s) analizado(s). Tu panel se ha actualizado.`,
       });
-      setFiles([]); // Clear file list after successful upload
+      setFiles([]); // Clear file list after successful processing
 
     } catch (error) {
-        console.error("No se pudieron subir o procesar los archivos:", error);
+        console.error("No se pudieron procesar los archivos:", error);
         const errorMessage = error instanceof Error ? error.message : "Error desconocido";
         toast({
           variant: "destructive",
@@ -149,7 +146,7 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
 
         {files.length > 0 && (
           <div className="space-y-2">
-            <h4 className="font-medium text-sm">Archivos para subir:</h4>
+            <h4 className="font-medium text-sm">Archivos para procesar:</h4>
             <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
               {files.map((file, index) => (
                 <div key={index} className="flex items-center justify-between bg-muted p-2 rounded-md">
@@ -167,7 +164,7 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
         )}
         
         <div className="space-y-2">
-            <Button className="w-full" onClick={processAndUploadFiles} disabled={isLoading || files.length === 0}>
+            <Button className="w-full" onClick={processFiles} disabled={isLoading || files.length === 0}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -175,33 +172,13 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
                 </>
               ) : (
                 <>
-                  <Upload className="mr-2 h-4 w-4" /> Subir {files.length > 0 ? `(${files.length})` : ''}
+                  <Upload className="mr-2 h-4 w-4" /> Procesar {files.length > 0 ? `(${files.length})` : ''}
                 </>
               )}
             </Button>
             <Button variant="secondary" className="w-full" onClick={onGenerateReport}>
                 <BrainCircuit className="mr-2 h-4 w-4" /> Generar Informe Detallado
             </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="secondary" className="w-full">
-                  <Apple className="mr-2 h-4 w-4" /> Conectar a Apple Health
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Conexión con Apple Health</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    La integración directa con Apple Health desde una aplicación web no es posible por las políticas de privacidad de Apple. La conexión requeriría una aplicación nativa de iOS que sincronice los datos con la nube.
-                    <br/><br/>
-                    Esta funcionalidad está planificada para el futuro. Por ahora, puedes seguir subiendo tus datos exportados manualmente.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogAction>Entendido</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
         </div>
       </CardContent>
     </Card>
