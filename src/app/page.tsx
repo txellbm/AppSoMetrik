@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -62,11 +62,31 @@ const initialHealthData: HealthData = {
 };
 
 export default function Home() {
-  const [healthData, setHealthData] = useState<HealthData>(initialHealthData);
+  const [healthData, setHealthData] = useState<HealthData>(() => {
+    if (typeof window === 'undefined') {
+      return initialHealthData;
+    }
+    try {
+      const savedData = window.localStorage.getItem("healthData");
+      return savedData ? JSON.parse(savedData) : initialHealthData;
+    } catch (error) {
+      console.error("Error reading from localStorage", error);
+      return initialHealthData;
+    }
+  });
+
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [reportContent, setReportContent] = useState("");
   const [isReportLoading, setIsReportLoading] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("healthData", JSON.stringify(healthData));
+    } catch (error) {
+      console.error("Error writing to localStorage", error);
+    }
+  }, [healthData]);
 
   const handleDataProcessed = (processedData: ProcessHealthDataFileOutput[]) => {
     setHealthData((prevData) => {
@@ -161,7 +181,7 @@ export default function Home() {
     navigator.clipboard.writeText(reportContent);
     toast({
         title: "Informe copiado",
-        description: "El informe detallado ha sido copiado al portapapeles.",
+        description: "El informe detallado ha sido enviado al portapapeles.",
     });
   }
 
@@ -217,8 +237,10 @@ export default function Home() {
         
         <MenstrualCyclePanel data={healthData.menstrualCycleData} />
 
-        <div className="md:col-span-2 lg:col-span-3 grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <AIChatWidget />
+        <div className="md:col-span-2 lg:col-span-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+                <AIChatWidget />
+            </div>
           <div className="lg:col-span-1 space-y-6">
             <NotificationsWidget />
             <DataActions onDataProcessed={handleDataProcessed} onGenerateReport={handleGenerateReport} />

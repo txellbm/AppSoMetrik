@@ -42,7 +42,7 @@ export default function AIChatWidget() {
         </CardTitle>
       </CardHeader>
       <CardContent className="flex-grow flex flex-col gap-4">
-        <ScrollArea className="flex-grow pr-4 h-80" ref={scrollAreaRef}>
+        <ScrollArea className="flex-grow pr-4 h-[26rem]" ref={scrollAreaRef}>
           <div className="space-y-4">
             <div className="flex items-start gap-3">
               <Avatar className="w-8 h-8 border-2 border-primary">
