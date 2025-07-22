@@ -29,7 +29,7 @@ const prompt = ai.definePrompt({
     -   **Entrenamientos**: Busca cabeceras como 'Activity', 'Duration', 'Distance', 'Calories', 'Heart Rate', 'Workout'.
     -   **Sueño**: Busca cabeceras como 'Sleep', 'Sleep Duration', 'Sleep Quality', 'Sleep Start', 'Sleep End'.
     -   **Salud General**: Busca cabeceras como 'Heart Rate Resting', 'HRV', 'Respiration', 'Steps', 'Hydration', 'Recovery %'.
-    -   **Ciclo Menstrual**: Busca cabeceras como 'Cycle Phase', 'Period Start', 'Ovulation', 'Symptoms'.
+    -   **Ciclo Menstrual**: Busca cabeceras como 'Cycle Phase', 'Period Start', 'Ovulation', 'Symptoms', 'Cycle Day'.
     -   **Nutrición**: Busca cabeceras como 'Food', 'Calories', 'Macros', 'Supplements'.
     -   Usa el nombre del archivo solo como una pista secundaria si está disponible: \`{{{fileName}}}\`.
 
@@ -41,6 +41,7 @@ const prompt = ai.definePrompt({
         -   Si el archivo contiene múltiples filas por entrenamiento (detectado por 'Entrenamiento-Tipo' o similar), agrupa las filas por fecha y tipo de entreno.
             -   Calcula la **hora de inicio** y **fin** usando la columna 'ISO' (primer y último registro del grupo).
             -   Calcula la **duración exacta** como la diferencia entre la hora de fin y la de inicio, y formátala como 'hh:mm:ss'.
+    -   **Ciclo Menstrual**: Extrae la fase actual, el día del ciclo y una lista de síntomas si están presentes.
     -   **Métricas Numéricas**: Redondea los valores decimales a un máximo de 1 o 2 decimales para claridad (ej. distancia, VFC).
     -   **Valores Faltantes**: Si una columna o métrica no está presente, devuélvela con su valor por defecto (0, "No disponible", o un array vacío), sin que esto cause un error.
 
@@ -71,6 +72,4 @@ const processHealthDataFileFlow = ai.defineFlow(
     return output!;
   }
 );
-    
-
     

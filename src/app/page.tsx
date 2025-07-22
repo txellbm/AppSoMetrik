@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { HeartPulse, Moon, Flame, Droplets, Dumbbell, FileText, Activity, ShieldCheck, Heart, Calendar, BrainCircuit, Wind } from "lucide-react";
+import { HeartPulse, Moon, Flame, Droplets, Dumbbell, FileText, Activity, ShieldCheck, Heart, Stethoscope, BrainCircuit, Wind } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,6 +37,8 @@ import AIChatWidget from "@/components/dashboard/ai-chat-widget";
 import DataActions from "@/components/dashboard/data-actions";
 import NotificationsWidget from "@/components/dashboard/notifications-widget";
 import SleepChart from "@/components/dashboard/sleep-chart";
+import MenstrualCyclePanel from "@/components/dashboard/menstrual-cycle-panel";
+
 
 const initialHealthData: HealthData = {
   averageSleep: 0,
@@ -47,7 +49,11 @@ const initialHealthData: HealthData = {
   recoveryPercentage: 0,
   respiration: 0,
   energyLevel: 0,
-  menstrualCyclePhase: "No disponible",
+  menstrualCycleData: {
+    currentPhase: "No disponible",
+    currentDay: 0,
+    symptoms: []
+  },
   movePercentage: 0,
   exercisePercentage: 0,
   standPercentage: 0,
@@ -85,8 +91,8 @@ export default function Home() {
         acc.respiration = updateAverage(acc.respiration, newHealth.respiration);
         acc.energyLevel = updateAverage(acc.energyLevel, newHealth.energyLevel);
         
-        if (newHealth.menstrualCyclePhase && newHealth.menstrualCyclePhase !== "No disponible") {
-          acc.menstrualCyclePhase = newHealth.menstrualCyclePhase;
+        if (newHealth.menstrualCycleData && newHealth.menstrualCycleData.currentPhase !== "No disponible") {
+          acc.menstrualCycleData = newHealth.menstrualCycleData;
         }
         
         acc.activeCalories += newHealth.activeCalories;
@@ -130,7 +136,7 @@ export default function Home() {
             sleepData: `Sueño promedio: ${healthData.averageSleep.toFixed(1)}h. Datos de los últimos días: ${healthData.sleepData.map(d => `${d.day}: ${d.hours}h`).join(', ')}`,
             exerciseData: `Calorías activas: ${healthData.activeCalories}, Entrenamientos: ${workoutDetails}. Anillos: Moverse ${healthData.movePercentage}% Ejercicio ${healthData.exercisePercentage}% Pararse ${healthData.standPercentage}%`,
             heartRateData: `Frecuencia cardíaca en reposo: ${(healthData.restingHeartRate || 0).toFixed(0)} bpm. VFC: ${(healthData.hrv || 0).toFixed(1)} ms. Recuperación: ${(healthData.recoveryPercentage || 0).toFixed(0)}%. Respiración: ${(healthData.respiration || 0).toFixed(1)} rpm. Nivel de energía: ${(healthData.energyLevel || 0).toFixed(0)}%`,
-            menstruationData: `Fase del ciclo: ${healthData.menstrualCyclePhase}.`,
+            menstruationData: `Fase del ciclo: ${healthData.menstrualCycleData.currentPhase}. Día del ciclo: ${healthData.menstrualCycleData.currentDay}. Síntomas: ${healthData.menstrualCycleData.symptoms.join(', ')}`,
             supplementData: "No hay datos de suplementos disponibles.",
             foodIntakeData: `Hidratación: ${healthData.hydrationLiters.toFixed(1)} L`,
             calendarData: "No hay datos de calendario disponibles.",
@@ -188,7 +194,7 @@ export default function Home() {
                     <StatCard icon={<ShieldCheck className="text-primary" />} title="Recuperación" value={`${(healthData.recoveryPercentage || 0).toFixed(0)}%`} />
                     <StatCard icon={<Wind className="text-primary" />} title="Respiración" value={`${(healthData.respiration || 0).toFixed(1)} rpm`} />
                     <StatCard icon={<BrainCircuit className="text-primary" />} title="Nivel Energía" value={`${(healthData.energyLevel || 0).toFixed(0)}%`} />
-                    <StatCard icon={<Calendar className="text-primary" />} title="Ciclo Menstrual" value={healthData.menstrualCyclePhase} />
+                    <StatCard icon={<Stethoscope className="text-primary" />} title="Fase Actual" value={healthData.menstrualCycleData.currentPhase} />
                 </CardContent>
             </Card>
         </div>
@@ -208,11 +214,11 @@ export default function Home() {
         <SleepChart data={healthData.sleepData} />
         
         <WorkoutSummaryCard workouts={healthData.workouts} />
+        
+        <MenstrualCyclePanel data={healthData.menstrualCycleData} />
 
-        <div className="md:col-span-2 lg:col-span-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
+        <div className="md:col-span-2 lg:col-span-3 grid grid-cols-1 lg:grid-cols-2 gap-6">
             <AIChatWidget />
-          </div>
           <div className="lg:col-span-1 space-y-6">
             <NotificationsWidget />
             <DataActions onDataProcessed={handleDataProcessed} onGenerateReport={handleGenerateReport} />
@@ -305,7 +311,7 @@ function ActivityRing({ percentage, color, label }: { percentage: number; color:
 
 function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
   return (
-    <Card className="md:col-span-2 lg:col-span-4">
+    <Card className="md:col-span-2 lg:col-span-2">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Dumbbell className="text-primary" />

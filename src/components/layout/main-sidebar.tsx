@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/sidebar";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { BrainCircuit, LayoutDashboard, Bot, Settings, Upload, Calendar, PenSquare, LifeBuoy } from "lucide-react";
+import { BrainCircuit, LayoutDashboard, Bot, Settings, Upload, Calendar, PenSquare, LifeBuoy, Stethoscope } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const menuItems = [

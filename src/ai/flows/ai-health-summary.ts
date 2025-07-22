@@ -33,7 +33,7 @@ const prompt = ai.definePrompt({
 - **Actividad Física y Ejercicio**: Un resumen de las calorías quemadas, el progreso hacia los objetivos y una tabla detallada de los entrenamientos realizados. Analiza la consistencia y la intensidad.
 - **Salud Cardíaca y Fisiología**: Información sobre la frecuencia cardíaca en reposo, VFC (HRV), y frecuencia respiratoria. Explica qué significan estas métricas en el contexto del usuario.
 - **Hidratación y Nutrición**: Detalles sobre la ingesta de líquidos y alimentos (si están disponibles).
-- **Ciclo Menstrual**: Si hay datos, un análisis de la fase actual del ciclo y sus implicaciones en la energía, el estado de ánimo y las recomendaciones de entrenamiento.
+- **Ciclo Menstrual**: Si hay datos, un análisis de la fase actual del ciclo, el día del ciclo, los síntomas registrados y sus implicaciones en la energía, el estado de ánimo y las recomendaciones de entrenamiento.
 - **Recomendaciones Clave**: Una lista con viñetas de las 3-5 recomendaciones más importantes y accionables basadas en el análisis cruzado de todos los datos proporcionados.
 
 **DATOS CONSOLIDADOS DEL USUARIO:**
@@ -60,5 +60,4 @@ const generateHealthSummaryFlow = ai.defineFlow(
     return output!;
   }
 );
-
     

@@ -53,6 +53,13 @@ const SleepEntrySchema = z.object({
 });
 export type SleepEntry = z.infer<typeof SleepEntrySchema>;
 
+const MenstrualCycleDataSchema = z.object({
+    currentPhase: z.string().describe("La fase actual del ciclo menstrual (ej. Folicular, Lútea, Menstruación).").default("No disponible"),
+    currentDay: z.number().describe("El día actual dentro del ciclo menstrual.").default(0),
+    symptoms: z.array(z.string()).describe("Una lista de síntomas registrados.").default([]),
+});
+export type MenstrualCycleData = z.infer<typeof MenstrualCycleDataSchema>;
+
 export const HealthDataSchema = z.object({
   averageSleep: z.number().describe('Las horas de sueño promedio.').default(0),
   activeCalories: z.number().describe('Las calorías activas quemadas.').default(0),
@@ -62,7 +69,7 @@ export const HealthDataSchema = z.object({
   recoveryPercentage: z.number().describe("El porcentaje de recuperación (ej. 85 para 85%).").default(0),
   respiration: z.number().describe("La frecuencia respiratoria promedio en respiraciones por minuto (rpm).").default(0),
   energyLevel: z.number().describe("El nivel de energía estimado (%).").default(0),
-  menstrualCyclePhase: z.string().describe("La fase actual del ciclo menstrual (ej. Folicular, Lútea, Menstruación).").default("No disponible"),
+  menstrualCycleData: MenstrualCycleDataSchema.describe("Datos detallados sobre el ciclo menstrual actual.").default({ currentPhase: "No disponible", currentDay: 0, symptoms: [] }),
   movePercentage: z.number().describe('El porcentaje del objetivo de movimiento.').default(0),
   exercisePercentage: z.number().describe('El porcentaje del objetivo de ejercicio.').default(0),
   standPercentage: z.number().describe('El porcentaje del objetivo de pararse.').default(0),
@@ -81,5 +88,3 @@ export const ProcessHealthDataFileOutputSchema = z.object({
 export type ProcessHealthDataFileOutput = z.infer<
   typeof ProcessHealthDataFileOutputSchema
 >;
-
-    
