@@ -16,11 +16,11 @@ const flowColors: { [key: string]: string } = {
   heavy: 'text-red-600',
 };
 
-// Helper function to adjust for timezone offset
-const adjustDateForTimezone = (dateStr: string): Date => {
-    const date = parseISO(dateStr);
-    return new Date(date.valueOf() + date.getTimezoneOffset() * 60 * 1000);
-}
+// Helper function to treat date string as local time, not UTC
+const parseDateAsLocal = (dateStr: string): Date => {
+  return new Date(`${dateStr}T00:00:00`);
+};
+
 
 export default function MenstrualCalendar({ data }: { data: MenstrualCycleData[] }) {
   const [date, setDate] = React.useState<Date | undefined>(new Date());
@@ -45,8 +45,8 @@ export default function MenstrualCalendar({ data }: { data: MenstrualCycleData[]
   }
 
   const modifiers = data.reduce((acc, entry) => {
-    // Dates from firestore are strings, so we need to parse them and adjust for timezone.
-    const date = adjustDateForTimezone(entry.date);
+    // Dates from firestore are strings, so we need to parse them locally.
+    const date = parseDateAsLocal(entry.date);
     if (entry.flow) {
       acc[entry.flow] = [...(acc[entry.flow] || []), date];
     }
@@ -62,7 +62,7 @@ export default function MenstrualCalendar({ data }: { data: MenstrualCycleData[]
 
   const DayWithFlow = ({ date }: { date: Date }) => {
     const entryForDay = data.find(d => {
-        const entryDate = adjustDateForTimezone(d.date);
+        const entryDate = parseDateAsLocal(d.date);
         return entryDate.getDate() === date.getDate() &&
                entryDate.getMonth() === date.getMonth() &&
                entryDate.getFullYear() === date.getFullYear();
