@@ -15,15 +15,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const menuItems = [
   { href: "/", label: "Panel", icon: LayoutDashboard },
-  { href: "#", label: "Subir Datos", icon: Upload },
-  { href: "#", label: "Calendario", icon: Calendar },
-  { href: "#", label: "Registrar Entrada", icon: PenSquare },
-  { href: "#", label: "Asistente IA", icon: Bot },
+  { href: "/upload", label: "Subir Datos", icon: Upload },
+  { href: "/calendar", label: "Calendario", icon: Calendar },
+  { href: "/log", label: "Registrar Entrada", icon: PenSquare },
+  { href: "/assistant", label: "Asistente IA", icon: Bot },
 ];
 
 const bottomMenuItems = [
-    { href: "#", label: "Configuración", icon: Settings },
-    { href: "#", label: "Soporte", icon: LifeBuoy },
+    { href: "/settings", label: "Configuración", icon: Settings },
+    { href: "/support", label: "Soporte", icon: LifeBuoy },
 ]
 
 export function MainSidebar() {
@@ -43,13 +43,16 @@ export function MainSidebar() {
         <SidebarMenu>
           {menuItems.map((item) => (
             <SidebarMenuItem key={item.label}>
-              <Link href={item.href} legacyBehavior passHref>
+              <Link href={item.href} passHref>
                 <SidebarMenuButton
+                  asChild
                   isActive={pathname === item.href}
                   tooltip={item.label}
                 >
-                  <item.icon />
-                  <span>{item.label}</span>
+                  <div>
+                    <item.icon />
+                    <span>{item.label}</span>
+                  </div>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
