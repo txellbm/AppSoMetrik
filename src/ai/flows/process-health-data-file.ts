@@ -24,11 +24,11 @@ const prompt = ai.definePrompt({
 
 **Instrucciones Clave:**
 1.  **Detección del Tipo de Archivo**: Analiza las cabeceras (para CSV) o la estructura (para JSON) para identificar el tipo de datos. Los nombres de archivo como 'AutoSleep', 'HeartWatch' o 'measurements.json' son pistas importantes.
-2.  **Extracción Precisa**: Presta mucha atención a las unidades y formatos. Convierte duraciones a horas o minutos según corresponda. Asegúrate de que los campos numéricos (calorías, distancia, HRV, calidad, respiración) se procesen como números (por ejemplo, usando parseFloat), no como texto. Si un valor no está presente o es inválido (ej. 'unknown', 'N/A'), usa los valores por defecto del esquema (ej. 0). No dejes campos como NaN.
+2.  **Extracción Precisa**: Presta mucha atención a las unidades y formatos. Convierte duraciones a horas o minutos según corresponda. Asegúrate de que los campos numéricos (calorías, distancia, HRV, calidad, respiración, frecuencia cardíaca, readiness) se procesen como números (por ejemplo, usando parseFloat), no como texto. Si un valor no está presente o es inválido (ej. 'unknown', 'N/A'), usa los valores por defecto del esquema (ej. 0). No dejes campos como NaN.
 3.  **Manejo de Archivos Específicos**:
-    *   **AutoSleep CSV**: Extrae 'Sleep Session End Date', 'inBed', 'awake', 'deep', 'light', 'rem', 'quality' (calidad). Calcula la duración total del sueño ('totalSleep') sumando 'deep', 'light' y 'rem'.
-    *   **HeartWatch CSV**: Extrae 'Date', 'Heart Rate Resting', 'HRV', 'Respiration' (Frecuencia Respiratoria). Estos datos a menudo se corresponden con una fecha de sueño. Intenta asociarlos a la entrada de sueño correcta si es posible.
-    *   **HeartWatch Entrenamientos CSV**: Extrae 'Date', 'Activity', 'Duration (mins)', 'Active Calories', 'Distance (km)'.
+    *   **AutoSleep CSV**: Extrae 'Sleep Session End Date', 'inBed', 'awake', 'deep', 'light', 'rem', 'quality' (calidad) y 'Readiness'. Calcula la duración total del sueño ('totalSleep') sumando 'deep', 'light' y 'rem'.
+    *   **HeartWatch CSV (Sueño/Vitales)**: Extrae 'Date', 'Heart Rate Resting', 'HRV', 'Respiration' (Frecuencia Respiratoria). Estos datos a menudo se corresponden con una fecha de sueño. Intenta asociarlos a la entrada de sueño correcta si es posible.
+    *   **HeartWatch Entrenamientos CSV**: Extrae 'Date', 'Activity', 'Duration (mins)', 'Active Calories', 'Distance (km)' y 'Average Heart Rate (bpm)'.
     *   **measurements.json (Clue)**: Procesa cada entrada. Si 'type' es 'period', extrae 'date' y 'value.option' (que corresponde al 'flow').
 4.  **Generación de Respuesta**:
     -   Crea un resumen de 1-2 frases sobre el contenido del archivo.
@@ -57,4 +57,5 @@ const processHealthDataFileFlow = ai.defineFlow(
     
 
     
+
 

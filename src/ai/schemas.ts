@@ -41,7 +41,7 @@ export const WorkoutSchema = z.object({
   distance: z.number().describe("La distancia del entrenamiento en kilómetros.").default(0),
   calories: z.number().describe("Las calorías quemadas durante el entrenamiento.").default(0),
   duration: z.number().describe("La duración del entrenamiento en minutos.").default(0),
-  averageHeartRate: z.number().describe("La frecuencia cardíaca promedio durante el entrenamiento en lpm.").optional().default(0),
+  averageHeartRate: z.number().describe("La frecuencia cardíaca promedio durante el entrenamiento en lpm.").default(0),
   startTime: z.string().describe("La hora de inicio del entrenamiento (ej. '18:30:05').").optional().default("00:00:00"),
   endTime: z.string().describe("La hora de finalización del entrenamiento (ej. '19:30:10').").optional().default("00:00:00"),
 });
@@ -55,6 +55,7 @@ export const SleepEntrySchema = z.object({
     remSleep: z.number().describe("Horas de sueño REM.").default(0),
     awake: z.number().describe("Tiempo despierto en horas.").default(0),
     quality: z.number().describe("Puntuación de calidad del sueño (%).").default(0),
+    readiness: z.number().describe("Puntuación de preparación/energía (%).").optional().default(0),
     restingHeartRate: z.number().describe('La frecuencia cardíaca en reposo en lpm.').optional().default(0),
     hrv: z.number().describe("La variabilidad de la frecuencia cardíaca (VFC) en ms.").optional().default(0),
     respiration: z.number().describe("La frecuencia respiratoria promedio en rpm.").optional().default(0),
