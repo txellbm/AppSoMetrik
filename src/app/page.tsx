@@ -22,8 +22,16 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { generateHealthSummary } from "@/ai/flows/ai-health-summary";
-import { HealthSummaryInput, ProcessHealthDataFileOutput, HealthData } from "@/ai/schemas";
+import { HealthSummaryInput, ProcessHealthDataFileOutput, HealthData, Workout } from "@/ai/schemas";
 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 
 import AIChatWidget from "@/components/dashboard/ai-chat-widget";
 import DataActions from "@/components/dashboard/data-actions";
@@ -39,10 +47,7 @@ const initialHealthData: HealthData = {
   exercisePercentage: 0,
   standPercentage: 0,
   sleepData: [],
-  workoutSummary: {
-    totalDistance: 0,
-    totalCalories: 0,
-  }
+  workouts: [],
 };
 
 export default function Home() {
@@ -75,10 +80,7 @@ export default function Home() {
         exercisePercentage: Math.min(100, prevData.exercisePercentage + newData.healthData.exercisePercentage),
         standPercentage: Math.min(100, prevData.standPercentage + newData.healthData.standPercentage),
         sleepData: newSleepData,
-        workoutSummary: {
-          totalDistance: prevData.workoutSummary.totalDistance + newData.healthData.workoutSummary.totalDistance,
-          totalCalories: prevData.workoutSummary.totalCalories + newData.healthData.workoutSummary.totalCalories,
-        },
+        workouts: [...prevData.workouts, ...newData.healthData.workouts],
       };
     });
   };
@@ -89,9 +91,10 @@ export default function Home() {
     setReportContent("");
 
     try {
+        const workoutDetails = healthData.workouts.map(w => `${w.name}: ${w.distance}km, ${w.calories}kcal`).join('; ');
         const input: HealthSummaryInput = {
             sleepData: `Sueño promedio: ${healthData.averageSleep.toFixed(1)}h. Datos de los últimos días: ${healthData.sleepData.map(d => `${d.day}: ${d.hours}h`).join(', ')}`,
-            exerciseData: `Calorías activas: ${healthData.activeCalories}, Resumen de entrenamiento: ${healthData.workoutSummary.totalDistance.toFixed(1)}km, ${healthData.workoutSummary.totalCalories}kcal. Anillos: Moverse ${healthData.movePercentage}%, Ejercicio ${healthData.exercisePercentage}%, Pararse ${healthData.standPercentage}%`,
+            exerciseData: `Calorías activas: ${healthData.activeCalories}, Entrenamientos: ${workoutDetails}. Anillos: Moverse ${healthData.movePercentage}%, Ejercicio ${healthData.exercisePercentage}%, Pararse ${healthData.standPercentage}%`,
             heartRateData: `Frecuencia cardíaca en reposo: ${healthData.restingHeartRate} bpm`,
             menstruationData: "No hay datos de menstruación disponibles.",
             supplementData: "No hay datos de suplementos disponibles.",
@@ -155,7 +158,7 @@ export default function Home() {
           </CardContent>
         </Card>
         
-        <WorkoutSummaryCard workoutSummary={healthData.workoutSummary} />
+        <WorkoutSummaryCard workouts={healthData.workouts} />
 
         <div className="md:col-span-2 lg:col-span-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
@@ -251,26 +254,44 @@ function ActivityRing({ percentage, color, label }: { percentage: number; color:
   )
 }
 
-function WorkoutSummaryCard({ workoutSummary }: { workoutSummary: HealthData['workoutSummary'] }) {
-    return (
-        <Card className="md:col-span-2 lg:col-span-2">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Dumbbell className="text-primary" />
-                    Resumen de Entrenamiento
-                </CardTitle>
-                <CardDescription>Tu actividad de entrenamiento de la semana.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 pt-4">
-                <div>
-                    <p className="text-sm text-muted-foreground">Distancia Total</p>
-                    <p className="text-2xl font-bold">{workoutSummary.totalDistance.toFixed(1)} km</p>
-                </div>
-                <div>
-                    <p className="text-sm text-muted-foreground">Calorías Totales</p>
-                    <p className="text-2xl font-bold">{workoutSummary.totalCalories} kcal</p>
-                </div>
-            </CardContent>
-        </Card>
-    );
+function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
+  return (
+    <Card className="md:col-span-2 lg:col-span-2">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Dumbbell className="text-primary" />
+          Resumen de Entrenamiento
+        </CardTitle>
+        <CardDescription>Tus entrenamientos de la semana.</CardDescription>
+      </CardHeader>
+      <CardContent className="pt-4">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Entrenamiento</TableHead>
+              <TableHead className="text-right">Distancia</TableHead>
+              <TableHead className="text-right">Calorías</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {workouts.length > 0 ? (
+              workouts.map((workout, index) => (
+                <TableRow key={index}>
+                  <TableCell className="font-medium">{workout.name}</TableCell>
+                  <TableCell className="text-right">{workout.distance.toFixed(1)} km</TableCell>
+                  <TableCell className="text-right">{workout.calories} kcal</TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={3} className="text-center text-muted-foreground">
+                  No hay datos de entrenamiento
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
 }

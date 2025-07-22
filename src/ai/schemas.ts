@@ -32,6 +32,13 @@ export type ProcessHealthDataFileInput = z.infer<
   typeof ProcessHealthDataFileInputSchema
 >;
 
+const WorkoutSchema = z.object({
+  name: z.string().describe("El nombre o tipo de entrenamiento (ej. Correr, Ciclismo)."),
+  distance: z.number().describe("La distancia del entrenamiento en kilómetros."),
+  calories: z.number().describe("Las calorías quemadas durante el entrenamiento."),
+});
+export type Workout = z.infer<typeof WorkoutSchema>;
+
 export const HealthDataSchema = z.object({
   averageSleep: z.number().describe('Las horas de sueño promedio.'),
   activeCalories: z.number().describe('Las calorías activas quemadas.'),
@@ -44,10 +51,7 @@ export const HealthDataSchema = z.object({
     day: z.string().describe("Día de la semana (ej. Lun, Mar)"),
     hours: z.number().describe("Horas de sueño para ese día"),
   })).describe('Datos de sueño de los últimos 7 días.'),
-  workoutSummary: z.object({
-    totalDistance: z.number().describe("La distancia total de entrenamiento en kilómetros."),
-    totalCalories: z.number().describe("El total de calorías quemadas durante los entrenamientos."),
-  }).describe("Un resumen de los datos de entrenamiento."),
+  workouts: z.array(WorkoutSchema).describe("Una lista de los entrenamientos realizados."),
 });
 export type HealthData = z.infer<typeof HealthDataSchema>;
 
