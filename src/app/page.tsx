@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -37,7 +38,7 @@ import AIChatWidget from "@/components/dashboard/ai-chat-widget";
 import DataActions from "@/components/dashboard/data-actions";
 import NotificationsWidget from "@/components/dashboard/notifications-widget";
 import SleepChart from "@/components/dashboard/sleep-chart";
-import MenstrualCyclePanel from "@/components/dashboard/menstrual-cycle-panel";
+import MenstrualCalendar from "@/components/dashboard/menstrual-calendar";
 import { collection, doc, onSnapshot, setDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -216,7 +217,7 @@ export default function Home() {
 
             <WorkoutSummaryCard workouts={dashboardData.workouts} />
 
-            <MenstrualCyclePanel data={latestMenstrualData} />
+            <MenstrualCalendar data={dashboardData.menstrualData} />
 
             <div className="md:col-span-2 lg:col-span-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
