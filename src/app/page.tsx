@@ -65,17 +65,24 @@ export default function Home() {
 
     const unsubscribers = Object.entries(collections).map(([key, coll]) => {
         return onSnapshot(coll, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const data = snapshot.docs.map(doc => ({ ...doc.data() } as any)); // Type assertion here
             setDashboardData(prevData => ({
                 ...prevData,
                 [key]: data,
             }));
+        }, (error) => {
+          console.error(`Error en el listener de ${key}:`, error);
+          toast({
+            variant: "destructive",
+            title: `Error de Firestore (${key})`,
+            description: "No se pudieron cargar los datos. Revisa los permisos de la base de datos.",
+          });
         });
     });
 
     // Cleanup function
     return () => unsubscribers.forEach(unsub => unsub());
-  }, [userId]);
+  }, [userId, toast]);
 
 
   const handleDataProcessed = async (processedData: ProcessHealthDataFileOutput) => {
@@ -125,7 +132,6 @@ export default function Home() {
     setIsReportLoading(true);
     setReportContent("");
 
-    // This is a simplified summary generation. In a real app, you'd do more complex aggregations.
     try {
         const workoutDetails = dashboardData.workouts.map(w => `${w.date} - ${w.name}: ${w.distance.toFixed(1)}km, ${w.calories}kcal, ${w.duration}mins`).join('; ');
         const sleepDetails = dashboardData.sleepData.map(s => `${s.date}: ${s.totalSleep.toFixed(1)}h (Profundo: ${s.deepSleep}h, Ligero: ${s.lightSleep}h, REM: ${s.remSleep}h)`).join('; ');
@@ -193,11 +199,11 @@ export default function Home() {
                 <CardDescription>Métricas clave de tu salud general.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                <StatCard icon={<Moon className="text-primary" />} title="Sueño Promedio" value={`${avgSleep.toFixed(1)}h`} />
-                <StatCard icon={<Flame className="text-primary" />} title="Calorías Activas" value={String(totalCalories)} />
-                <StatCard icon={<HeartPulse className="text-primary" />} title="FC en Reposo" value={`${avgRestingHR.toFixed(0)} bpm`} />
+                <StatCard icon={<Moon className="text-primary" />} title="Sueño Promedio" value={`${!isNaN(avgSleep) ? avgSleep.toFixed(1) : '0.0'}h`} />
+                <StatCard icon={<Flame className="text-primary" />} title="Calorías Activas" value={String(totalCalories || 0)} />
+                <StatCard icon={<HeartPulse className="text-primary" />} title="FC en Reposo" value={`${!isNaN(avgRestingHR) ? avgRestingHR.toFixed(0) : '0'} bpm`} />
                 <StatCard icon={<Droplets className="text-primary" />} title="Hidratación" value={`N/A`} />
-                <StatCard icon={<Activity className="text-primary" />} title="VFC (HRV)" value={`${avgHRV.toFixed(1)} ms`} />
+                <StatCard icon={<Activity className="text-primary" />} title="VFC (HRV)" value={`${!isNaN(avgHRV) ? avgHRV.toFixed(1) : '0.0'} ms`} />
                 <StatCard icon={<ShieldCheck className="text-primary" />} title="Recuperación" value={`N/A`} />
                 <StatCard icon={<Wind className="text-primary" />} title="Respiración" value={`N/A`} />
                 <StatCard icon={<BrainCircuit className="text-primary" />} title="Nivel Energía" value={`N/A`} />
@@ -364,3 +370,5 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
     </Card>
   );
 }
+
+    
