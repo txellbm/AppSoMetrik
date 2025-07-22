@@ -20,30 +20,22 @@ const prompt = ai.definePrompt({
   name: 'processHealthDataFilePrompt',
   input: {schema: ProcessHealthDataFileInputSchema},
   output: {schema: ProcessHealthDataFileOutputSchema},
-  prompt: `Eres un asistente de salud de IA experto en analizar y consolidar datos de salud de varios archivos CSV y JSON. Tu tarea es analizar el contenido del archivo, identificar qué tipo de datos contiene, extraer la información relevante y devolverla en un formato JSON estructurado y válido.
+  prompt: `Eres un asistente de salud de IA experto en analizar y consolidar datos de salud de varios archivos CSV y JSON. Tu tarea es analizar el contenido del archivo, identificar qué tipo de datos contiene, extraer la información relevante y devolverla en un formato JSON estructurado y válido que se adhiera estrictamente al esquema de salida.
 
-**Instrucciones de Procesamiento:**
+**Instrucciones Clave:**
+1.  **Detección del Tipo de Archivo**: Analiza las cabeceras (para CSV) o la estructura (para JSON) para identificar el tipo de datos. Los nombres de archivo como 'AutoSleep', 'HeartWatch' o 'measurements.json' son pistas importantes.
+2.  **Extracción Precisa**: Presta mucha atención a las unidades y formatos. Convierte duraciones a horas o minutos según corresponda. Asegúrate de que los campos numéricos (calorías, distancia, HRV) se procesen como números (\`parseFloat\`), no como texto. Si un valor no está presente, usa los valores por defecto del esquema.
+3.  **Manejo de Archivos Específicos**:
+    *   **AutoSleep CSV**: Extrae \`Sleep Session End Date\`, \`inBed\`, \`awake\`, \`deep\`, \`light\`, \`rem\`, \`quality\`. Calcula la duración total del sueño (\`totalSleep\`) sumando \`deep\`, \`light\` y \`rem\`.
+    *   **HeartWatch CSV**: Extrae \`Date\`, \`Heart Rate Resting\`, \`HRV\`, \`Respiration\`.
+    *   **HeartWatch Entrenamientos CSV**: Extrae \`Date\`, \`Activity\`, \`Duration (mins)\`, \`Active Calories\`, \`Distance (km)\`.
+    *   **measurements.json (Clue)**: Procesa cada entrada. Si \`type\` es 'period', extrae \`date\` y \`value.option\` (que corresponde al \`flow\`). El \`dayOfCycle\` y la \`phase\` deberán ser calculados posteriormente, pero puedes dejar los valores por defecto.
+4.  **Generación de Respuesta**:
+    -   Crea un resumen de 1-2 frases sobre el contenido del archivo.
+    -   **IMPORTANTE**: Rellena los arrays correspondientes en el objeto de salida (\`workouts\`, \`sleepData\`, \`menstrualData\`). Si un archivo solo contiene datos de sueño, el array \`workouts\` debe estar vacío.
+    -   Tu respuesta final debe ser **únicamente** el objeto JSON que se adhiere al esquema. No incluyas ningún texto, explicación o carácter adicional fuera del JSON.
 
-1.  **Detección del Tipo de Archivo**:
-    -   **Para archivos JSON**: Busca claves como 'period', 'symptoms', 'flow', 'startDate', 'endDate'. Si las encuentras, procesa el archivo como datos del ciclo menstrual.
-    -   **Para archivos CSV**: Analiza las cabeceras para identificar qué tipo de datos contiene:
-        -   **Entrenamientos**: Busca 'Activity', 'Duration', 'Distance', 'Calories', 'Heart Rate'.
-        -   **Sueño**: Busca 'Sleep Duration', 'Sleep Quality', 'Sleep Start', 'Sleep End'.
-        -   **Salud General**: Busca 'Heart Rate Resting', 'HRV', 'Respiration'.
-    -   Usa el nombre del archivo solo como una pista secundaria si está disponible: \`{{{fileName}}}\`.
-
-2.  **Extracción y Homogeneización de Datos**:
-    -   **Fechas**: Normaliza todas las fechas al formato YYYY-MM-DD.
-    -   **Duración**: Convierte duraciones a formato 'hh:mm:ss'.
-    -   **Métricas Numéricas**: Redondea los valores decimales a 1 o 2 decimales.
-    -   **Valores Faltantes**: Usa los valores por defecto del esquema (0, "No disponible", array vacío) si falta alguna métrica.
-    -   **Tiempos**: Mantén los \`startTime\` y \`endTime\` como strings simples ('18:30:05') sin procesar zonas horarias.
-
-3.  **Generación de Respuesta**:
-    -   Crea un resumen de 1-2 frases sobre el contenido del archivo. Si no puedes clasificarlo, el resumen debe indicarlo y el objeto \`healthData\` debe contener los valores por defecto.
-    -   **IMPORTANTE**: Tu respuesta final debe ser únicamente el objeto JSON que se adhiere al esquema de salida. No incluyas ningún texto, explicación o carácter adicional fuera del JSON.
-
-**Contenido del Archivo:**
+**Contenido del Archivo (Pista de nombre: \`{{{fileName}}}\`):**
 \`\`\`
 {{{fileContent}}}
 \`\`\`

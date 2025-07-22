@@ -35,56 +35,58 @@ export type ProcessHealthDataFileInput = z.infer<
   typeof ProcessHealthDataFileInputSchema
 >;
 
-const WorkoutSchema = z.object({
-  date: z.string().describe("La fecha del entrenamiento (ej. 2023-10-27)."),
+export const WorkoutSchema = z.object({
+  date: z.string().describe("La fecha del entrenamiento (YYYY-MM-DD)."),
   name: z.string().describe("El nombre o tipo de entrenamiento (ej. Correr, Ciclismo)."),
   distance: z.number().describe("La distancia del entrenamiento en kilómetros.").default(0),
   calories: z.number().describe("Las calorías quemadas durante el entrenamiento.").default(0),
-  duration: z.string().describe("La duración del entrenamiento en formato hh:mm:ss.").default("00:00:00"),
-  averageHeartRate: z.number().describe("La frecuencia cardíaca promedio durante el entrenamiento en lpm.").default(0),
-  startTime: z.string().describe("La hora de inicio del entrenamiento (ej. '18:30:05').").default("00:00:00"),
-  endTime: z.string().describe("La hora de finalización del entrenamiento (ej. '19:30:10').").default("00:00:00"),
+  duration: z.number().describe("La duración del entrenamiento en minutos.").default(0),
+  averageHeartRate: z.number().describe("La frecuencia cardíaca promedio durante el entrenamiento en lpm.").optional().default(0),
+  startTime: z.string().describe("La hora de inicio del entrenamiento (ej. '18:30:05').").optional().default("00:00:00"),
+  endTime: z.string().describe("La hora de finalización del entrenamiento (ej. '19:30:10').").optional().default("00:00:00"),
 });
 export type Workout = z.infer<typeof WorkoutSchema>;
 
-const SleepEntrySchema = z.object({
-    day: z.string().describe("Día de la semana (ej. Lun, Mar) o fecha (YYYY-MM-DD)"),
-    hours: z.number().describe("Horas de sueño para ese día"),
+export const SleepEntrySchema = z.object({
+    date: z.string().describe("Fecha de la sesión de sueño (YYYY-MM-DD)."),
+    totalSleep: z.number().describe("Duración total del sueño en horas.").default(0),
+    deepSleep: z.number().describe("Horas de sueño profundo.").default(0),
+    lightSleep: z.number().describe("Horas de sueño ligero.").default(0),
+    remSleep: z.number().describe("Horas de sueño REM.").default(0),
+    awake: z.number().describe("Tiempo despierto en horas.").default(0),
+    quality: z.number().describe("Puntuación de calidad del sueño (%).").default(0),
+    restingHeartRate: z.number().describe('La frecuencia cardíaca en reposo en lpm.').optional().default(0),
+    hrv: z.number().describe("La variabilidad de la frecuencia cardíaca (VFC) en ms.").optional().default(0),
+    respiration: z.number().describe("La frecuencia respiratoria promedio en rpm.").optional().default(0),
 });
 export type SleepEntry = z.infer<typeof SleepEntrySchema>;
 
-const MenstrualCycleDataSchema = z.object({
-    currentPhase: z.string().describe("La fase actual del ciclo menstrual (ej. Folicular, Lútea, Menstruación).").default("No disponible"),
-    currentDay: z.number().describe("El día actual dentro del ciclo menstrual.").default(0),
+export const MenstrualCycleDataSchema = z.object({
+    date: z.string().describe("La fecha del registro (YYYY-MM-DD)."),
+    flow: z.enum(['light', 'medium', 'heavy', 'spotting']).describe("El nivel de sangrado.").optional(),
     symptoms: z.array(z.string()).describe("Una lista de síntomas registrados.").default([]),
+    currentPhase: z.string().describe("La fase del ciclo menstrual (ej. Folicular, Lútea, Menstruación).").default("No disponible"),
+    currentDay: z.number().describe("El día actual dentro del ciclo menstrual.").default(0),
 });
 export type MenstrualCycleData = z.infer<typeof MenstrualCycleDataSchema>;
-
-export const HealthDataSchema = z.object({
-  averageSleep: z.number().describe('Las horas de sueño promedio.').default(0),
-  activeCalories: z.number().describe('Las calorías activas quemadas.').default(0),
-  restingHeartRate: z.number().describe('La frecuencia cardíaca en reposo en lpm.').default(0),
-  hydrationLiters: z.number().describe('La ingesta de hidratación en litros.').default(0),
-  hrv: z.number().describe("La variabilidad de la frecuencia cardíaca (VFC) en ms.").default(0),
-  recoveryPercentage: z.number().describe("El porcentaje de recuperación (ej. 85 para 85%).").default(0),
-  respiration: z.number().describe("La frecuencia respiratoria promedio en respiraciones por minuto (rpm).").default(0),
-  energyLevel: z.number().describe("El nivel de energía estimado (%).").default(0),
-  menstrualCycleData: MenstrualCycleDataSchema.describe("Datos detallados sobre el ciclo menstrual actual.").default({ currentPhase: "No disponible", currentDay: 0, symptoms: [] }),
-  movePercentage: z.number().describe('El porcentaje del objetivo de movimiento.').default(0),
-  exercisePercentage: z.number().describe('El porcentaje del objetivo de ejercicio.').default(0),
-  standPercentage: z.number().describe('El porcentaje del objetivo de pararse.').default(0),
-  sleepData: z.array(SleepEntrySchema).describe('Datos de sueño de los últimos 7 días.').default([]),
-  workouts: z.array(WorkoutSchema).describe("Una lista de los entrenamientos realizados.").default([]),
-});
-export type HealthData = z.infer<typeof HealthDataSchema>;
-
 
 export const ProcessHealthDataFileOutputSchema = z.object({
   summary: z
     .string()
     .describe('Un resumen completo de los datos de salud del archivo proporcionado.'),
-  healthData: HealthDataSchema.describe("Datos de salud estructurados extraídos del archivo."),
+  workouts: z.array(WorkoutSchema).describe("Una lista de los entrenamientos extraídos del archivo.").default([]),
+  sleepData: z.array(SleepEntrySchema).describe('Una lista de las entradas de sueño extraídas del archivo.').default([]),
+  menstrualData: z.array(MenstrualCycleDataSchema).describe("Una lista de las entradas del ciclo menstrual extraídas del archivo.").default([]),
 });
 export type ProcessHealthDataFileOutput = z.infer<
   typeof ProcessHealthDataFileOutputSchema
 >;
+
+// Combined data structure for the dashboard state
+export type DashboardData = {
+    workouts: Workout[];
+    sleepData: SleepEntry[];
+    menstrualData: MenstrualCycleData[];
+    // Add other categories as needed
+    // e.g., physiologyData: PhysiologyData[];
+};

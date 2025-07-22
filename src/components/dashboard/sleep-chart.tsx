@@ -1,6 +1,7 @@
+
 "use client";
 
-import { Bar, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
+import { Bar, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import {
   Card,
   CardContent,
@@ -11,6 +12,14 @@ import {
 import { SleepEntry } from "@/ai/schemas";
 
 export default function SleepChart({ data }: { data: SleepEntry[] }) {
+
+  const formattedData = data.map(entry => ({
+    ...entry,
+    // Format date for display on X-axis, e.g., "Oct 27"
+    day: new Date(entry.date + 'T00:00:00').toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })
+  }));
+
+
   return (
     <Card className="md:col-span-2 lg:col-span-2">
       <CardHeader>
@@ -19,7 +28,8 @@ export default function SleepChart({ data }: { data: SleepEntry[] }) {
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={250}>
-          <RechartsBarChart data={data}>
+          <RechartsBarChart data={formattedData}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
             <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}h`} />
             <Tooltip
@@ -28,10 +38,19 @@ export default function SleepChart({ data }: { data: SleepEntry[] }) {
                     borderColor: "hsl(var(--border))",
                     borderRadius: "var(--radius)",
                 }}
-                labelFormatter={(label) => `Día: ${label}`}
-                formatter={(value: number) => [`${value.toFixed(1)} horas`, "Sueño"]}
+                labelStyle={{ fontWeight: 'bold' }}
+                formatter={(value: number, name: string) => {
+                    const nameMap: { [key: string]: string } = {
+                        totalSleep: "Sueño Total",
+                        deepSleep: "Profundo",
+                        lightSleep: "Ligero",
+                        remSleep: "REM"
+                    };
+                    return [`${value.toFixed(1)} horas`, nameMap[name] || name];
+                }}
             />
-            <Bar dataKey="hours" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="totalSleep" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Sueño Total" />
+            {/* You can add more bars for deep, light, rem sleep if desired */}
           </RechartsBarChart>
         </ResponsiveContainer>
       </CardContent>

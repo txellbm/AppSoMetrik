@@ -22,7 +22,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { generateHealthSummary } from "@/ai/flows/ai-health-summary";
-import { HealthSummaryInput, ProcessHealthDataFileOutput, HealthData, Workout, SleepEntry, MenstrualCycleData } from "@/ai/schemas";
+import { HealthSummaryInput, ProcessHealthDataFileOutput, Workout, SleepEntry, MenstrualCycleData, DashboardData } from "@/ai/schemas";
 
 import {
   Table,
@@ -38,33 +38,17 @@ import DataActions from "@/components/dashboard/data-actions";
 import NotificationsWidget from "@/components/dashboard/notifications-widget";
 import SleepChart from "@/components/dashboard/sleep-chart";
 import MenstrualCyclePanel from "@/components/dashboard/menstrual-cycle-panel";
-import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import { collection, doc, onSnapshot, setDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-
-const initialHealthData: HealthData = {
-  averageSleep: 0,
-  activeCalories: 0,
-  restingHeartRate: 0,
-  hydrationLiters: 0,
-  hrv: 0,
-  recoveryPercentage: 0,
-  respiration: 0,
-  energyLevel: 0,
-  menstrualCycleData: {
-    currentPhase: "No disponible",
-    currentDay: 0,
-    symptoms: []
-  },
-  movePercentage: 0,
-  exercisePercentage: 0,
-  standPercentage: 0,
-  sleepData: [],
+const initialDashboardData: DashboardData = {
   workouts: [],
+  sleepData: [],
+  menstrualData: [],
 };
 
 export default function Home() {
-  const [healthData, setHealthData] = useState<HealthData>(initialHealthData);
+  const [dashboardData, setDashboardData] = useState<DashboardData>(initialDashboardData);
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [reportContent, setReportContent] = useState("");
   const [isReportLoading, setIsReportLoading] = useState(false);
@@ -73,105 +57,65 @@ export default function Home() {
   const userId = "user_test_id";
 
   useEffect(() => {
-    // Try to load data from localStorage first for faster development reloads
-    const savedData = localStorage.getItem(`healthData_${userId}`);
-    if (savedData) {
-      setHealthData(JSON.parse(savedData));
-    }
+    const collections = {
+        workouts: collection(db, "users", userId, "workouts"),
+        sleepData: collection(db, "users", userId, "sleepEntries"),
+        menstrualData: collection(db, "users", userId, "menstrualCycles"),
+    };
 
-    // Set up Firestore listener
-    const docRef = doc(db, "healthData", userId);
-    const unsubscribe = onSnapshot(docRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const dataFromFirestore = docSnap.data() as HealthData;
-        setHealthData(dataFromFirestore);
-        // Also update localStorage with the latest from Firestore
-        localStorage.setItem(`healthData_${userId}`, JSON.stringify(dataFromFirestore));
-      } else {
-        console.log("No health data found in Firestore for this user.");
-        // If nothing in Firestore, ensure we start with initial data and clear localStorage
-        setHealthData(initialHealthData);
-        localStorage.removeItem(`healthData_${userId}`);
-      }
+    const unsubscribers = Object.entries(collections).map(([key, coll]) => {
+        return onSnapshot(coll, (snapshot) => {
+            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setDashboardData(prevData => ({
+                ...prevData,
+                [key]: data,
+            }));
+        });
     });
 
-    return () => unsubscribe();
+    // Cleanup function
+    return () => unsubscribers.forEach(unsub => unsub());
   }, [userId]);
 
 
-  const handleDataProcessed = async (processedData: ProcessHealthDataFileOutput[]) => {
-    // Create a deep copy of the current health data to avoid direct state mutation
-    const newHealthData = JSON.parse(JSON.stringify(healthData));
-
-    processedData.forEach(current => {
-      const { healthData: newHealth } = current;
-
-      // Consolidate workouts, avoiding duplicates
-      const existingWorkoutKeys = new Set(newHealthData.workouts.map((w: Workout) => `${w.date}-${w.name}-${w.startTime}`));
-      const newWorkouts = newHealth.workouts.filter(w => !existingWorkoutKeys.has(`${w.date}-${w.name}-${w.startTime}`));
-      newHealthData.workouts.push(...newWorkouts);
-
-      // Helper to average metrics, ignoring zeros or invalid values
-      const updateAverage = (oldVal: number, newVal: number) => {
-          const oldIsValid = typeof oldVal === 'number' && oldVal > 0;
-          const newIsValid = typeof newVal === 'number' && newVal > 0;
-          if (oldIsValid && newIsValid) return (oldVal + newVal) / 2;
-          if (newIsValid) return newVal;
-          return oldVal;
-      };
-
-      // Update averages
-      newHealthData.averageSleep = updateAverage(newHealthData.averageSleep, newHealth.averageSleep);
-      newHealthData.restingHeartRate = updateAverage(newHealthData.restingHeartRate, newHealth.restingHeartRate);
-      newHealthData.hrv = updateAverage(newHealthData.hrv, newHealth.hrv);
-      newHealthData.recoveryPercentage = updateAverage(newHealthData.recoveryPercentage, newHealth.recoveryPercentage);
-      newHealthData.respiration = updateAverage(newHealthData.respiration, newHealth.respiration);
-      newHealthData.energyLevel = updateAverage(newHealthData.energyLevel, newHealth.energyLevel);
-
-      // Update menstrual cycle data if new data is valid
-      if (newHealth.menstrualCycleData && newHealth.menstrualCycleData.currentPhase !== "No disponible") {
-        newHealthData.menstrualCycleData = newHealth.menstrualCycleData;
-      }
-
-      // Sum cumulative data
-      newHealthData.activeCalories += newHealth.activeCalories;
-      newHealthData.hydrationLiters += newHealth.hydrationLiters;
-
-      // Update percentages if they are provided
-      if (newHealth.movePercentage > 0) newHealthData.movePercentage = newHealth.movePercentage;
-      if (newHealth.exercisePercentage > 0) newHealthData.exercisePercentage = newHealth.exercisePercentage;
-      if (newHealth.standPercentage > 0) newHealthData.standPercentage = newHealth.standPercentage;
-
-      // Consolidate sleep data for the last 7 days
-      const sleepMap = new Map((newHealthData.sleepData || []).map((s: SleepEntry) => [s.day, s.hours]));
-      if (Array.isArray(newHealth.sleepData)) {
-          newHealth.sleepData.forEach(s => sleepMap.set(s.day, s.hours));
-      }
-      newHealthData.sleepData = Array.from(sleepMap, ([day, hours]) => ({ day, hours })).slice(-7);
-    });
-    
-    // Recalculate average sleep from consolidated data
-    if (newHealthData.sleepData && newHealthData.sleepData.length > 0) {
-      const totalSleepHours = newHealthData.sleepData.reduce((sum: number, s: SleepEntry) => sum + s.hours, 0);
-      if (totalSleepHours > 0) {
-        newHealthData.averageSleep = totalSleepHours / newHealthData.sleepData.length;
-      }
-    }
+  const handleDataProcessed = async (processedData: ProcessHealthDataFileOutput) => {
+    const batch = writeBatch(db);
+    const { workouts, sleepData, menstrualData } = processedData;
 
     try {
-      const docRef = doc(db, "healthData", userId);
-      // Use setDoc with merge:true to create or update the document
-      await setDoc(docRef, newHealthData, { merge: true });
-      // The onSnapshot listener will automatically update the state,
-      // so no need to call setHealthData here.
-      console.log("Health data saved to Firestore.");
+        if (workouts.length > 0) {
+            workouts.forEach(item => {
+                const docRef = doc(db, "users", userId, "workouts", item.date);
+                batch.set(docRef, item, { merge: true });
+            });
+        }
+        if (sleepData.length > 0) {
+            sleepData.forEach(item => {
+                const docRef = doc(db, "users", userId, "sleepEntries", item.date);
+                batch.set(docRef, item, { merge: true });
+            });
+        }
+        if (menstrualData.length > 0) {
+            menstrualData.forEach(item => {
+                const docRef = doc(db, "users", userId, "menstrualCycles", item.date);
+                batch.set(docRef, item, { merge: true });
+            });
+        }
+
+        await batch.commit();
+
+        toast({
+            title: "Datos procesados y guardados",
+            description: `Se han actualizado ${workouts.length} entrenamientos, ${sleepData.length} noches de sueño y ${menstrualData.length} registros del ciclo.`,
+        });
+
     } catch (error) {
-      console.error("Error saving to Firestore", error);
-      toast({
-        variant: "destructive",
-        title: "Error al guardar los datos",
-        description: "No se pudieron guardar los datos en la nube.",
-      });
+        console.error("Error guardando los datos procesados en Firestore:", error);
+        toast({
+            variant: "destructive",
+            title: "Error al guardar los datos",
+            description: "No se pudieron guardar los datos en la nube.",
+        });
     }
   };
 
@@ -181,15 +125,22 @@ export default function Home() {
     setIsReportLoading(true);
     setReportContent("");
 
+    // This is a simplified summary generation. In a real app, you'd do more complex aggregations.
     try {
-        const workoutDetails = healthData.workouts.map(w => `${w.date} - ${w.name}: ${w.distance.toFixed(1)}km, ${w.calories}kcal, ${w.duration}, ${w.averageHeartRate}bpm (Inicio: ${w.startTime}, Fin: ${w.endTime})`).join('; ');
+        const workoutDetails = dashboardData.workouts.map(w => `${w.date} - ${w.name}: ${w.distance.toFixed(1)}km, ${w.calories}kcal, ${w.duration}mins`).join('; ');
+        const sleepDetails = dashboardData.sleepData.map(s => `${s.date}: ${s.totalSleep.toFixed(1)}h (Profundo: ${s.deepSleep}h, Ligero: ${s.lightSleep}h, REM: ${s.remSleep}h)`).join('; ');
+        const menstrualDetails = dashboardData.menstrualData.map(m => `${m.date}: Flujo ${m.flow || 'N/A'}`).join('; ');
+        
+        const avgSleep = dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + s.totalSleep, 0) / dashboardData.sleepData.length : 0;
+        const totalCalories = dashboardData.workouts.reduce((acc, w) => acc + w.calories, 0);
+
         const input: HealthSummaryInput = {
-            sleepData: `Sueño promedio: ${(healthData.averageSleep || 0).toFixed(1)}h. Datos de los últimos días: ${healthData.sleepData.map(d => `${d.day}: ${d.hours}h`).join(', ')}`,
-            exerciseData: `Calorías activas: ${healthData.activeCalories}, Entrenamientos: ${workoutDetails}. Anillos: Moverse ${healthData.movePercentage}% Ejercicio ${healthData.exercisePercentage}% Pararse ${healthData.standPercentage}%`,
-            heartRateData: `Frecuencia cardíaca en reposo: ${(healthData.restingHeartRate || 0).toFixed(0)} bpm. VFC: ${(healthData.hrv || 0).toFixed(1)} ms. Recuperación: ${(healthData.recoveryPercentage || 0).toFixed(0)}%. Respiración: ${(healthData.respiration || 0).toFixed(1)} rpm. Nivel de energía: ${(healthData.energyLevel || 0).toFixed(0)}%`,
-            menstruationData: `Fase del ciclo: ${healthData.menstrualCycleData.currentPhase}. Día del ciclo: ${healthData.menstrualCycleData.currentDay}. Síntomas: ${healthData.menstrualCycleData.symptoms.join(', ')}`,
+            sleepData: `Sueño promedio: ${avgSleep.toFixed(1)}h. Detalles: ${sleepDetails}`,
+            exerciseData: `Calorías totales quemadas: ${totalCalories}. Entrenamientos: ${workoutDetails}.`,
+            heartRateData: `No hay datos de frecuencia cardíaca disponibles.`, // This needs to be populated from sleep or workout data if available
+            menstruationData: `Detalles del ciclo: ${menstrualDetails}`,
             supplementData: "No hay datos de suplementos disponibles.",
-            foodIntakeData: `Hidratación: ${(healthData.hydrationLiters || 0).toFixed(1)} L`,
+            foodIntakeData: `No hay datos de hidratación disponibles.`,
             calendarData: "No hay datos de calendario disponibles.",
         };
 
@@ -216,6 +167,14 @@ export default function Home() {
     });
   }
 
+  // Calculate aggregate metrics for StatCards
+  const avgSleep = dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + s.totalSleep, 0) / dashboardData.sleepData.length : 0;
+  const totalCalories = dashboardData.workouts.reduce((acc, w) => acc + w.calories, 0);
+  const avgRestingHR = dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + (s.restingHeartRate || 0), 0) / dashboardData.sleepData.filter(s => s.restingHeartRate).length : 0;
+  const avgHRV = dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + (s.hrv || 0), 0) / dashboardData.sleepData.filter(s => s.hrv).length : 0;
+  const latestMenstrualData = dashboardData.menstrualData.length > 0 ? dashboardData.menstrualData.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] : null;
+
+
   return (
     <>
       <div className="flex flex-col gap-6">
@@ -233,16 +192,16 @@ export default function Home() {
                 <CardTitle>Panel de Salud y Bienestar</CardTitle>
                 <CardDescription>Métricas clave de tu salud general.</CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-4">
-                <StatCard icon={<Moon className="text-primary" />} title="Sueño Promedio" value={`${(healthData.averageSleep || 0).toFixed(1)}h`} />
-                <StatCard icon={<Flame className="text-primary" />} title="Calorías Activas" value={String(healthData.activeCalories || 0)} />
-                <StatCard icon={<HeartPulse className="text-primary" />} title="FC en Reposo" value={`${(healthData.restingHeartRate || 0).toFixed(0)} bpm`} />
-                <StatCard icon={<Droplets className="text-primary" />} title="Hidratación" value={`${(healthData.hydrationLiters || 0).toFixed(1)} L`} />
-                <StatCard icon={<Activity className="text-primary" />} title="VFC (HRV)" value={`${(healthData.hrv || 0).toFixed(1)} ms`} />
-                <StatCard icon={<ShieldCheck className="text-primary" />} title="Recuperación" value={`${(healthData.recoveryPercentage || 0).toFixed(0)}%`} />
-                <StatCard icon={<Wind className="text-primary" />} title="Respiración" value={`${(healthData.respiration || 0).toFixed(1)} rpm`} />
-                <StatCard icon={<BrainCircuit className="text-primary" />} title="Nivel Energía" value={`${(healthData.energyLevel || 0).toFixed(0)}%`} />
-                <StatCard icon={<Calendar className="text-primary" />} title="Fase Actual" value={healthData.menstrualCycleData.currentPhase} />
+            <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                <StatCard icon={<Moon className="text-primary" />} title="Sueño Promedio" value={`${avgSleep.toFixed(1)}h`} />
+                <StatCard icon={<Flame className="text-primary" />} title="Calorías Activas" value={String(totalCalories)} />
+                <StatCard icon={<HeartPulse className="text-primary" />} title="FC en Reposo" value={`${avgRestingHR.toFixed(0)} bpm`} />
+                <StatCard icon={<Droplets className="text-primary" />} title="Hidratación" value={`N/A`} />
+                <StatCard icon={<Activity className="text-primary" />} title="VFC (HRV)" value={`${avgHRV.toFixed(1)} ms`} />
+                <StatCard icon={<ShieldCheck className="text-primary" />} title="Recuperación" value={`N/A`} />
+                <StatCard icon={<Wind className="text-primary" />} title="Respiración" value={`N/A`} />
+                <StatCard icon={<BrainCircuit className="text-primary" />} title="Nivel Energía" value={`N/A`} />
+                <StatCard icon={<Calendar className="text-primary" />} title="Fase Actual" value={latestMenstrualData?.currentPhase || "N/A"} />
             </CardContent>
         </Card>
 
@@ -253,17 +212,17 @@ export default function Home() {
                 <CardDescription>El progreso de tus metas diarias.</CardDescription>
               </CardHeader>
               <CardContent className="flex justify-center items-center gap-4 pt-4">
-                  <ActivityRing percentage={healthData.movePercentage} color="hsl(var(--primary))" label="Moverse" />
-                  <ActivityRing percentage={healthData.exercisePercentage} color="hsl(var(--accent))" label="Ejercicio" />
-                  <ActivityRing percentage={healthData.standPercentage} color="hsl(var(--chart-2))" label="Pararse" />
+                  <ActivityRing percentage={0} color="hsl(var(--primary))" label="Moverse" />
+                  <ActivityRing percentage={0} color="hsl(var(--accent))" label="Ejercicio" />
+                  <ActivityRing percentage={0} color="hsl(var(--chart-2))" label="Pararse" />
               </CardContent>
             </Card>
 
-            <SleepChart data={healthData.sleepData} />
+            <SleepChart data={dashboardData.sleepData} />
 
-            <WorkoutSummaryCard workouts={healthData.workouts} />
+            <WorkoutSummaryCard workouts={dashboardData.workouts} />
 
-            <MenstrualCyclePanel data={healthData.menstrualCycleData} />
+            <MenstrualCyclePanel data={latestMenstrualData} />
 
             <div className="md:col-span-2 lg:col-span-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
@@ -378,8 +337,7 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
               <TableHead>Entrenamiento</TableHead>
               <TableHead className="text-right">Distancia (km)</TableHead>
               <TableHead className="text-right">Calorías</TableHead>
-              <TableHead className="text-right">Duración</TableHead>
-              <TableHead className="text-right">FC Promedio</TableHead>
+              <TableHead className="text-right">Duración (min)</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -391,12 +349,11 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
                   <TableCell className="text-right">{workout.distance.toFixed(2)}</TableCell>
                   <TableCell className="text-right">{workout.calories}</TableCell>
                   <TableCell className="text-right">{workout.duration}</TableCell>
-                  <TableCell className="text-right">{workout.averageHeartRate} bpm</TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground">
+                <TableCell colSpan={5} className="text-center text-muted-foreground">
                   No hay datos de entrenamiento
                 </TableCell>
               </TableRow>

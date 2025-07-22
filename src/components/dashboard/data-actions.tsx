@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 type DataActionsProps = {
-  onDataProcessed: (data: ProcessHealthDataFileOutput[]) => void;
+  onDataProcessed: (data: ProcessHealthDataFileOutput) => void;
   onGenerateReport: () => void;
 };
 
@@ -66,33 +66,21 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
     setIsLoading(true);
     
     try {
-      const processingPromises = files.map(file => {
-          return new Promise<ProcessHealthDataFileOutput>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = async (e) => {
-                  try {
-                      const content = e.target?.result as string;
-                      if (!content) {
-                        toast({
-                          variant: "destructive",
-                          title: "Archivo vacío",
-                          description: `El archivo ${file.name} parece estar vacío.`,
-                        });
-                        return reject(new Error(`El archivo ${file.name} está vacío.`));
-                      }
-                      const result = await processHealthDataFile({ fileContent: content, fileName: file.name });
-                      resolve(result);
-                  } catch (error) {
-                      reject(error);
-                  }
-              };
-              reader.onerror = () => reject(new Error(`Error al leer el archivo ${file.name}`));
-              reader.readAsText(file);
+      // Since we process files one by one to show progress, we'll call onDataProcessed for each.
+      // A better approach for multiple files would be to aggregate results then call onDataProcessed once.
+      for (const file of files) {
+        const content = await file.text();
+        if (!content) {
+          toast({
+            variant: "destructive",
+            title: "Archivo vacío",
+            description: `El archivo ${file.name} parece estar vacío.`,
           });
-      });
-
-      const results = await Promise.all(processingPromises);
-      onDataProcessed(results);
+          continue; // Skip this file
+        }
+        const result = await processHealthDataFile({ fileContent: content, fileName: file.name });
+        onDataProcessed(result); // Process and save each file's data
+      }
 
       toast({
         title: "Archivos procesados correctamente",

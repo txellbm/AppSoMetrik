@@ -22,7 +22,7 @@ const getSymptomIcon = (symptom: string) => {
 };
 
 
-export default function MenstrualCyclePanel({ data }: { data: MenstrualCycleData }) {
+export default function MenstrualCyclePanel({ data }: { data: MenstrualCycleData | null }) {
     
   if (!data || data.currentPhase === "No disponible" || data.currentDay === 0) {
     return (
