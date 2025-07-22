@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { HeartPulse, Moon, Flame, Droplets, Dumbbell, FileText, Activity, ShieldCheck, Heart, Calendar } from "lucide-react";
+import { HeartPulse, Moon, Flame, Droplets, Dumbbell, FileText, Activity, ShieldCheck, Heart, Calendar, BrainCircuit, Wind } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -45,6 +45,9 @@ const initialHealthData: HealthData = {
   hydrationLiters: 0,
   hrv: 0,
   recoveryPercentage: 0,
+  respiration: 0,
+  energyLevel: 0,
+  menstrualCyclePhase: "No disponible",
   movePercentage: 0,
   exercisePercentage: 0,
   standPercentage: 0,
@@ -66,21 +69,31 @@ export default function Home() {
         const { healthData: newHealth } = current;
         
         // Combine workouts, avoiding duplicates based on date and name
-        const existingWorkoutKeys = new Set(acc.workouts.map(w => `${w.date}-${w.name}`));
-        const newWorkouts = newHealth.workouts.filter(w => !existingWorkoutKeys.has(`${w.date}-${w.name}`));
+        const existingWorkoutKeys = new Set(acc.workouts.map(w => `${w.date}-${w.name}-${w.startTime}`));
+        const newWorkouts = newHealth.workouts.filter(w => !existingWorkoutKeys.has(`${w.date}-${w.name}-${w.startTime}`));
 
         // Average non-zero metrics
-        acc.averageSleep = (acc.averageSleep + newHealth.averageSleep) / (acc.averageSleep && newHealth.averageSleep ? 2 : 1);
-        acc.restingHeartRate = (acc.restingHeartRate + newHealth.restingHeartRate) / (acc.restingHeartRate && newHealth.restingHeartRate ? 2 : 1);
-        acc.hrv = (acc.hrv + newHealth.hrv) / (acc.hrv && newHealth.hrv ? 2 : 1);
-        acc.recoveryPercentage = (acc.recoveryPercentage + newHealth.recoveryPercentage) / (acc.recoveryPercentage && newHealth.recoveryPercentage ? 2 : 1);
+        const updateAverage = (oldVal: number, newVal: number) => (oldVal > 0 && newVal > 0) ? (oldVal + newVal) / 2 : (oldVal > 0 ? oldVal : newVal);
+
+        acc.averageSleep = updateAverage(acc.averageSleep, newHealth.averageSleep);
+        acc.restingHeartRate = updateAverage(acc.restingHeartRate, newHealth.restingHeartRate);
+        acc.hrv = updateAverage(acc.hrv, newHealth.hrv);
+        acc.recoveryPercentage = updateAverage(acc.recoveryPercentage, newHealth.recoveryPercentage);
+        acc.respiration = updateAverage(acc.respiration, newHealth.respiration);
+        acc.energyLevel = updateAverage(acc.energyLevel, newHealth.energyLevel);
+        
+        if (newHealth.menstrualCyclePhase && newHealth.menstrualCyclePhase !== "No disponible") {
+          acc.menstrualCyclePhase = newHealth.menstrualCyclePhase;
+        }
         
         // Sum cumulative metrics
         acc.activeCalories += newHealth.activeCalories;
         acc.hydrationLiters += newHealth.hydrationLiters;
-        acc.movePercentage = Math.min(100, acc.movePercentage + newHealth.movePercentage);
-        acc.exercisePercentage = Math.min(100, acc.exercisePercentage + newHealth.exercisePercentage);
-        acc.standPercentage = Math.min(100, acc.standPercentage + newHealth.standPercentage);
+        
+        // Use the most recent activity ring data if available
+        if (newHealth.movePercentage > 0) acc.movePercentage = newHealth.movePercentage;
+        if (newHealth.exercisePercentage > 0) acc.exercisePercentage = newHealth.exercisePercentage;
+        if (newHealth.standPercentage > 0) acc.standPercentage = newHealth.standPercentage;
         
         // Combine sleep data, keeping it to the last 7 entries and removing duplicates
         const sleepMap = new Map(acc.sleepData.map(s => [s.day, s.hours]));
@@ -94,24 +107,26 @@ export default function Home() {
       }, { ...prevData, workouts: [...prevData.workouts], sleepData: [...prevData.sleepData] }); // Start with a deep enough copy
 
       // Clean up averages for display
-      combinedData.averageSleep = combinedData.sleepData.length > 0 ? combinedData.sleepData.reduce((sum, s) => sum + s.hours, 0) / combinedData.sleepData.length : 0;
+      if (combinedData.sleepData.length > 0) {
+        combinedData.averageSleep = combinedData.sleepData.reduce((sum, s) => sum + s.hours, 0) / combinedData.sleepData.length;
+      }
 
       return combinedData;
     });
   };
-
+  
   const handleGenerateReport = async () => {
     setIsReportDialogOpen(true);
     setIsReportLoading(true);
     setReportContent("");
 
     try {
-        const workoutDetails = healthData.workouts.map(w => `${w.date} - ${w.name}: ${w.distance.toFixed(1)}km, ${w.calories}kcal, ${w.duration}h, ${w.averageHeartRate}bpm`).join('; ');
+        const workoutDetails = healthData.workouts.map(w => `${w.date} - ${w.name}: ${w.distance.toFixed(1)}km, ${w.calories}kcal, ${w.duration}, ${w.averageHeartRate}bpm (Inicio: ${w.startTime}, Fin: ${w.endTime})`).join('; ');
         const input: HealthSummaryInput = {
             sleepData: `Sueño promedio: ${healthData.averageSleep.toFixed(1)}h. Datos de los últimos días: ${healthData.sleepData.map(d => `${d.day}: ${d.hours}h`).join(', ')}`,
             exerciseData: `Calorías activas: ${healthData.activeCalories}, Entrenamientos: ${workoutDetails}. Anillos: Moverse ${healthData.movePercentage}%, Ejercicio ${healthData.exercisePercentage}%, Pararse ${healthData.standPercentage}%`,
-            heartRateData: `Frecuencia cardíaca en reposo: ${healthData.restingHeartRate.toFixed(0)} bpm. VFC: ${healthData.hrv.toFixed(1)} ms. Recuperación: ${healthData.recoveryPercentage.toFixed(0)}%`,
-            menstruationData: "No hay datos de menstruación disponibles.",
+            heartRateData: `Frecuencia cardíaca en reposo: ${healthData.restingHeartRate.toFixed(0)} bpm. VFC: ${healthData.hrv.toFixed(1)} ms. Recuperación: ${healthData.recoveryPercentage.toFixed(0)}%. Respiración: ${healthData.respiration.toFixed(1)} rpm. Nivel de energía: ${healthData.energyLevel.toFixed(0)}%`,
+            menstruationData: `Fase del ciclo: ${healthData.menstrualCyclePhase}.`,
             supplementData: "No hay datos de suplementos disponibles.",
             foodIntakeData: `Hidratación: ${healthData.hydrationLiters.toFixed(1)} L`,
             calendarData: "No hay datos de calendario disponibles.",
@@ -154,14 +169,23 @@ export default function Home() {
           </Card>
         </div>
 
-        <StatCard icon={<Moon className="text-primary" />} title="Sueño Promedio" value={`${healthData.averageSleep.toFixed(1)}h`} />
-        <StatCard icon={<Flame className="text-primary" />} title="Calorías Activas" value={String(healthData.activeCalories)} />
-        <StatCard icon={<HeartPulse className="text-primary" />} title="FC en Reposo" value={`${healthData.restingHeartRate.toFixed(0)} bpm`} />
-        <StatCard icon={<Droplets className="text-primary" />} title="Hidratación" value={`${healthData.hydrationLiters.toFixed(1)} L`} />
-
-        <div className="lg:col-span-2 grid grid-cols-2 gap-6">
-          <StatCard icon={<Activity className="text-primary" />} title="VFC (HRV)" value={`${healthData.hrv.toFixed(1)} ms`} />
-          <StatCard icon={<ShieldCheck className="text-primary" />} title="Recuperación" value={`${healthData.recoveryPercentage.toFixed(0)}%`} />
+        <div className="lg:col-span-4">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Panel de Salud y Bienestar</CardTitle>
+                    <CardDescription>Métricas clave de tu salud general.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
+                    <StatCard icon={<Moon className="text-primary" />} title="Sueño Promedio" value={`${healthData.averageSleep.toFixed(1)}h`} />
+                    <StatCard icon={<Flame className="text-primary" />} title="Calorías Activas" value={String(healthData.activeCalories)} />
+                    <StatCard icon={<HeartPulse className="text-primary" />} title="FC en Reposo" value={`${healthData.restingHeartRate.toFixed(0)} bpm`} />
+                    <StatCard icon={<Droplets className="text-primary" />} title="Hidratación" value={`${healthData.hydrationLiters.toFixed(1)} L`} />
+                    <StatCard icon={<Activity className="text-primary" />} title="VFC (HRV)" value={`${healthData.hrv.toFixed(1)} ms`} />
+                    <StatCard icon={<ShieldCheck className="text-primary" />} title="Recuperación" value={`${healthData.recoveryPercentage.toFixed(0)}%`} />
+                    <StatCard icon={<Wind className="text-primary" />} title="Respiración" value={`${healthData.respiration.toFixed(1)} rpm`} />
+                    <StatCard icon={<BrainCircuit className="text-primary" />} title="Nivel Energía" value={`${healthData.energyLevel.toFixed(0)}%`} />
+                </CardContent>
+            </Card>
         </div>
         
         <Card className="md:col-span-2 lg:col-span-2">
@@ -228,10 +252,10 @@ export default function Home() {
 
 function StatCard({ icon, title, value }: { icon: React.ReactNode; title: string; value: string }) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+    <Card className="text-center">
+      <CardHeader className="flex flex-col items-center justify-center space-y-2 pb-2">
         {icon}
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">{value}</div>
@@ -266,7 +290,7 @@ function ActivityRing({ percentage, color, label }: { percentage: number; color:
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-xl font-bold" style={{ color }}>{percentage}%</span>
+            <span className="text-xl font-bold" style={{ color }}>{Math.round(percentage)}%</span>
         </div>
       </div>
       <p className="text-sm font-medium text-muted-foreground">{label}</p>
@@ -280,9 +304,9 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Dumbbell className="text-primary" />
-          Resumen de Entrenamiento
+          Panel de Entrenamientos
         </CardTitle>
-        <CardDescription>Tus entrenamientos de la semana.</CardDescription>
+        <CardDescription>Tus entrenamientos recientes.</CardDescription>
       </CardHeader>
       <CardContent className="pt-4">
         <Table>
@@ -295,21 +319,21 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
               <TableHead className="text-right">Duración</TableHead>
               <TableHead className="text-right">Distancia (km)</TableHead>
               <TableHead className="text-right">Calorías</TableHead>
-              <TableHead className="text-right">FC Promedio (lpm)</TableHead>
+              <TableHead className="text-right">FC Promedio</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {workouts.length > 0 ? (
               workouts.map((workout, index) => (
                 <TableRow key={index}>
-                  <TableCell>{workout.date}</TableCell>
+                  <TableCell>{new Date(workout.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' })}</TableCell>
                   <TableCell className="font-medium">{workout.name}</TableCell>
                   <TableCell>{workout.startTime}</TableCell>
                   <TableCell>{workout.endTime}</TableCell>
                   <TableCell className="text-right">{workout.duration}</TableCell>
-                  <TableCell className="text-right">{workout.distance.toFixed(1)}</TableCell>
+                  <TableCell className="text-right">{workout.distance.toFixed(2)}</TableCell>
                   <TableCell className="text-right">{workout.calories}</TableCell>
-                  <TableCell className="text-right">{workout.averageHeartRate}</TableCell>
+                  <TableCell className="text-right">{workout.averageHeartRate} bpm</TableCell>
                 </TableRow>
               ))
             ) : (
@@ -325,3 +349,5 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
     </Card>
   );
 }
+
+    

@@ -21,21 +21,21 @@ const prompt = ai.definePrompt({
   prompt: `Eres un experto analista de salud y bienestar. Tu tarea es generar un informe completo, detallado y bien estructurado en formato Markdown a partir de los siguientes datos de salud de un usuario. El informe debe ser fácil de leer, perspicaz y adecuado para ser compartido con un profesional de la salud o para el análisis personal del usuario.
 
 Estructura el informe con las siguientes secciones:
-- **Resumen General**: Un párrafo introductorio que resuma el estado de salud general.
+- **Resumen General**: Un párrafo introductorio que resuma el estado de salud general, incluyendo nivel de energía y recuperación.
 - **Análisis del Sueño**: Detalles sobre los patrones de sueño, calidad y recomendaciones.
-- **Actividad Física y Ejercicio**: Un resumen de las calorías quemadas, el progreso hacia los objetivos y los entrenamientos realizados.
-- **Salud Cardíaca**: Información sobre la frecuencia cardíaca en reposo.
+- **Actividad Física y Ejercicio**: Un resumen de las calorías quemadas, el progreso hacia los objetivos y una tabla detallada de los entrenamientos realizados.
+- **Salud Cardíaca y Fisiología**: Información sobre la frecuencia cardíaca en reposo, VFC (HRV), y frecuencia respiratoria.
 - **Hidratación y Nutrición**: Detalles sobre la ingesta de líquidos y alimentos.
-- **Ciclo Menstrual**: Si hay datos, un análisis de la fase actual del ciclo.
-- **Recomendaciones Clave**: Una lista con viñetas de las 3-5 recomendaciones más importantes.
+- **Ciclo Menstrual**: Si hay datos, un análisis de la fase actual del ciclo y sus implicaciones.
+- **Recomendaciones Clave**: Una lista con viñetas de las 3-5 recomendaciones más importantes basadas en todos los datos proporcionados.
 
 Utiliza un tono profesional pero empático.
 
 DATOS DEL USUARIO:
 - **Sueño**: {{{sleepData}}}
 - **Ejercicio y Actividad**: {{{exerciseData}}}
-- **Frecuencia Cardíaca**: {{{heartRateData}}}
-- **Menstruación**: {{{menstruationData}}}
+- **Salud Cardíaca y Fisiología**: {{{heartRateData}}}
+- **Ciclo Menstrual**: {{{menstruationData}}}
 - **Suplementos**: {{{supplementData}}}
 - **Alimentación e Hidratación**: {{{foodIntakeData}}}
 - **Calendario**: {{{calendarData}}}
@@ -54,3 +54,5 @@ const generateHealthSummaryFlow = ai.defineFlow(
     return output!;
   }
 );
+
+    

@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview Defines the Zod schemas and TypeScript types for the AI flows.
  * This file centralizes all schema definitions to avoid "use server" conflicts
@@ -10,7 +11,7 @@ import {z} from 'genkit';
 export const HealthSummaryInputSchema = z.object({
   sleepData: z.string().describe('Resumen de los datos de sueño.'),
   exerciseData: z.string().describe('Resumen de los datos de ejercicio y actividad.'),
-  heartRateData: z.string().describe('Resumen de los datos de frecuencia cardíaca.'),
+  heartRateData: z.string().describe('Resumen de los datos de frecuencia cardíaca, VFC, recuperación, respiración y nivel de energía.'),
   menstruationData: z.string().describe('Resumen de los datos de menstruación.'),
   supplementData: z.string().describe('Resumen de los datos de suplementos.'),
   foodIntakeData: z.string().describe('Resumen de los datos de ingesta de alimentos e hidratación.'),
@@ -40,8 +41,8 @@ const WorkoutSchema = z.object({
   calories: z.number().describe("Las calorías quemadas durante el entrenamiento."),
   duration: z.string().describe("La duración del entrenamiento en formato hh:mm:ss."),
   averageHeartRate: z.number().describe("La frecuencia cardíaca promedio durante el entrenamiento en lpm."),
-  startTime: z.string().describe("La hora de inicio del entrenamiento (ej. 18:30)."),
-  endTime: z.string().describe("La hora de finalización del entrenamiento (ej. 19:30)."),
+  startTime: z.string().describe("La hora de inicio del entrenamiento (ej. '18:30:05')."),
+  endTime: z.string().describe("La hora de finalización del entrenamiento (ej. '19:30:10')."),
 });
 export type Workout = z.infer<typeof WorkoutSchema>;
 
@@ -52,6 +53,9 @@ export const HealthDataSchema = z.object({
   hydrationLiters: z.number().describe('La ingesta de hidratación en litros.'),
   hrv: z.number().describe("La variabilidad de la frecuencia cardíaca (VFC) en ms.").default(0),
   recoveryPercentage: z.number().describe("El porcentaje de recuperación (ej. 85 para 85%).").default(0),
+  respiration: z.number().describe("La frecuencia respiratoria promedio en respiraciones por minuto (rpm).").default(0),
+  energyLevel: z.number().describe("El nivel de energía estimado (%).").default(0),
+  menstrualCyclePhase: z.string().describe("La fase actual del ciclo menstrual (ej. Folicular, Lútea, Menstruación).").default("No disponible"),
   movePercentage: z.number().describe('El porcentaje del objetivo de movimiento.'),
   exercisePercentage: z.number().describe('El porcentaje del objetivo de ejercicio.'),
   standPercentage: z.number().describe('El porcentaje del objetivo de pararse.'),
@@ -73,3 +77,5 @@ export const ProcessHealthDataFileOutputSchema = z.object({
 export type ProcessHealthDataFileOutput = z.infer<
   typeof ProcessHealthDataFileOutputSchema
 >;
+
+    
