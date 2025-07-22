@@ -133,12 +133,12 @@ export default function Home() {
     try {
         const workoutDetails = healthData.workouts.map(w => `${w.date} - ${w.name}: ${w.distance.toFixed(1)}km, ${w.calories}kcal, ${w.duration}, ${w.averageHeartRate}bpm (Inicio: ${w.startTime}, Fin: ${w.endTime})`).join('; ');
         const input: HealthSummaryInput = {
-            sleepData: `Sueño promedio: ${healthData.averageSleep.toFixed(1)}h. Datos de los últimos días: ${healthData.sleepData.map(d => `${d.day}: ${d.hours}h`).join(', ')}`,
+            sleepData: `Sueño promedio: ${(healthData.averageSleep || 0).toFixed(1)}h. Datos de los últimos días: ${healthData.sleepData.map(d => `${d.day}: ${d.hours}h`).join(', ')}`,
             exerciseData: `Calorías activas: ${healthData.activeCalories}, Entrenamientos: ${workoutDetails}. Anillos: Moverse ${healthData.movePercentage}% Ejercicio ${healthData.exercisePercentage}% Pararse ${healthData.standPercentage}%`,
             heartRateData: `Frecuencia cardíaca en reposo: ${(healthData.restingHeartRate || 0).toFixed(0)} bpm. VFC: ${(healthData.hrv || 0).toFixed(1)} ms. Recuperación: ${(healthData.recoveryPercentage || 0).toFixed(0)}%. Respiración: ${(healthData.respiration || 0).toFixed(1)} rpm. Nivel de energía: ${(healthData.energyLevel || 0).toFixed(0)}%`,
             menstruationData: `Fase del ciclo: ${healthData.menstrualCycleData.currentPhase}. Día del ciclo: ${healthData.menstrualCycleData.currentDay}. Síntomas: ${healthData.menstrualCycleData.symptoms.join(', ')}`,
             supplementData: "No hay datos de suplementos disponibles.",
-            foodIntakeData: `Hidratación: ${healthData.hydrationLiters.toFixed(1)} L`,
+            foodIntakeData: `Hidratación: ${(healthData.hydrationLiters || 0).toFixed(1)} L`,
             calendarData: "No hay datos de calendario disponibles.",
         };
 
@@ -360,5 +360,7 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
     </Card>
   );
 }
+
+    
 
     
