@@ -38,6 +38,8 @@ import DataActions from "@/components/dashboard/data-actions";
 import NotificationsWidget from "@/components/dashboard/notifications-widget";
 import SleepChart from "@/components/dashboard/sleep-chart";
 import MenstrualCyclePanel from "@/components/dashboard/menstrual-cycle-panel";
+import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 
 const initialHealthData: HealthData = {
@@ -62,87 +64,87 @@ const initialHealthData: HealthData = {
 };
 
 export default function Home() {
-  const [healthData, setHealthData] = useState<HealthData>(() => {
-    if (typeof window === 'undefined') {
-      return initialHealthData;
-    }
-    try {
-      const savedData = window.localStorage.getItem("healthData");
-      return savedData ? JSON.parse(savedData) : initialHealthData;
-    } catch (error) {
-      console.error("Error reading from localStorage", error);
-      return initialHealthData;
-    }
-  });
-
+  const [healthData, setHealthData] = useState<HealthData>(initialHealthData);
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [reportContent, setReportContent] = useState("");
   const [isReportLoading, setIsReportLoading] = useState(false);
   const { toast } = useToast();
+  
+  const userId = "user_test_id"; // In a real app, this would be dynamic
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem("healthData", JSON.stringify(healthData));
-    } catch (error) {
-      console.error("Error writing to localStorage", error);
-    }
-  }, [healthData]);
-
-  const handleDataProcessed = (processedData: ProcessHealthDataFileOutput[]) => {
-    setHealthData((prevData) => {
-      const combinedData = processedData.reduce((acc, current) => {
-        const { healthData: newHealth } = current;
-        
-        const existingWorkoutKeys = new Set(acc.workouts.map(w => `${w.date}-${w.name}-${w.startTime}`));
-        const newWorkouts = newHealth.workouts.filter(w => !existingWorkoutKeys.has(`${w.date}-${w.name}-${w.startTime}`));
-
-        const updateAverage = (oldVal: number, newVal: number) => {
-            const oldIsValid = typeof oldVal === 'number' && oldVal > 0;
-            const newIsValid = typeof newVal === 'number' && newVal > 0;
-            if (oldIsValid && newIsValid) return (oldVal + newVal) / 2;
-            if (newIsValid) return newVal;
-            return oldVal;
-        };
-        
-        acc.averageSleep = updateAverage(acc.averageSleep, newHealth.averageSleep);
-        acc.restingHeartRate = updateAverage(acc.restingHeartRate, newHealth.restingHeartRate);
-        acc.hrv = updateAverage(acc.hrv, newHealth.hrv);
-        acc.recoveryPercentage = updateAverage(acc.recoveryPercentage, newHealth.recoveryPercentage);
-        acc.respiration = updateAverage(acc.respiration, newHealth.respiration);
-        acc.energyLevel = updateAverage(acc.energyLevel, newHealth.energyLevel);
-        
-        if (newHealth.menstrualCycleData && newHealth.menstrualCycleData.currentPhase !== "No disponible") {
-          acc.menstrualCycleData = newHealth.menstrualCycleData;
-        }
-        
-        acc.activeCalories += newHealth.activeCalories;
-        acc.hydrationLiters += newHealth.hydrationLiters;
-        
-        if (newHealth.movePercentage > 0) acc.movePercentage = newHealth.movePercentage;
-        if (newHealth.exercisePercentage > 0) acc.exercisePercentage = newHealth.exercisePercentage;
-        if (newHealth.standPercentage > 0) acc.standPercentage = newHealth.standPercentage;
-        
-        const sleepMap = new Map((acc.sleepData || []).map(s => [s.day, s.hours]));
-        if (Array.isArray(newHealth.sleepData)) {
-            newHealth.sleepData.forEach(s => sleepMap.set(s.day, s.hours));
-        }
-        acc.sleepData = Array.from(sleepMap, ([day, hours]) => ({ day, hours })).slice(-7);
-
-        acc.workouts.push(...newWorkouts);
-
-        return acc;
-
-      }, { ...prevData, workouts: [...prevData.workouts], sleepData: [...(prevData.sleepData || [])] });
-
-      if (combinedData.sleepData && combinedData.sleepData.length > 0) {
-        const totalSleepHours = combinedData.sleepData.reduce((sum, s) => sum + s.hours, 0);
-        if (totalSleepHours > 0) {
-            combinedData.averageSleep = totalSleepHours / combinedData.sleepData.length;
-        }
+    const docRef = doc(db, "healthData", userId);
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setHealthData(docSnap.data() as HealthData);
+      } else {
+        console.log("No health data found in Firestore for this user.");
       }
-
-      return combinedData;
     });
+
+    return () => unsubscribe();
+  }, [userId]);
+
+
+  const handleDataProcessed = async (processedData: ProcessHealthDataFileOutput[]) => {
+    const newHealthData = processedData.reduce((acc, current) => {
+      const { healthData: newHealth } = current;
+      
+      const existingWorkoutKeys = new Set(acc.workouts.map(w => `${w.date}-${w.name}-${w.startTime}`));
+      const newWorkouts = newHealth.workouts.filter(w => !existingWorkoutKeys.has(`${w.date}-${w.name}-${w.startTime}`));
+
+      const updateAverage = (oldVal: number, newVal: number) => {
+          const oldIsValid = typeof oldVal === 'number' && oldVal > 0;
+          const newIsValid = typeof newVal === 'number' && newVal > 0;
+          if (oldIsValid && newIsValid) return (oldVal + newVal) / 2;
+          if (newIsValid) return newVal;
+          return oldVal;
+      };
+      
+      acc.averageSleep = updateAverage(acc.averageSleep, newHealth.averageSleep);
+      acc.restingHeartRate = updateAverage(acc.restingHeartRate, newHealth.restingHeartRate);
+      acc.hrv = updateAverage(acc.hrv, newHealth.hrv);
+      acc.recoveryPercentage = updateAverage(acc.recoveryPercentage, newHealth.recoveryPercentage);
+      acc.respiration = updateAverage(acc.respiration, newHealth.respiration);
+      acc.energyLevel = updateAverage(acc.energyLevel, newHealth.energyLevel);
+      
+      if (newHealth.menstrualCycleData && newHealth.menstrualCycleData.currentPhase !== "No disponible") {
+        acc.menstrualCycleData = newHealth.menstrualCycleData;
+      }
+      
+      acc.activeCalories += newHealth.activeCalories;
+      acc.hydrationLiters += newHealth.hydrationLiters;
+      
+      if (newHealth.movePercentage > 0) acc.movePercentage = newHealth.movePercentage;
+      if (newHealth.exercisePercentage > 0) acc.exercisePercentage = newHealth.exercisePercentage;
+      if (newHealth.standPercentage > 0) acc.standPercentage = newHealth.standPercentage;
+      
+      const sleepMap = new Map((acc.sleepData || []).map(s => [s.day, s.hours]));
+      if (Array.isArray(newHealth.sleepData)) {
+          newHealth.sleepData.forEach(s => sleepMap.set(s.day, s.hours));
+      }
+      acc.sleepData = Array.from(sleepMap, ([day, hours]) => ({ day, hours })).slice(-7);
+
+      acc.workouts.push(...newWorkouts);
+
+      return acc;
+
+    }, { ...healthData, workouts: [...healthData.workouts], sleepData: [...(healthData.sleepData || [])] });
+
+    if (newHealthData.sleepData && newHealthData.sleepData.length > 0) {
+      const totalSleepHours = newHealthData.sleepData.reduce((sum, s) => sum + s.hours, 0);
+      if (totalSleepHours > 0) {
+        newHealthData.averageSleep = totalSleepHours / newHealthData.sleepData.length;
+      }
+    }
+    
+    try {
+      const docRef = doc(db, "healthData", userId);
+      await setDoc(docRef, newHealthData, { merge: true });
+      setHealthData(newHealthData)
+    } catch (error) {
+      console.error("Error saving to Firestore", error);
+    }
   };
   
   const handleGenerateReport = async () => {
@@ -243,7 +245,7 @@ export default function Home() {
             </div>
           <div className="lg:col-span-1 space-y-6">
             <NotificationsWidget />
-            <DataActions onDataProcessed={handleDataProcessed} onGenerateReport={handleGenerateReport} />
+            <DataActions onDataProcessed={handleDataProcessed} />
           </div>
         </div>
       </div>

@@ -9,13 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Upload, FileText, Apple, Loader2, BrainCircuit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { storage } from "@/lib/firebase";
+import { ref, uploadBytes } from "firebase/storage";
 
 type DataActionsProps = {
   onDataProcessed: (data: ProcessHealthDataFileOutput[]) => void;
-  onGenerateReport: () => void;
 };
 
-export default function DataActions({ onDataProcessed, onGenerateReport }: DataActionsProps) {
+export default function DataActions({ onDataProcessed }: DataActionsProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [fileName, setFileName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -43,6 +44,12 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
         reader.readAsText(file);
     });
   }
+  
+  const handleGenerateReport = () => {
+    // This logic is now in the main page
+    // We could trigger it from here via a callback if needed
+    (document.getElementById('generate-report-button') as HTMLButtonElement)?.click();
+  }
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -52,16 +59,22 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
       setFileName(`${fileCount} archivo${fileCount > 1 ? 's' : ''}`);
       
       try {
+        const uploadPromises = Array.from(files).map(file => {
+          const storageRef = ref(storage, `uploads/${file.name}`);
+          return uploadBytes(storageRef, file);
+        });
+        await Promise.all(uploadPromises);
+
         const processingPromises = Array.from(files).map(file => processFile(file));
         const results = await Promise.all(processingPromises);
         onDataProcessed(results);
 
         toast({
-          title: "Archivos procesados",
-          description: `${fileCount} archivo${fileCount > 1 ? 's' : ''} procesado${fileCount > 1 ? 's' : ''} correctamente. El panel ha sido actualizado.`,
+          title: "Archivos subidos y procesados",
+          description: `${fileCount} archivo${fileCount > 1 ? 's' : ''} subido${fileCount > 1 ? 's' : ''} y procesado${fileCount > 1 ? 's' : ''} correctamente.`,
         });
       } catch (error) {
-          console.error("No se pudieron procesar los archivos:", error);
+          console.error("No se pudieron subir o procesar los archivos:", error);
           const errorMessage = error instanceof Error ? error.message : "Error desconocido";
           toast({
             variant: "destructive",
@@ -114,7 +127,7 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
           )}
         </div>
         <div className="space-y-2">
-            <Button variant="secondary" className="w-full" onClick={onGenerateReport}>
+            <Button variant="secondary" className="w-full" onClick={handleGenerateReport} id="generate-report-button-proxy">
                 <BrainCircuit className="mr-2 h-4 w-4" /> Generar Informe Detallado
             </Button>
             <AlertDialog>
@@ -129,7 +142,7 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
                   <AlertDialogDescription>
                     La integración directa con Apple Health desde una aplicación web no es posible por las políticas de privacidad de Apple. La conexión requeriría una aplicación nativa de iOS que sincronice los datos con la nube.
                     <br/><br/>
-                    Esta funcionalidad está planificada para el futuro. Por ahora, puedes seguir subiendo tus datos exportados manualmente.
+                    Esta funcionalidad está planificada para el futuro. Por ahora, puedes seguir subiendo tus datos exportados manually.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
