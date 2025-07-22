@@ -357,7 +357,7 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
             {workouts.length > 0 ? (
               workouts.map((workout, index) => (
                 <TableRow key={index}>
-                  <TableCell>{new Date(workout.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</TableCell>
+                  <TableCell>{new Date(workout.date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</TableCell>
                   <TableCell className="font-medium">{workout.name}</TableCell>
                   <TableCell className="text-right">{workout.distance.toFixed(2)}</TableCell>
                   <TableCell className="text-right">{workout.calories}</TableCell>

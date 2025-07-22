@@ -29,7 +29,7 @@ const prompt = ai.definePrompt({
     -   **Entrenamientos**: Busca cabeceras como 'Activity', 'Duration', 'Distance', 'Calories', 'Heart Rate'.
     -   **Sueño**: Busca cabeceras como 'Sleep Duration', 'Sleep Quality', 'Sleep Start', 'Sleep End'.
     -   **Salud General**: Busca cabeceras como 'Heart Rate Resting', 'HRV', 'Respiration'.
-    -   **Ciclo Menstrual**: Busca claves como 'period', 'symptoms', 'flow', 'startDate', 'endDate'.
+    -   **Ciclo Menstrual**: Para archivos JSON, busca claves como 'period', 'symptoms', 'flow', 'startDate', 'endDate'. Para CSV, busca cabeceras similares.
     -   Usa el nombre del archivo solo como una pista secundaria si está disponible: \`{{{fileName}}}\`.
 
 2.  **Extracción y Homogeneización de Datos**:
