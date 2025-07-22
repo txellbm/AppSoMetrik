@@ -86,3 +86,5 @@ export default function MenstrualCyclePanel({ data }: { data: MenstrualCycleData
     </Card>
   );
 }
+
+    
