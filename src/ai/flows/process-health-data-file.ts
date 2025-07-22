@@ -24,7 +24,7 @@ const prompt = ai.definePrompt({
 
 Para los datos de sueño, proporciona los datos de los últimos 7 días. Si hay más, utiliza los 7 más recientes. Los días deben ser abreviaturas (Lun, Mar, Mié, Jue, Vie, Sáb, Dom).
 Calcula los porcentajes de los anillos de actividad basándote en objetivos estándar (p. ej., 600 calorías para moverse, 30 minutos para ejercicio, 12 horas para pararse). Si los datos no están disponibles, haz una estimación razonable.
-Extrae los datos de entrenamiento, como la distancia y las calorías quemadas, para rellenar el objeto workoutSummary. Si los datos no están disponibles, proporciona una estimación razonable.
+Extrae los resúmenes de entrenamiento, incluyendo distancia y calorías, para rellenar el objeto workoutSummary. Si los datos no están disponibles, proporciona una estimación razonable.
 
 Contenido del Archivo:
 {{{fileContent}}}
