@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Upload, FileText, Apple, Loader2, BrainCircuit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 type DataActionsProps = {
   onDataProcessed: (data: ProcessHealthDataFileOutput[]) => void;
@@ -116,9 +117,26 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
             <Button variant="secondary" className="w-full" onClick={onGenerateReport}>
                 <BrainCircuit className="mr-2 h-4 w-4" /> Generar Informe Detallado
             </Button>
-            <Button variant="secondary" className="w-full" disabled>
-              <Apple className="mr-2 h-4 w-4" /> Conectar a Apple Health
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="secondary" className="w-full">
+                  <Apple className="mr-2 h-4 w-4" /> Conectar a Apple Health
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Conexión con Apple Health</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    La integración directa con Apple Health desde una aplicación web no es posible por las políticas de privacidad de Apple. La conexión requeriría una aplicación nativa de iOS que sincronice los datos con la nube.
+                    <br/><br/>
+                    Esta funcionalidad está planificada para el futuro. Por ahora, puedes seguir subiendo tus datos exportados manualmente.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogAction>Entendido</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
         </div>
       </CardContent>
     </Card>
