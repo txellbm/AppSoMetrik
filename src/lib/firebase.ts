@@ -7,12 +7,13 @@ import { getStorage } from "firebase/storage";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  projectId: "sometric-app",
-  appId: "1:215837564402:web:d9118a48bfd3dd10c49f6b",
-  storageBucket: "sometric-app.appspot.com",
-  apiKey: "AIzaSyCzeBmKZaLytR0j6jR8EyTjOYBkE7dTp5k",
-  authDomain: "sometric-app.firebaseapp.com",
-  messagingSenderId: "215837564402",
+  apiKey: "AIzaSyCxVPfW9aVFIYAaUu4Jr5Uix-YLIqHl1Xw",
+  authDomain: "app-sometrik.firebaseapp.com",
+  projectId: "app-sometrik",
+  storageBucket: "app-sometrik.firebasestorage.app",
+  messagingSenderId: "352482910314",
+  appId: "1:352482910314:web:2a9020e50fd6ffcbd4aa13",
+  measurementId: "G-D6DQHBNLF9"
 };
 
 // Initialize Firebase
