@@ -29,7 +29,7 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
                 if (!content) {
                     throw new Error(`El archivo ${file.name} está vacío.`);
                 }
-                const result = await processHealthDataFile({ fileContent: content });
+                const result = await processHealthDataFile({ fileContent: content, fileName: file.name });
                 resolve(result);
             } catch (error) {
                 reject(error);

@@ -27,6 +27,7 @@ export type HealthSummaryOutput = z.infer<typeof HealthSummaryOutputSchema>;
 // Schemas for: src/ai/flows/process-health-data-file.ts
 export const ProcessHealthDataFileInputSchema = z.object({
   fileContent: z.string().describe('El contenido del archivo de datos de salud (por ejemplo, en formato CSV).'),
+  fileName: z.string().optional().describe('El nombre del archivo subido.'),
 });
 export type ProcessHealthDataFileInput = z.infer<
   typeof ProcessHealthDataFileInputSchema

@@ -22,6 +22,12 @@ const prompt = ai.definePrompt({
   output: {schema: ProcessHealthDataFileOutputSchema},
   prompt: `Eres un asistente de salud de IA experto en analizar y consolidar datos de salud de varios archivos CSV, como los de HeartWatch. Tu tarea es analizar el contenido del archivo, identificar qué tipo de datos contiene (resumen de entreno, detalles de entreno, métricas generales de salud), extraer la información relevante y devolverla en un formato JSON estructurado.
 
+**Pista de Contenido (Basado en el Nombre del Archivo):** {{{fileName}}}
+- Si el nombre incluye “Resumen-Entrenamientos”: es probable que sea un resumen de entrenos.
+- Si incluye “Entrenamientos-Detalles”: es probable que sea un archivo detallado de entreno.
+- Si incluye “HeartWatch-Detalles”: es probable que contenga métricas generales de salud.
+Usa esta pista junto con el contenido del archivo para el procesamiento más preciso. Si no puedes determinar el tipo de archivo, haz tu mejor esfuerzo para extraer los datos basándote en las cabeceras.
+
 Instrucciones de Procesamiento:
 1.  **Identifica el tipo de archivo**: Analiza las cabeceras y el contenido para determinar si es un resumen de entrenos, un archivo detallado de entreno (con datos cada 5 segundos) o métricas generales de salud.
 2.  **Extrae Métricas Generales**: Busca y extrae métricas como la frecuencia cardíaca en reposo (lpm), la variabilidad de la frecuencia cardíaca (VFC o HRV) y la recuperación (%). Si no están presentes, devuélvelas como 0.
