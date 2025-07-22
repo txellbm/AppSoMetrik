@@ -22,7 +22,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { generateHealthSummary } from "@/ai/flows/ai-health-summary";
-import { HealthSummaryInput, ProcessHealthDataFileOutput, HealthData, Workout } from "@/ai/schemas";
+import { HealthSummaryInput, ProcessHealthDataFileOutput, HealthData, Workout, SleepEntry } from "@/ai/schemas";
 
 import {
   Table,
@@ -63,16 +63,13 @@ export default function Home() {
   const { toast } = useToast();
 
   const handleDataProcessed = (processedData: ProcessHealthDataFileOutput[]) => {
-    // This function now receives an array of processed data from multiple files
     setHealthData((prevData) => {
       const combinedData = processedData.reduce((acc, current) => {
         const { healthData: newHealth } = current;
         
-        // Combine workouts, avoiding duplicates based on date and name
         const existingWorkoutKeys = new Set(acc.workouts.map(w => `${w.date}-${w.name}-${w.startTime}`));
         const newWorkouts = newHealth.workouts.filter(w => !existingWorkoutKeys.has(`${w.date}-${w.name}-${w.startTime}`));
 
-        // Average non-zero metrics
         const updateAverage = (oldVal: number, newVal: number) => {
             const oldIsValid = typeof oldVal === 'number' && oldVal > 0;
             const newIsValid = typeof newVal === 'number' && newVal > 0;
@@ -83,25 +80,22 @@ export default function Home() {
         
         acc.averageSleep = updateAverage(acc.averageSleep, newHealth.averageSleep);
         acc.restingHeartRate = updateAverage(acc.restingHeartRate, newHealth.restingHeartRate);
-        acc.hrv = updateAverage(acc.hrv || 0, newHealth.hrv || 0);
-        acc.recoveryPercentage = updateAverage(acc.recoveryPercentage || 0, newHealth.recoveryPercentage || 0);
-        acc.respiration = updateAverage(acc.respiration || 0, newHealth.respiration || 0);
-        acc.energyLevel = updateAverage(acc.energyLevel || 0, newHealth.energyLevel || 0);
+        acc.hrv = updateAverage(acc.hrv, newHealth.hrv);
+        acc.recoveryPercentage = updateAverage(acc.recoveryPercentage, newHealth.recoveryPercentage);
+        acc.respiration = updateAverage(acc.respiration, newHealth.respiration);
+        acc.energyLevel = updateAverage(acc.energyLevel, newHealth.energyLevel);
         
         if (newHealth.menstrualCyclePhase && newHealth.menstrualCyclePhase !== "No disponible") {
           acc.menstrualCyclePhase = newHealth.menstrualCyclePhase;
         }
         
-        // Sum cumulative metrics
         acc.activeCalories += newHealth.activeCalories;
         acc.hydrationLiters += newHealth.hydrationLiters;
         
-        // Use the most recent activity ring data if available
         if (newHealth.movePercentage > 0) acc.movePercentage = newHealth.movePercentage;
         if (newHealth.exercisePercentage > 0) acc.exercisePercentage = newHealth.exercisePercentage;
         if (newHealth.standPercentage > 0) acc.standPercentage = newHealth.standPercentage;
         
-        // Combine sleep data, keeping it to the last 7 entries and removing duplicates
         const sleepMap = new Map((acc.sleepData || []).map(s => [s.day, s.hours]));
         if (Array.isArray(newHealth.sleepData)) {
             newHealth.sleepData.forEach(s => sleepMap.set(s.day, s.hours));
@@ -112,9 +106,8 @@ export default function Home() {
 
         return acc;
 
-      }, { ...prevData, workouts: [...prevData.workouts], sleepData: [...prevData.sleepData] }); // Start with a deep enough copy
+      }, { ...prevData, workouts: [...prevData.workouts], sleepData: [...(prevData.sleepData || [])] });
 
-      // Clean up averages for display
       if (combinedData.sleepData && combinedData.sleepData.length > 0) {
         const totalSleepHours = combinedData.sleepData.reduce((sum, s) => sum + s.hours, 0);
         if (totalSleepHours > 0) {

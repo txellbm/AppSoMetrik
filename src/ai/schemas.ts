@@ -47,6 +47,12 @@ const WorkoutSchema = z.object({
 });
 export type Workout = z.infer<typeof WorkoutSchema>;
 
+const SleepEntrySchema = z.object({
+    day: z.string().describe("Día de la semana (ej. Lun, Mar) o fecha (YYYY-MM-DD)"),
+    hours: z.number().describe("Horas de sueño para ese día"),
+});
+export type SleepEntry = z.infer<typeof SleepEntrySchema>;
+
 export const HealthDataSchema = z.object({
   averageSleep: z.number().describe('Las horas de sueño promedio.').default(0),
   activeCalories: z.number().describe('Las calorías activas quemadas.').default(0),
@@ -60,10 +66,7 @@ export const HealthDataSchema = z.object({
   movePercentage: z.number().describe('El porcentaje del objetivo de movimiento.').default(0),
   exercisePercentage: z.number().describe('El porcentaje del objetivo de ejercicio.').default(0),
   standPercentage: z.number().describe('El porcentaje del objetivo de pararse.').default(0),
-  sleepData: z.array(z.object({
-    day: z.string().describe("Día de la semana (ej. Lun, Mar)"),
-    hours: z.number().describe("Horas de sueño para ese día"),
-  })).describe('Datos de sueño de los últimos 7 días.').default([]),
+  sleepData: z.array(SleepEntrySchema).describe('Datos de sueño de los últimos 7 días.').default([]),
   workouts: z.array(WorkoutSchema).describe("Una lista de los entrenamientos realizados.").default([]),
 });
 export type HealthData = z.infer<typeof HealthDataSchema>;
