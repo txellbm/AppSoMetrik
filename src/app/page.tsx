@@ -212,18 +212,6 @@ export default function Home() {
         </Card>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card className="md:col-span-2 lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Resumen de Actividad</CardTitle>
-                <CardDescription>El progreso de tus metas diarias.</CardDescription>
-              </CardHeader>
-              <CardContent className="flex justify-center items-center gap-4 pt-4">
-                  <ActivityRing percentage={0} color="hsl(var(--primary))" label="Moverse" />
-                  <ActivityRing percentage={0} color="hsl(var(--accent))" label="Ejercicio" />
-                  <ActivityRing percentage={0} color="hsl(var(--chart-2))" label="Pararse" />
-              </CardContent>
-            </Card>
-
             <SleepChart data={dashboardData.sleepData} />
 
             <WorkoutSummaryCard workouts={dashboardData.workouts} />
@@ -291,40 +279,6 @@ function StatCard({ icon, title, value }: { icon: React.ReactNode; title: string
   );
 }
 
-function ActivityRing({ percentage, color, label }: { percentage: number; color: string; label: string }) {
-  const circumference = 2 * Math.PI * 45;
-  const strokeDashoffset = circumference - (percentage / 100) * circumference;
-
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="relative h-28 w-28">
-        <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100">
-          <circle
-            cx="50" cy="50" r="45"
-            stroke="hsl(var(--muted))"
-            strokeWidth="10"
-            fill="transparent"
-          />
-          <circle
-            cx="50" cy="50" r="45"
-            stroke={color}
-            strokeWidth="10"
-            fill="transparent"
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={strokeDashoffset}
-            className="transition-all duration-1000 ease-out"
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-xl font-bold" style={{ color }}>{Math.round(percentage)}%</span>
-        </div>
-      </div>
-      <p className="text-sm font-medium text-muted-foreground">{label}</p>
-    </div>
-  )
-}
-
 function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
   return (
     <Card className="md:col-span-2 lg:col-span-2">
@@ -370,5 +324,3 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
     </Card>
   );
 }
-
-    
