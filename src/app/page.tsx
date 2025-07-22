@@ -102,8 +102,10 @@ export default function Home() {
         if (newHealth.standPercentage > 0) acc.standPercentage = newHealth.standPercentage;
         
         // Combine sleep data, keeping it to the last 7 entries and removing duplicates
-        const sleepMap = new Map(acc.sleepData.map(s => [s.day, s.hours]));
-        newHealth.sleepData.forEach(s => sleepMap.set(s.day, s.hours));
+        const sleepMap = new Map((acc.sleepData || []).map(s => [s.day, s.hours]));
+        if (Array.isArray(newHealth.sleepData)) {
+            newHealth.sleepData.forEach(s => sleepMap.set(s.day, s.hours));
+        }
         acc.sleepData = Array.from(sleepMap, ([day, hours]) => ({ day, hours })).slice(-7);
 
         acc.workouts.push(...newWorkouts);
@@ -113,7 +115,7 @@ export default function Home() {
       }, { ...prevData, workouts: [...prevData.workouts], sleepData: [...prevData.sleepData] }); // Start with a deep enough copy
 
       // Clean up averages for display
-      if (combinedData.sleepData.length > 0) {
+      if (combinedData.sleepData && combinedData.sleepData.length > 0) {
         const totalSleepHours = combinedData.sleepData.reduce((sum, s) => sum + s.hours, 0);
         if (totalSleepHours > 0) {
             combinedData.averageSleep = totalSleepHours / combinedData.sleepData.length;
