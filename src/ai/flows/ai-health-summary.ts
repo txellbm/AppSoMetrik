@@ -1,4 +1,5 @@
 
+
 'use server';
 
 /**
@@ -18,20 +19,25 @@ const prompt = ai.definePrompt({
   name: 'healthSummaryPrompt',
   input: {schema: HealthSummaryInputSchema},
   output: {schema: HealthSummaryOutputSchema},
-  prompt: `Eres un experto analista de salud y bienestar. Tu tarea es generar un informe completo, detallado y bien estructurado en formato Markdown a partir de los siguientes datos de salud de un usuario. El informe debe ser fácil de leer, perspicaz y adecuado para ser compartido con un profesional de la salud o para el análisis personal del usuario.
+  prompt: `Eres un experto analista de salud y bienestar. Tu tarea es generar un informe completo, detallado y bien estructurado en formato Markdown a partir de los siguientes datos consolidados de un usuario. El informe debe ser fácil de leer, perspicaz y adecuado para ser compartido con un profesional de la salud o para el análisis personal del usuario.
 
-Estructura el informe con las siguientes secciones:
-- **Resumen General**: Un párrafo introductorio que resuma el estado de salud general, incluyendo nivel de energía y recuperación.
-- **Análisis del Sueño**: Detalles sobre los patrones de sueño, calidad y recomendaciones.
-- **Actividad Física y Ejercicio**: Un resumen de las calorías quemadas, el progreso hacia los objetivos y una tabla detallada de los entrenamientos realizados.
-- **Salud Cardíaca y Fisiología**: Información sobre la frecuencia cardíaca en reposo, VFC (HRV), y frecuencia respiratoria.
-- **Hidratación y Nutrición**: Detalles sobre la ingesta de líquidos y alimentos.
-- **Ciclo Menstrual**: Si hay datos, un análisis de la fase actual del ciclo y sus implicaciones.
-- **Recomendaciones Clave**: Una lista con viñetas de las 3-5 recomendaciones más importantes basadas en todos los datos proporcionados.
+**Instrucciones Clave:**
+- **Correlaciona Datos:** Busca activamente relaciones entre diferentes áreas. Por ejemplo, ¿cómo afecta el sueño a la recuperación y al rendimiento en los entrenamientos? ¿Hay patrones entre el ciclo menstrual y los niveles de energía o el estado de ánimo?
+- **Estructura Clara:** Organiza el informe en las secciones que se detallan a continuación.
+- **Tono Profesional y Empático:** Usa un lenguaje claro, alentador y basado en los datos.
 
-Utiliza un tono profesional pero empático.
+**Estructura del Informe:**
 
-DATOS DEL USUARIO:
+- **Resumen General**: Un párrafo introductorio que resuma el estado de salud general, destacando tendencias o patrones importantes que hayas observado (ej. "Esta semana se observa una mejora en la calidad del sueño que parece correlacionarse con una mayor recuperación y energía...").
+- **Análisis del Sueño**: Detalles sobre los patrones de sueño, calidad, duración promedio y su posible impacto en otras métricas como la VFC y la energía.
+- **Actividad Física y Ejercicio**: Un resumen de las calorías quemadas, el progreso hacia los objetivos y una tabla detallada de los entrenamientos realizados. Analiza la consistencia y la intensidad.
+- **Salud Cardíaca y Fisiología**: Información sobre la frecuencia cardíaca en reposo, VFC (HRV), y frecuencia respiratoria. Explica qué significan estas métricas en el contexto del usuario.
+- **Hidratación y Nutrición**: Detalles sobre la ingesta de líquidos y alimentos (si están disponibles).
+- **Ciclo Menstrual**: Si hay datos, un análisis de la fase actual del ciclo y sus implicaciones en la energía, el estado de ánimo y las recomendaciones de entrenamiento.
+- **Recomendaciones Clave**: Una lista con viñetas de las 3-5 recomendaciones más importantes y accionables basadas en el análisis cruzado de todos los datos proporcionados.
+
+**DATOS CONSOLIDADOS DEL USUARIO:**
+
 - **Sueño**: {{{sleepData}}}
 - **Ejercicio y Actividad**: {{{exerciseData}}}
 - **Salud Cardíaca y Fisiología**: {{{heartRateData}}}

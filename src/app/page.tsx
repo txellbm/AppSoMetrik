@@ -83,10 +83,10 @@ export default function Home() {
         
         acc.averageSleep = updateAverage(acc.averageSleep, newHealth.averageSleep);
         acc.restingHeartRate = updateAverage(acc.restingHeartRate, newHealth.restingHeartRate);
-        acc.hrv = updateAverage(acc.hrv, newHealth.hrv);
-        acc.recoveryPercentage = updateAverage(acc.recoveryPercentage, newHealth.recoveryPercentage);
-        acc.respiration = updateAverage(acc.respiration, newHealth.respiration);
-        acc.energyLevel = updateAverage(acc.energyLevel, newHealth.energyLevel);
+        acc.hrv = updateAverage(acc.hrv || 0, newHealth.hrv || 0);
+        acc.recoveryPercentage = updateAverage(acc.recoveryPercentage || 0, newHealth.recoveryPercentage || 0);
+        acc.respiration = updateAverage(acc.respiration || 0, newHealth.respiration || 0);
+        acc.energyLevel = updateAverage(acc.energyLevel || 0, newHealth.energyLevel || 0);
         
         if (newHealth.menstrualCyclePhase && newHealth.menstrualCyclePhase !== "No disponible") {
           acc.menstrualCyclePhase = newHealth.menstrualCyclePhase;
@@ -134,7 +134,7 @@ export default function Home() {
         const input: HealthSummaryInput = {
             sleepData: `Sueño promedio: ${healthData.averageSleep.toFixed(1)}h. Datos de los últimos días: ${healthData.sleepData.map(d => `${d.day}: ${d.hours}h`).join(', ')}`,
             exerciseData: `Calorías activas: ${healthData.activeCalories}, Entrenamientos: ${workoutDetails}. Anillos: Moverse ${healthData.movePercentage}% Ejercicio ${healthData.exercisePercentage}% Pararse ${healthData.standPercentage}%`,
-            heartRateData: `Frecuencia cardíaca en reposo: ${healthData.restingHeartRate.toFixed(0)} bpm. VFC: ${healthData.hrv.toFixed(1)} ms. Recuperación: ${healthData.recoveryPercentage.toFixed(0)}%. Respiración: ${healthData.respiration.toFixed(1)} rpm. Nivel de energía: ${healthData.energyLevel.toFixed(0)}%`,
+            heartRateData: `Frecuencia cardíaca en reposo: ${(healthData.restingHeartRate || 0).toFixed(0)} bpm. VFC: ${(healthData.hrv || 0).toFixed(1)} ms. Recuperación: ${(healthData.recoveryPercentage || 0).toFixed(0)}%. Respiración: ${(healthData.respiration || 0).toFixed(1)} rpm. Nivel de energía: ${(healthData.energyLevel || 0).toFixed(0)}%`,
             menstruationData: `Fase del ciclo: ${healthData.menstrualCyclePhase}.`,
             supplementData: "No hay datos de suplementos disponibles.",
             foodIntakeData: `Hidratación: ${healthData.hydrationLiters.toFixed(1)} L`,
@@ -187,12 +187,12 @@ export default function Home() {
                 <CardContent className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
                     <StatCard icon={<Moon className="text-primary" />} title="Sueño Promedio" value={`${healthData.averageSleep.toFixed(1)}h`} />
                     <StatCard icon={<Flame className="text-primary" />} title="Calorías Activas" value={String(healthData.activeCalories)} />
-                    <StatCard icon={<HeartPulse className="text-primary" />} title="FC en Reposo" value={`${healthData.restingHeartRate.toFixed(0)} bpm`} />
+                    <StatCard icon={<HeartPulse className="text-primary" />} title="FC en Reposo" value={`${(healthData.restingHeartRate || 0).toFixed(0)} bpm`} />
                     <StatCard icon={<Droplets className="text-primary" />} title="Hidratación" value={`${healthData.hydrationLiters.toFixed(1)} L`} />
-                    <StatCard icon={<Activity className="text-primary" />} title="VFC (HRV)" value={`${healthData.hrv.toFixed(1)} ms`} />
-                    <StatCard icon={<ShieldCheck className="text-primary" />} title="Recuperación" value={`${healthData.recoveryPercentage.toFixed(0)}%`} />
-                    <StatCard icon={<Wind className="text-primary" />} title="Respiración" value={`${healthData.respiration.toFixed(1)} rpm`} />
-                    <StatCard icon={<BrainCircuit className="text-primary" />} title="Nivel Energía" value={`${healthData.energyLevel.toFixed(0)}%`} />
+                    <StatCard icon={<Activity className="text-primary" />} title="VFC (HRV)" value={`${(healthData.hrv || 0).toFixed(1)} ms`} />
+                    <StatCard icon={<ShieldCheck className="text-primary" />} title="Recuperación" value={`${(healthData.recoveryPercentage || 0).toFixed(0)}%`} />
+                    <StatCard icon={<Wind className="text-primary" />} title="Respiración" value={`${(healthData.respiration || 0).toFixed(1)} rpm`} />
+                    <StatCard icon={<BrainCircuit className="text-primary" />} title="Nivel Energía" value={`${(healthData.energyLevel || 0).toFixed(0)}%`} />
                 </CardContent>
             </Card>
         </div>

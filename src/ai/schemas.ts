@@ -1,4 +1,5 @@
 
+
 /**
  * @fileOverview Defines the Zod schemas and TypeScript types for the AI flows.
  * This file centralizes all schema definitions to avoid "use server" conflicts
@@ -28,7 +29,7 @@ export type HealthSummaryOutput = z.infer<typeof HealthSummaryOutputSchema>;
 // Schemas for: src/ai/flows/process-health-data-file.ts
 export const ProcessHealthDataFileInputSchema = z.object({
   fileContent: z.string().describe('El contenido del archivo de datos de salud (por ejemplo, en formato CSV).'),
-  fileName: z.string().optional().describe('El nombre del archivo subido.'),
+  fileName: z.string().optional().describe('El nombre del archivo subido. Úsalo como pista para el tipo de archivo.'),
 });
 export type ProcessHealthDataFileInput = z.infer<
   typeof ProcessHealthDataFileInputSchema

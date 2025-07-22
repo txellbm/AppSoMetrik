@@ -20,36 +20,44 @@ const prompt = ai.definePrompt({
   name: 'processHealthDataFilePrompt',
   input: {schema: ProcessHealthDataFileInputSchema},
   output: {schema: ProcessHealthDataFileOutputSchema},
-  prompt: `Eres un asistente de salud de IA experto en analizar y consolidar datos de salud de varios archivos CSV, como los de HeartWatch. Tu tarea es analizar el contenido del archivo, identificar qué tipo de datos contiene, extraer la información relevante y devolverla en un formato JSON estructurado.
+  prompt: `Eres un asistente de salud de IA experto en analizar y consolidar datos de salud de varios archivos CSV, como los de HeartWatch, Geard, Clue, etc. Tu tarea es analizar el contenido del archivo, identificar qué tipo de datos contiene basándote en sus cabeceras, extraer la información relevante y devolverla en un formato JSON estructurado.
 
-**Pista de Contenido (Basado en el Nombre del Archivo):** {{{fileName}}}
-- Si el nombre incluye “Resumen-Entrenamientos”: es probable que sea un resumen de entrenos.
-- Si incluye “Entrenamientos-Detalles”: es probable que sea un archivo detallado de entreno.
-- Si incluye “HeartWatch-Detalles” o “Geard-Detalles”: es probable que contenga métricas generales de salud como FC en reposo, VFC, respiración, etc.
-Usa esta pista junto con el contenido del archivo para el procesamiento más preciso. Si no puedes determinar el tipo de archivo, haz tu mejor esfuerzo para extraer los datos basándote en las cabeceras.
+**Instrucciones de Procesamiento:**
 
-Instrucciones de Procesamiento:
-1.  **Identifica el tipo de archivo**: Analiza las cabeceras y el contenido para determinar si es un resumen de entrenos, un archivo detallado de entreno (con datos cada ~5 segundos) o métricas generales de salud.
-2.  **Extrae Métricas Generales**: Busca y extrae métricas como la frecuencia cardíaca en reposo (lpm), la variabilidad de la frecuencia cardíaca (VFC o HRV), el porcentaje de recuperación (%), la frecuencia respiratoria (rpm) y un nivel de energía estimado si está disponible. Si no están presentes, devuélvelas como 0 o "No disponible".
-3.  **Extrae Fase del Ciclo Menstrual**: Si hay datos de ciclo menstrual, identifica y devuelve la fase actual.
-4.  **Procesa Datos de Entrenamiento**:
-    -   Si es un archivo de **resumen de entrenos**, extrae cada entreno con su fecha, nombre, distancia, calorías, duración y frecuencia cardíaca promedio. La duración estará probablemente en formato hh:mm:ss.
-    -   Si es un archivo de **entrenos detallados** (múltiples filas por sesión), sigue estas reglas:
-        a.  **Agrupa** las filas por entreno usando las columnas 'Fecha', 'Entrenamiento' y 'Entrenamiento-Tipo'.
-        b.  Para cada grupo, **identifica la hora de inicio y fin** extrayendo la hora de la columna 'ISO' del primer y último registro del grupo. El formato debe ser 'HH:mm:ss'.
-        c.  Para cada grupo, **calcula la duración exacta** basándote en la diferencia entre la hora de inicio y fin, y devuélvela en formato **hh:mm:ss**.
-        d.  Para cada grupo, **calcula la frecuencia cardíaca promedio (lpm)**, promediando los valores de la columna 'lpm'.
-        e.  Para cada grupo, extrae la distancia total y las calorías totales.
-        f.  Crea un objeto de entreno para cada grupo con todos los datos (fecha, nombre, distancia, calorías, hora de inicio, hora de fin, duración calculada y FC promedio calculada).
-    - **No dupliques entrenamientos**: Si un entreno del mismo día y tipo aparece en múltiples archivos, prioriza siempre los datos del archivo de "Detalles" ya que son más precisos.
-5.  **Extrae Datos de Sueño**: Proporciona los datos de sueño de los últimos 7 días si están disponibles. Los días deben ser abreviaturas (Lun, Mar, Mié, Jue, Vie, Sáb, Dom).
-6.  **Calcula Anillos de Actividad**: Calcula los porcentajes para los anillos de Moverse, Ejercicio y Pararse basándote en objetivos estándar (ej. 600 kcal, 30 min, 12 horas). Si los datos no están disponibles, haz una estimación razonable o devuélvelos como 0.
-7.  **Consolidación**: El objetivo es devolver solo los datos extraídos del archivo actual. La consolidación de múltiples archivos se realizará fuera de este flujo. No intentes unificar datos de archivos previos aquí.
+1.  **Detección Automática del Tipo de Archivo**:
+    -   Analiza las cabeceras (la primera línea del CSV) para identificar qué tipo de datos contiene el archivo.
+    -   **Entrenamientos**: Busca cabeceras como 'Activity', 'Duration', 'Distance', 'Calories', 'Heart Rate', 'Workout'.
+    -   **Sueño**: Busca cabeceras como 'Sleep', 'Sleep Duration', 'Sleep Quality', 'Sleep Start', 'Sleep End'.
+    -   **Salud General**: Busca cabeceras como 'Heart Rate Resting', 'HRV', 'Respiration', 'Steps', 'Hydration', 'Recovery %'.
+    -   **Ciclo Menstrual**: Busca cabeceras como 'Cycle Phase', 'Period Start', 'Ovulation', 'Symptoms'.
+    -   **Nutrición**: Busca cabeceras como 'Food', 'Calories', 'Macros', 'Supplements'.
+    -   Usa el nombre del archivo solo como una pista secundaria si está disponible: \`{{{fileName}}}\`.
 
-Contenido del Archivo:
+2.  **Extracción y Homogeneización de Datos**:
+    -   **Fechas**: Normaliza todas las fechas al formato YYYY-MM-DD.
+    -   **Duración de Entrenamientos**:
+        -   Si la duración viene en un formato como 'hh:mm:ss', mantenlo.
+        -   Si viene en horas decimales (ej. 1.5), conviértelo a formato 'hh:mm:ss' (ej. '01:30:00').
+        -   Si el archivo contiene múltiples filas por entrenamiento (detectado por 'Entrenamiento-Tipo' o similar), agrupa las filas por fecha y tipo de entreno.
+            -   Calcula la **hora de inicio** y **fin** usando la columna 'ISO' (primer y último registro del grupo).
+            -   Calcula la **duración exacta** como la diferencia entre la hora de fin y la de inicio, y formátala como 'hh:mm:ss'.
+    -   **Métricas Numéricas**: Redondea los valores decimales a un máximo de 1 o 2 decimales para claridad (ej. distancia, VFC).
+    -   **Valores Faltantes**: Si una columna o métrica no está presente, devuélvela con su valor por defecto (0, "No disponible", o un array vacío), sin que esto cause un error.
+
+3.  **Procesamiento de Entrenamientos Detallados vs. Resumen**:
+    -   Si un archivo es de 'resumen' y otro de 'detalles', prioriza siempre los datos del archivo de 'detalles' para un mismo entrenamiento (misma fecha y tipo), ya que son más precisos para la duración, FC promedio, hora de inicio/fin, etc.
+    -   No dupliques entrenamientos. Si un entreno ya ha sido procesado desde un archivo de detalles, no lo añadas de nuevo desde un archivo de resumen.
+
+4.  **Consolidación**:
+    -   El objetivo es devolver solo los datos estructurados extraídos del archivo actual. La consolidación final de múltiples archivos se gestionará fuera de este flujo.
+    -   Si no puedes clasificar el archivo de forma fiable, devuelve un resumen indicando que el archivo no fue reconocido y un objeto \`healthData\` vacío con sus valores por defecto.
+
+**Contenido del Archivo:**
+\`\`\`
 {{{fileContent}}}
+\`\`\`
 
-Genera un resumen conciso y los datos estructurados extraídos del archivo.`,
+Genera un resumen conciso de lo que has encontrado y los datos estructurados extraídos del archivo.`,
 });
 
 const processHealthDataFileFlow = ai.defineFlow(
