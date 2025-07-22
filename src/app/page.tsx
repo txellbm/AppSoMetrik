@@ -49,7 +49,7 @@ import MenstrualCyclePanel from "@/components/dashboard/menstrual-cycle-panel";
 import MenstrualCalendar from "@/components/dashboard/menstrual-calendar";
 import { collection, writeBatch, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { startOfWeek, endOfWeek, subWeeks, isWithinInterval, parseISO, differenceInDays, addDays } from "date-fns";
+import { startOfWeek, endOfWeek, subWeeks, isWithinInterval, parseISO } from "date-fns";
 import { doc } from "firebase/firestore";
 
 const initialDashboardData: DashboardData = {
@@ -193,64 +193,17 @@ export default function Home() {
     if (dashboardData.menstrualData.length === 0) {
       return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
     }
-  
-    // Filter for entries with flow and sort them by date
-    const flowDays = dashboardData.menstrualData
-      .filter(d => d.flow && ['light', 'medium', 'heavy'].includes(d.flow))
-      .sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
-  
-    if (flowDays.length === 0) {
-      return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
-    }
-  
-    // Group consecutive flow days into periods
-    const periods: Date[][] = [];
-    if (flowDays.length > 0) {
-      let currentPeriod = [parseISO(flowDays[0].date)];
-      for (let i = 1; i < flowDays.length; i++) {
-        const currentDate = parseISO(flowDays[i].date);
-        const prevDate = parseISO(flowDays[i-1].date);
-        if (differenceInDays(currentDate, prevDate) === 1) {
-          currentPeriod.push(currentDate);
-        } else {
-          periods.push(currentPeriod);
-          currentPeriod = [currentDate];
-        }
-      }
-      periods.push(currentPeriod);
-    }
-  
-    // Get the start date of the most recent period
-    const lastPeriodStartDate = periods[periods.length - 1][0];
-  
-    if (!lastPeriodStartDate) {
-       return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
-    }
+    // Sort by date descending to find the latest entry
+    const sortedData = [...dashboardData.menstrualData].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const latestEntry = sortedData[0];
     
-    // Use the provided date for calculation
-    const today = new Date('2024-07-22T00:00:00');
-    const cycleStartDate = lastPeriodStartDate;
-    
-    const currentDay = differenceInDays(today, cycleStartDate) + 1;
-  
-    let currentPhase = "No disponible";
-    // Simplified phase calculation based on a 28-day cycle model
-    if (currentDay <= 5) {
-      currentPhase = "Menstruación";
-    } else if (currentDay <= 13) {
-      currentPhase = "Folicular";
-    } else if (currentDay <= 15) {
-      currentPhase = "Ovulación";
-    } else if (currentDay <= 28) {
-      currentPhase = "Lútea";
-    } else {
-      currentPhase = "Lútea (Extendida)"; 
-    }
-    
-    const todayStr = today.toISOString().split('T')[0];
-    const todaySymptoms = dashboardData.menstrualData.find(d => d.date === todayStr)?.symptoms || [];
-  
-    return { currentDay, currentPhase, symptoms: todaySymptoms };
+    // This is a placeholder logic and needs to be improved
+    // For now, it just shows the data from the latest entry
+    return {
+      currentDay: latestEntry.currentDay || 0,
+      currentPhase: latestEntry.currentPhase || "No disponible",
+      symptoms: latestEntry.symptoms || [],
+    };
   }, [dashboardData.menstrualData]);
 
 
@@ -434,4 +387,5 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
     
 
     
+
 
