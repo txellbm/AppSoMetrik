@@ -34,6 +34,13 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
+import {
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger,
+} from "@/components/ui/tabs"
+
 import AIChatWidget from "@/components/dashboard/ai-chat-widget";
 import DataActions from "@/components/dashboard/data-actions";
 import NotificationsWidget from "@/components/dashboard/notifications-widget";
@@ -41,6 +48,7 @@ import SleepChart from "@/components/dashboard/sleep-chart";
 import MenstrualCalendar from "@/components/dashboard/menstrual-calendar";
 import { collection, doc, onSnapshot, setDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { startOfWeek, endOfWeek, subWeeks, isWithinInterval, parseISO } from "date-fns";
 
 const initialDashboardData: DashboardData = {
   workouts: [],
@@ -281,6 +289,58 @@ function StatCard({ icon, title, value }: { icon: React.ReactNode; title: string
 }
 
 function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
+  const now = new Date();
+  const startOfThisWeek = startOfWeek(now, { weekStartsOn: 1 });
+  const endOfThisWeek = endOfWeek(now, { weekStartsOn: 1 });
+  
+  const startOfLastWeek = startOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
+  const endOfLastWeek = endOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
+
+  const thisWeekWorkouts = workouts
+    .filter(w => isWithinInterval(parseISO(w.date), { start: startOfThisWeek, end: endOfThisWeek }))
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const lastWeekWorkouts = workouts
+    .filter(w => isWithinInterval(parseISO(w.date), { start: startOfLastWeek, end: endOfLastWeek }))
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    
+  const olderWorkouts = workouts
+    .filter(w => !isWithinInterval(parseISO(w.date), { start: startOfLastWeek, end: endOfThisWeek }))
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const WorkoutTable = ({ data }: { data: Workout[] }) => (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Fecha</TableHead>
+          <TableHead>Entrenamiento</TableHead>
+          <TableHead className="text-right">Distancia</TableHead>
+          <TableHead className="text-right">Calorías</TableHead>
+          <TableHead className="text-right">Duración</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {data.length > 0 ? (
+          data.map((workout, index) => (
+            <TableRow key={index}>
+              <TableCell>{new Date(workout.date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</TableCell>
+              <TableCell className="font-medium">{workout.name}</TableCell>
+              <TableCell className="text-right">{workout.distance.toFixed(2)} km</TableCell>
+              <TableCell className="text-right">{workout.calories}</TableCell>
+              <TableCell className="text-right">{workout.duration} min</TableCell>
+            </TableRow>
+          ))
+        ) : (
+          <TableRow>
+            <TableCell colSpan={5} className="text-center text-muted-foreground h-24">
+              No hay entrenamientos registrados para este período.
+            </TableCell>
+          </TableRow>
+        )}
+      </TableBody>
+    </Table>
+  );
+
   return (
     <Card className="md:col-span-2 lg:col-span-2">
       <CardHeader>
@@ -288,39 +348,25 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
           <Dumbbell className="text-primary" />
           Panel de Entrenamientos
         </CardTitle>
-        <CardDescription>Tus entrenamientos recientes.</CardDescription>
+        <CardDescription>Tus entrenamientos recientes organizados por semana.</CardDescription>
       </CardHeader>
       <CardContent className="pt-4">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Fecha</TableHead>
-              <TableHead>Entrenamiento</TableHead>
-              <TableHead className="text-right">Distancia (km)</TableHead>
-              <TableHead className="text-right">Calorías</TableHead>
-              <TableHead className="text-right">Duración (min)</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {workouts && workouts.length > 0 ? (
-              workouts.slice(0, 5).map((workout, index) => ( // Show last 5 workouts
-                <TableRow key={index}>
-                  <TableCell>{new Date(workout.date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</TableCell>
-                  <TableCell className="font-medium">{workout.name}</TableCell>
-                  <TableCell className="text-right">{workout.distance.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">{workout.calories}</TableCell>
-                  <TableCell className="text-right">{workout.duration}</TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
-                  No hay datos de entrenamiento
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+        <Tabs defaultValue="thisWeek">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="thisWeek">Esta Semana</TabsTrigger>
+            <TabsTrigger value="lastWeek">Semana Anterior</TabsTrigger>
+            <TabsTrigger value="older">Anteriores</TabsTrigger>
+          </TabsList>
+          <TabsContent value="thisWeek">
+            <WorkoutTable data={thisWeekWorkouts} />
+          </TabsContent>
+          <TabsContent value="lastWeek">
+            <WorkoutTable data={lastWeekWorkouts} />
+          </TabsContent>
+          <TabsContent value="older">
+            <WorkoutTable data={olderWorkouts} />
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );
