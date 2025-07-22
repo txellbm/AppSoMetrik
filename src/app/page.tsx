@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { HeartPulse, Moon, Flame, Droplets, Dumbbell, FileText } from "lucide-react";
+import { HeartPulse, Moon, Flame, Droplets, Dumbbell, FileText, Clock, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -91,7 +91,7 @@ export default function Home() {
     setReportContent("");
 
     try {
-        const workoutDetails = healthData.workouts.map(w => `${w.name}: ${w.distance}km, ${w.calories}kcal`).join('; ');
+        const workoutDetails = healthData.workouts.map(w => `${w.name}: ${w.distance}km, ${w.calories}kcal, ${w.duration}min, ${w.averageHeartRate}bpm`).join('; ');
         const input: HealthSummaryInput = {
             sleepData: `Sueño promedio: ${healthData.averageSleep.toFixed(1)}h. Datos de los últimos días: ${healthData.sleepData.map(d => `${d.day}: ${d.hours}h`).join(', ')}`,
             exerciseData: `Calorías activas: ${healthData.activeCalories}, Entrenamientos: ${workoutDetails}. Anillos: Moverse ${healthData.movePercentage}%, Ejercicio ${healthData.exercisePercentage}%, Pararse ${healthData.standPercentage}%`,
@@ -256,7 +256,7 @@ function ActivityRing({ percentage, color, label }: { percentage: number; color:
 
 function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
   return (
-    <Card className="md:col-span-2 lg:col-span-2">
+    <Card className="md:col-span-2 lg:col-span-4">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Dumbbell className="text-primary" />
@@ -271,6 +271,8 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
               <TableHead>Entrenamiento</TableHead>
               <TableHead className="text-right">Distancia</TableHead>
               <TableHead className="text-right">Calorías</TableHead>
+              <TableHead className="text-right">Duración</TableHead>
+              <TableHead className="text-right">FC Promedio</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -280,11 +282,13 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
                   <TableCell className="font-medium">{workout.name}</TableCell>
                   <TableCell className="text-right">{workout.distance.toFixed(1)} km</TableCell>
                   <TableCell className="text-right">{workout.calories} kcal</TableCell>
+                  <TableCell className="text-right">{workout.duration} min</TableCell>
+                  <TableCell className="text-right">{workout.averageHeartRate} bpm</TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={3} className="text-center text-muted-foreground">
+                <TableCell colSpan={5} className="text-center text-muted-foreground">
                   No hay datos de entrenamiento
                 </TableCell>
               </TableRow>
