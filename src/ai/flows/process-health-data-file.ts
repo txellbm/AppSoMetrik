@@ -1,50 +1,14 @@
+
 'use server';
 
 /**
  * @fileOverview Procesa un archivo de datos de salud y genera un resumen y datos estructurados.
  *
  * - processHealthDataFile - Una función que toma el contenido de un archivo y devuelve un resumen y datos estructurados.
- * - ProcessHealthDataFileInput - El tipo de entrada para la función.
- * - ProcessHealthDataFileOutput - El tipo de salida para lación.
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
-
-const ProcessHealthDataFileInputSchema = z.object({
-  fileContent: z.string().describe('El contenido del archivo de datos de salud (por ejemplo, en formato CSV).'),
-});
-export type ProcessHealthDataFileInput = z.infer<
-  typeof ProcessHealthDataFileInputSchema
->;
-
-const HealthDataSchema = z.object({
-  averageSleep: z.number().describe('Las horas de sueño promedio.'),
-  activeCalories: z.number().describe('Las calorías activas quemadas.'),
-  restingHeartRate: z.number().describe('La frecuencia cardíaca en reposo en lpm.'),
-  hydrationLiters: z.number().describe('La ingesta de hidratación en litros.'),
-  movePercentage: z.number().describe('El porcentaje del objetivo de movimiento.'),
-  exercisePercentage: z.number().describe('El porcentaje del objetivo de ejercicio.'),
-  standPercentage: z.number().describe('El porcentaje del objetivo de pararse.'),
-  sleepData: z.array(z.object({
-    day: z.string().describe("Día de la semana (ej. Lun, Mar)"),
-    hours: z.number().describe("Horas de sueño para ese día"),
-  })).describe('Datos de sueño de los últimos 7 días.'),
-  workoutSummary: z.object({
-    totalDistance: z.number().describe("La distancia total de entrenamiento en kilómetros."),
-    totalCalories: z.number().describe("El total de calorías quemadas durante los entrenamientos."),
-  }).describe("Un resumen de los datos de entrenamiento."),
-});
-
-const ProcessHealthDataFileOutputSchema = z.object({
-  summary: z
-    .string()
-    .describe('Un resumen completo de los datos de salud del archivo proporcionado.'),
-  healthData: HealthDataSchema.describe("Datos de salud estructurados extraídos del archivo."),
-});
-export type ProcessHealthDataFileOutput = z.infer<
-  typeof ProcessHealthDataFileOutputSchema
->;
+import { ProcessHealthDataFileInput, ProcessHealthDataFileInputSchema, ProcessHealthDataFileOutput, ProcessHealthDataFileOutputSchema } from '@/ai/schemas';
 
 export async function processHealthDataFile(
   input: ProcessHealthDataFileInput

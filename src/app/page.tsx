@@ -9,90 +9,197 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { HeartPulse, Moon, Flame, Droplets, Dumbbell } from "lucide-react";
+import { HeartPulse, Moon, Flame, Droplets, Dumbbell, FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { generateHealthSummary } from "@/ai/flows/ai-health-summary";
+import { HealthSummaryInput, ProcessHealthDataFileOutput, HealthData } from "@/ai/schemas";
+
 
 import AIChatWidget from "@/components/dashboard/ai-chat-widget";
 import DataActions from "@/components/dashboard/data-actions";
 import NotificationsWidget from "@/components/dashboard/notifications-widget";
 import SleepChart from "@/components/dashboard/sleep-chart";
-import { ProcessHealthDataFileOutput } from "@/ai/flows/process-health-data-file";
-
-type HealthData = ProcessHealthDataFileOutput['healthData'];
 
 const initialHealthData: HealthData = {
-  averageSleep: 7.2,
-  activeCalories: 450,
-  restingHeartRate: 62,
-  hydrationLiters: 1.8,
-  movePercentage: 75,
-  exercisePercentage: 60,
-  standPercentage: 90,
-  sleepData: [
-    { day: "Lun", hours: 6.5 },
-    { day: "Mar", hours: 7 },
-    { day: "Mié", hours: 8 },
-    { day: "Jue", hours: 7.5 },
-    { day: "Vie", hours: 6 },
-    { day: "Sáb", hours: 9 },
-    { day: "Dom", hours: 8.5 },
-  ],
+  averageSleep: 0,
+  activeCalories: 0,
+  restingHeartRate: 0,
+  hydrationLiters: 0,
+  movePercentage: 0,
+  exercisePercentage: 0,
+  standPercentage: 0,
+  sleepData: [],
   workoutSummary: {
-    totalDistance: 5.2,
-    totalCalories: 350,
+    totalDistance: 0,
+    totalCalories: 0,
   }
 };
 
 export default function Home() {
   const [healthData, setHealthData] = useState<HealthData>(initialHealthData);
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+  const [reportContent, setReportContent] = useState("");
+  const [isReportLoading, setIsReportLoading] = useState(false);
+  const { toast } = useToast();
 
-  const handleDataProcessed = (data: ProcessHealthDataFileOutput) => {
-    setHealthData(data.healthData);
+  const handleDataProcessed = (newData: ProcessHealthDataFileOutput) => {
+    setHealthData((prevData) => {
+      // Simple aggregation logic. This can be improved.
+      const newSleepData = [...prevData.sleepData, ...newData.healthData.sleepData]
+        .slice(-7); // Keep last 7 days
+
+      const newAverageSleep = newSleepData.length > 0 
+        ? newSleepData.reduce((acc, item) => acc + item.hours, 0) / newSleepData.length
+        : 0;
+
+      const newRestingHeartRate = prevData.restingHeartRate > 0 && newData.healthData.restingHeartRate > 0
+        ? Math.round((prevData.restingHeartRate + newData.healthData.restingHeartRate) / 2)
+        : prevData.restingHeartRate || newData.healthData.restingHeartRate;
+
+      return {
+        averageSleep: newAverageSleep,
+        activeCalories: prevData.activeCalories + newData.healthData.activeCalories,
+        restingHeartRate: newRestingHeartRate,
+        hydrationLiters: prevData.hydrationLiters + newData.healthData.hydrationLiters,
+        movePercentage: Math.min(100, prevData.movePercentage + newData.healthData.movePercentage),
+        exercisePercentage: Math.min(100, prevData.exercisePercentage + newData.healthData.exercisePercentage),
+        standPercentage: Math.min(100, prevData.standPercentage + newData.healthData.standPercentage),
+        sleepData: newSleepData,
+        workoutSummary: {
+          totalDistance: prevData.workoutSummary.totalDistance + newData.healthData.workoutSummary.totalDistance,
+          totalCalories: prevData.workoutSummary.totalCalories + newData.healthData.workoutSummary.totalCalories,
+        },
+      };
+    });
   };
 
+  const handleGenerateReport = async () => {
+    setIsReportDialogOpen(true);
+    setIsReportLoading(true);
+    setReportContent("");
+
+    try {
+        const input: HealthSummaryInput = {
+            sleepData: `Sueño promedio: ${healthData.averageSleep.toFixed(1)}h. Datos de los últimos días: ${healthData.sleepData.map(d => `${d.day}: ${d.hours}h`).join(', ')}`,
+            exerciseData: `Calorías activas: ${healthData.activeCalories}, Resumen de entrenamiento: ${healthData.workoutSummary.totalDistance.toFixed(1)}km, ${healthData.workoutSummary.totalCalories}kcal. Anillos: Moverse ${healthData.movePercentage}%, Ejercicio ${healthData.exercisePercentage}%, Pararse ${healthData.standPercentage}%`,
+            heartRateData: `Frecuencia cardíaca en reposo: ${healthData.restingHeartRate} bpm`,
+            menstruationData: "No hay datos de menstruación disponibles.",
+            supplementData: "No hay datos de suplementos disponibles.",
+            foodIntakeData: `Hidratación: ${healthData.hydrationLiters.toFixed(1)} L`,
+            calendarData: "No hay datos de calendario disponibles.",
+        };
+
+        const result = await generateHealthSummary(input);
+        setReportContent(result.summary);
+    } catch (error) {
+        console.error("Failed to generate report:", error);
+        setReportContent("Lo sentimos, no se pudo generar el informe. Por favor, inténtalo de nuevo.");
+        toast({
+            variant: "destructive",
+            title: "Error al generar el informe",
+            description: "No se pudo generar el informe de salud.",
+        });
+    } finally {
+        setIsReportLoading(false);
+    }
+  };
+
+  const handleCopyReport = () => {
+    navigator.clipboard.writeText(reportContent);
+    toast({
+        title: "Informe copiado",
+        description: "El informe detallado ha sido copiado al portapapeles.",
+    });
+  }
+
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-      <div className="lg:col-span-4">
-        <Card className="bg-primary/10 border-primary/20">
+    <>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="lg:col-span-4">
+          <Card className="bg-primary/10 border-primary/20">
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold text-primary">Bienvenido a SoMetrik</CardTitle>
+              <CardDescription>
+                Tu asistente personal de bienestar IA. Aquí tienes un resumen de tu semana.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+
+        <StatCard icon={<Moon className="text-primary" />} title="Sueño Promedio" value={`${healthData.averageSleep.toFixed(1)}h`} />
+        <StatCard icon={<Flame className="text-primary" />} title="Calorías Activas" value={String(healthData.activeCalories)} />
+        <StatCard icon={<HeartPulse className="text-primary" />} title="FC en Reposo" value={`${healthData.restingHeartRate} bpm`} />
+        <StatCard icon={<Droplets className="text-primary" />} title="Hidratación" value={`${healthData.hydrationLiters.toFixed(1)} L`} />
+
+        <SleepChart data={healthData.sleepData} />
+        
+        <Card className="md:col-span-2 lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-primary">Bienvenido a SoMetrik</CardTitle>
-            <CardDescription>
-              Tu asistente personal de bienestar IA. Aquí tienes un resumen de tu semana.
-            </CardDescription>
+            <CardTitle>Resumen de Actividad</CardTitle>
+            <CardDescription>El progreso de tus metas diarias.</CardDescription>
           </CardHeader>
+          <CardContent className="flex justify-center items-center gap-4 pt-4">
+              <ActivityRing percentage={healthData.movePercentage} color="hsl(var(--primary))" label="Moverse" />
+              <ActivityRing percentage={healthData.exercisePercentage} color="hsl(var(--accent))" label="Ejercicio" />
+              <ActivityRing percentage={healthData.standPercentage} color="hsl(var(--chart-2))" label="Pararse" />
+          </CardContent>
         </Card>
-      </div>
+        
+        <WorkoutSummaryCard workoutSummary={healthData.workoutSummary} />
 
-      <StatCard icon={<Moon className="text-primary" />} title="Sueño Promedio" value={`${healthData.averageSleep.toFixed(1)}h`} />
-      <StatCard icon={<Flame className="text-primary" />} title="Calorías Activas" value={String(healthData.activeCalories)} />
-      <StatCard icon={<HeartPulse className="text-primary" />} title="FC en Reposo" value={`${healthData.restingHeartRate} bpm`} />
-      <StatCard icon={<Droplets className="text-primary" />} title="Hidratación" value={`${healthData.hydrationLiters.toFixed(1)} L`} />
-
-      <SleepChart data={healthData.sleepData} />
-      
-      <Card className="md:col-span-2 lg:col-span-2">
-        <CardHeader>
-          <CardTitle>Resumen de Actividad</CardTitle>
-          <CardDescription>El progreso de tus metas diarias.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex justify-center items-center gap-4 pt-4">
-            <ActivityRing percentage={healthData.movePercentage} color="hsl(var(--primary))" label="Moverse" />
-            <ActivityRing percentage={healthData.exercisePercentage} color="hsl(var(--accent))" label="Ejercicio" />
-            <ActivityRing percentage={healthData.standPercentage} color="hsl(var(--chart-2))" label="Pararse" />
-        </CardContent>
-      </Card>
-      
-      <WorkoutSummaryCard workoutSummary={healthData.workoutSummary} />
-
-      <div className="md:col-span-2 lg:col-span-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <AIChatWidget />
-        </div>
-        <div className="lg:col-span-1 space-y-6">
-          <NotificationsWidget />
-          <DataActions onDataProcessed={handleDataProcessed} />
+        <div className="md:col-span-2 lg:col-span-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <AIChatWidget />
+          </div>
+          <div className="lg:col-span-1 space-y-6">
+            <NotificationsWidget />
+            <DataActions onDataProcessed={handleDataProcessed} onGenerateReport={handleGenerateReport} />
+          </div>
         </div>
       </div>
-    </div>
+      <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+                <DialogTitle>Informe de Salud Detallado</DialogTitle>
+                <DialogDescription>
+                    Este es un informe completo basado en todos los datos que has subido. Puedes copiarlo y pegarlo en ChatGPT o cualquier otro asistente.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+                {isReportLoading ? (
+                    <div className="flex justify-center items-center h-48">
+                        <FileText className="h-12 w-12 animate-pulse text-primary" />
+                    </div>
+                ) : (
+                    <Textarea
+                        readOnly
+                        value={reportContent}
+                        className="h-96 text-sm"
+                        placeholder="Generando informe..."
+                    />
+                )}
+            </div>
+            <DialogClose asChild>
+                <div className="flex justify-end gap-2">
+                    <Button variant="outline">Cerrar</Button>
+                    <Button onClick={handleCopyReport} disabled={isReportLoading || !reportContent}>
+                        Copiar Informe
+                    </Button>
+                </div>
+            </DialogClose>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

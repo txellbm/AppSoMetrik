@@ -1,31 +1,14 @@
+
 'use server';
 
 /**
  * @fileOverview AI health summary flow for generating a summary of recorded health data.
  *
  * - generateHealthSummary - A function that generates a summary of health data.
- * - HealthSummaryInput - The input type for the generateHealthSummary function.
- * - HealthSummaryOutput - The return type for the generateHealthSummary function.
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
-
-const HealthSummaryInputSchema = z.object({
-  sleepData: z.string().describe('Resumen de los datos de sueño.'),
-  exerciseData: z.string().describe('Resumen de los datos de ejercicio.'),
-  heartRateData: z.string().describe('Resumen de los datos de frecuencia cardíaca.'),
-  menstruationData: z.string().describe('Resumen de los datos de menstruación.'),
-  supplementData: z.string().describe('Resumen de los datos de suplementos.'),
-  foodIntakeData: z.string().describe('Resumen de los datos de ingesta de alimentos.'),
-  calendarData: z.string().describe('Resumen de los datos del calendario.'),
-});
-export type HealthSummaryInput = z.infer<typeof HealthSummaryInputSchema>;
-
-const HealthSummaryOutputSchema = z.object({
-  summary: z.string().describe('Un resumen completo de los datos de salud del usuario.'),
-});
-export type HealthSummaryOutput = z.infer<typeof HealthSummaryOutputSchema>;
+import { HealthSummaryInput, HealthSummaryInputSchema, HealthSummaryOutput, HealthSummaryOutputSchema } from '@/ai/schemas';
 
 export async function generateHealthSummary(input: HealthSummaryInput): Promise<HealthSummaryOutput> {
   return generateHealthSummaryFlow(input);
@@ -35,7 +18,29 @@ const prompt = ai.definePrompt({
   name: 'healthSummaryPrompt',
   input: {schema: HealthSummaryInputSchema},
   output: {schema: HealthSummaryOutputSchema},
-  prompt: `Eres un asistente de salud de IA. Genera un resumen completo de los datos de salud del usuario basándote en la siguiente información.\n\nDatos de sueño: {{{sleepData}}}\nDatos de ejercicio: {{{exerciseData}}}\nDatos de frecuencia cardíaca: {{{heartRateData}}}\nDatos de menstruación: {{{menstruationData}}}\nDatos de suplementos: {{{supplementData}}}\nDatos de ingesta de alimentos: {{{foodIntakeData}}}\nDatos del calendario: {{{calendarData}}}\n\nGenera un resumen detallado y coherente que se pueda compartir con otro agente de IA para un análisis más profundo.`,
+  prompt: `Eres un experto analista de salud y bienestar. Tu tarea es generar un informe completo, detallado y bien estructurado en formato Markdown a partir de los siguientes datos de salud de un usuario. El informe debe ser fácil de leer, perspicaz y adecuado para ser compartido con un profesional de la salud o para el análisis personal del usuario.
+
+Estructura el informe con las siguientes secciones:
+- **Resumen General**: Un párrafo introductorio que resuma el estado de salud general.
+- **Análisis del Sueño**: Detalles sobre los patrones de sueño, calidad y recomendaciones.
+- **Actividad Física y Ejercicio**: Un resumen de las calorías quemadas, el progreso hacia los objetivos y los entrenamientos realizados.
+- **Salud Cardíaca**: Información sobre la frecuencia cardíaca en reposo.
+- **Hidratación y Nutrición**: Detalles sobre la ingesta de líquidos y alimentos.
+- **Ciclo Menstrual**: Si hay datos, un análisis de la fase actual del ciclo.
+- **Recomendaciones Clave**: Una lista con viñetas de las 3-5 recomendaciones más importantes.
+
+Utiliza un tono profesional pero empático.
+
+DATOS DEL USUARIO:
+- **Sueño**: {{{sleepData}}}
+- **Ejercicio y Actividad**: {{{exerciseData}}}
+- **Frecuencia Cardíaca**: {{{heartRateData}}}
+- **Menstruación**: {{{menstruationData}}}
+- **Suplementos**: {{{supplementData}}}
+- **Alimentación e Hidratación**: {{{foodIntakeData}}}
+- **Calendario**: {{{calendarData}}}
+
+Genera el informe detallado en formato Markdown.`,
 });
 
 const generateHealthSummaryFlow = ai.defineFlow(
