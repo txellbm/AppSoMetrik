@@ -187,10 +187,10 @@ export default function Home() {
                     <CardDescription>Métricas clave de tu salud general.</CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
-                    <StatCard icon={<Moon className="text-primary" />} title="Sueño Promedio" value={`${healthData.averageSleep.toFixed(1)}h`} />
-                    <StatCard icon={<Flame className="text-primary" />} title="Calorías Activas" value={String(healthData.activeCalories)} />
+                    <StatCard icon={<Moon className="text-primary" />} title="Sueño Promedio" value={`${(healthData.averageSleep || 0).toFixed(1)}h`} />
+                    <StatCard icon={<Flame className="text-primary" />} title="Calorías Activas" value={String(healthData.activeCalories || 0)} />
                     <StatCard icon={<HeartPulse className="text-primary" />} title="FC en Reposo" value={`${(healthData.restingHeartRate || 0).toFixed(0)} bpm`} />
-                    <StatCard icon={<Droplets className="text-primary" />} title="Hidratación" value={`${healthData.hydrationLiters.toFixed(1)} L`} />
+                    <StatCard icon={<Droplets className="text-primary" />} title="Hidratación" value={`${(healthData.hydrationLiters || 0).toFixed(1)} L`} />
                     <StatCard icon={<Activity className="text-primary" />} title="VFC (HRV)" value={`${(healthData.hrv || 0).toFixed(1)} ms`} />
                     <StatCard icon={<ShieldCheck className="text-primary" />} title="Recuperación" value={`${(healthData.recoveryPercentage || 0).toFixed(0)}%`} />
                     <StatCard icon={<Wind className="text-primary" />} title="Respiración" value={`${(healthData.respiration || 0).toFixed(1)} rpm`} />
