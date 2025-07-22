@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -11,8 +14,36 @@ import AIChatWidget from "@/components/dashboard/ai-chat-widget";
 import DataActions from "@/components/dashboard/data-actions";
 import NotificationsWidget from "@/components/dashboard/notifications-widget";
 import SleepChart from "@/components/dashboard/sleep-chart";
+import { ProcessHealthDataFileOutput } from "@/ai/flows/process-health-data-file";
+
+type HealthData = ProcessHealthDataFileOutput['healthData'];
+
+const initialHealthData: HealthData = {
+  averageSleep: 7.2,
+  activeCalories: 450,
+  restingHeartRate: 62,
+  hydrationLiters: 1.8,
+  movePercentage: 75,
+  exercisePercentage: 60,
+  standPercentage: 90,
+  sleepData: [
+    { day: "Lun", hours: 6.5 },
+    { day: "Mar", hours: 7 },
+    { day: "Mié", hours: 8 },
+    { day: "Jue", hours: 7.5 },
+    { day: "Vie", hours: 6 },
+    { day: "Sáb", hours: 9 },
+    { day: "Dom", hours: 8.5 },
+  ],
+};
 
 export default function Home() {
+  const [healthData, setHealthData] = useState<HealthData>(initialHealthData);
+
+  const handleDataProcessed = (data: ProcessHealthDataFileOutput) => {
+    setHealthData(data.healthData);
+  };
+
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
       <div className="lg:col-span-4">
@@ -26,12 +57,12 @@ export default function Home() {
         </Card>
       </div>
 
-      <StatCard icon={<Moon className="text-primary" />} title="Sueño Promedio" value="7.2h" />
-      <StatCard icon={<Flame className="text-primary" />} title="Calorías Activas" value="450" />
-      <StatCard icon={<HeartPulse className="text-primary" />} title="FC en Reposo" value="62 bpm" />
-      <StatCard icon={<Droplets className="text-primary" />} title="Hidratación" value="1.8 L" />
+      <StatCard icon={<Moon className="text-primary" />} title="Sueño Promedio" value={`${healthData.averageSleep.toFixed(1)}h`} />
+      <StatCard icon={<Flame className="text-primary" />} title="Calorías Activas" value={String(healthData.activeCalories)} />
+      <StatCard icon={<HeartPulse className="text-primary" />} title="FC en Reposo" value={`${healthData.restingHeartRate} bpm`} />
+      <StatCard icon={<Droplets className="text-primary" />} title="Hidratación" value={`${healthData.hydrationLiters.toFixed(1)} L`} />
 
-      <SleepChart />
+      <SleepChart data={healthData.sleepData} />
       
       <Card className="md:col-span-2 lg:col-span-2">
         <CardHeader>
@@ -39,9 +70,9 @@ export default function Home() {
           <CardDescription>El progreso de tus metas diarias.</CardDescription>
         </CardHeader>
         <CardContent className="flex justify-center items-center gap-4 pt-4">
-            <ActivityRing percentage={75} color="hsl(var(--primary))" label="Moverse" />
-            <ActivityRing percentage={60} color="hsl(var(--accent))" label="Ejercicio" />
-            <ActivityRing percentage={90} color="hsl(var(--chart-2))" label="Pararse" />
+            <ActivityRing percentage={healthData.movePercentage} color="hsl(var(--primary))" label="Moverse" />
+            <ActivityRing percentage={healthData.exercisePercentage} color="hsl(var(--accent))" label="Ejercicio" />
+            <ActivityRing percentage={healthData.standPercentage} color="hsl(var(--chart-2))" label="Pararse" />
         </CardContent>
       </Card>
 
@@ -51,7 +82,7 @@ export default function Home() {
         </div>
         <div className="lg:col-span-1 space-y-6">
           <NotificationsWidget />
-          <DataActions />
+          <DataActions onDataProcessed={handleDataProcessed} />
         </div>
       </div>
     </div>

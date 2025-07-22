@@ -9,17 +9,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-const sleepData = [
-  { day: "Lun", hours: 6.5 },
-  { day: "Mar", hours: 7 },
-  { day: "Mié", hours: 8 },
-  { day: "Jue", hours: 7.5 },
-  { day: "Vie", hours: 6 },
-  { day: "Sáb", hours: 9 },
-  { day: "Dom", hours: 8.5 },
-];
+type SleepData = {
+  day: string;
+  hours: number;
+}[];
 
-export default function SleepChart() {
+export default function SleepChart({ data }: { data: SleepData }) {
   return (
     <Card className="md:col-span-2 lg:col-span-2">
       <CardHeader>
@@ -28,7 +23,7 @@ export default function SleepChart() {
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={250}>
-          <RechartsBarChart data={sleepData}>
+          <RechartsBarChart data={data}>
             <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
             <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}h`} />
             <Bar dataKey="hours" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />

@@ -1,14 +1,18 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { processHealthDataFile } from "@/ai/flows/process-health-data-file";
+import { processHealthDataFile, ProcessHealthDataFileOutput } from "@/ai/flows/process-health-data-file";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Upload, FileText, Apple, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-export default function DataActions() {
+type DataActionsProps = {
+  onDataProcessed: (data: ProcessHealthDataFileOutput) => void;
+};
+
+export default function DataActions({ onDataProcessed }: DataActionsProps) {
   const [summary, setSummary] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [fileName, setFileName] = useState("");
@@ -31,9 +35,10 @@ export default function DataActions() {
           }
           const result = await processHealthDataFile({ fileContent: content });
           setSummary(result.summary);
+          onDataProcessed(result);
           toast({
             title: "Archivo procesado",
-            description: "Se ha generado un nuevo resumen de salud a partir de tu archivo.",
+            description: "Se ha generado un nuevo resumen de salud y los datos del panel se han actualizado.",
           });
         } catch (error) {
           console.error("No se pudo procesar el archivo:", error);
