@@ -49,7 +49,7 @@ import MenstrualCyclePanel from "@/components/dashboard/menstrual-cycle-panel";
 import MenstrualCalendar from "@/components/dashboard/menstrual-calendar";
 import { collection, writeBatch, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { startOfWeek, endOfWeek, subWeeks, isWithinInterval, parseISO, differenceInDays } from "date-fns";
+import { startOfWeek, endOfWeek, subWeeks, isWithinInterval, parseISO, differenceInDays, addDays } from "date-fns";
 import { doc } from "firebase/firestore";
 
 const initialDashboardData: DashboardData = {
@@ -193,19 +193,46 @@ export default function Home() {
     if (dashboardData.menstrualData.length === 0) {
       return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
     }
-    
-    // Find the most recent start of a period
-    const sortedData = [...dashboardData.menstrualData].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
-    const lastPeriodStartDate = sortedData.find(d => d.flow && ['light', 'medium', 'heavy'].includes(d.flow))?.date;
-
+  
+    // Filter for entries with flow and sort them by date
+    const flowDays = dashboardData.menstrualData
+      .filter(d => d.flow && ['light', 'medium', 'heavy'].includes(d.flow))
+      .sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
+  
+    if (flowDays.length === 0) {
+      return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
+    }
+  
+    // Group consecutive flow days into periods
+    const periods: Date[][] = [];
+    if (flowDays.length > 0) {
+      let currentPeriod = [parseISO(flowDays[0].date)];
+      for (let i = 1; i < flowDays.length; i++) {
+        const currentDate = parseISO(flowDays[i].date);
+        const prevDate = parseISO(flowDays[i-1].date);
+        if (differenceInDays(currentDate, prevDate) === 1) {
+          currentPeriod.push(currentDate);
+        } else {
+          periods.push(currentPeriod);
+          currentPeriod = [currentDate];
+        }
+      }
+      periods.push(currentPeriod);
+    }
+  
+    // Get the start date of the most recent period
+    const lastPeriodStartDate = periods[periods.length - 1][0];
+  
     if (!lastPeriodStartDate) {
        return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
     }
-
-    const today = new Date();
-    const cycleStartDate = parseISO(lastPeriodStartDate);
+    
+    // Use the provided date for calculation
+    const today = new Date('2024-07-22T00:00:00');
+    const cycleStartDate = lastPeriodStartDate;
+    
     const currentDay = differenceInDays(today, cycleStartDate) + 1;
-
+  
     let currentPhase = "No disponible";
     // Simplified phase calculation based on a 28-day cycle model
     if (currentDay <= 5) {
@@ -217,14 +244,12 @@ export default function Home() {
     } else if (currentDay <= 28) {
       currentPhase = "Lútea";
     } else {
-      // If cycle is longer than 28 days, it could still be Luteal or a new cycle is expected
       currentPhase = "Lútea (Extendida)"; 
     }
     
-    // Find symptoms for today
     const todayStr = today.toISOString().split('T')[0];
     const todaySymptoms = dashboardData.menstrualData.find(d => d.date === todayStr)?.symptoms || [];
-
+  
     return { currentDay, currentPhase, symptoms: todaySymptoms };
   }, [dashboardData.menstrualData]);
 
@@ -251,11 +276,14 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <SleepChart data={dashboardData.sleepData} />
 
-            <WorkoutSummaryCard workouts={dashboardData.workouts} />
-            
-            <MenstrualCyclePanel data={calculatedCycleData} />
+            <div className="md:col-span-2 lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <MenstrualCyclePanel data={calculatedCycleData} />
+                <MenstrualCalendar data={dashboardData.menstrualData} />
+            </div>
 
-            <MenstrualCalendar data={dashboardData.menstrualData} />
+            <div className="md:col-span-2 lg:col-span-4">
+                <WorkoutSummaryCard workouts={dashboardData.workouts} />
+            </div>
 
             <div className="md:col-span-2 lg:col-span-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
@@ -373,7 +401,7 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
   );
 
   return (
-    <Card className="md:col-span-2 lg:col-span-2">
+    <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Dumbbell className="text-primary" />
@@ -406,3 +434,4 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
     
 
     
+

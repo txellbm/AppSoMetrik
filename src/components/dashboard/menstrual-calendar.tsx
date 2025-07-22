@@ -18,7 +18,8 @@ const flowColors: { [key: string]: string } = {
 
 // Helper function to treat date string as local time, not UTC
 const parseDateAsLocal = (dateStr: string): Date => {
-  return new Date(`${dateStr}T00:00:00`);
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
 };
 
 
@@ -27,7 +28,7 @@ export default function MenstrualCalendar({ data }: { data: MenstrualCycleData[]
 
   if (!data || data.length === 0) {
     return (
-      <Card className="md:col-span-2 lg:col-span-2">
+      <Card className="h-full">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Stethoscope className="text-primary" />
@@ -82,7 +83,7 @@ export default function MenstrualCalendar({ data }: { data: MenstrualCycleData[]
 
 
   return (
-    <Card className="md:col-span-2 lg:col-span-2">
+    <Card className="h-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Stethoscope className="text-primary" />

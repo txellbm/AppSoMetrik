@@ -26,7 +26,7 @@ export default function MenstrualCyclePanel({ data }: { data: CalculatedCycleDat
     
   if (!data || data.currentPhase === "No disponible" || data.currentDay === 0) {
     return (
-        <Card className="md:col-span-2 lg:col-span-2">
+        <Card className="h-full">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <Stethoscope className="text-primary" />
@@ -44,7 +44,7 @@ export default function MenstrualCyclePanel({ data }: { data: CalculatedCycleDat
   }
 
   return (
-    <Card className="md:col-span-2 lg:col-span-2">
+    <Card className="h-full">
         <CardHeader>
             <CardTitle className="flex items-center gap-2">
                 <Stethoscope className="text-primary" />
@@ -86,5 +86,3 @@ export default function MenstrualCyclePanel({ data }: { data: CalculatedCycleDat
     </Card>
   );
 }
-
-    
