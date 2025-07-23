@@ -1,7 +1,6 @@
 
 "use client";
 
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,39 +11,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, LifeBuoy, LogOut, Settings, User } from "lucide-react";
+import { Bell, LifeBuoy, LogOut, Settings, User, BrainCircuit } from "lucide-react";
 import Image from "next/image";
-import { usePathname } from 'next/navigation';
 
 export function AppHeader() {
-  const pathname = usePathname();
-  
-  const getPageTitle = () => {
-    switch (pathname) {
-      case '/':
-        return 'Panel de SoMetrik';
-      case '/sleep':
-        return 'Historial de Sueño';
-      case '/workouts':
-        return 'Historial de Entrenamientos';
-      case '/recovery':
-        return 'Historial de Recuperación';
-      case '/cycle':
-        return 'Historial del Ciclo Menstrual';
-      default:
-        return 'SoMetrik';
-    }
-  }
-
   return (
-    <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-card px-4 sm:px-6">
-      <div className="md:hidden">
-        <SidebarTrigger />
-      </div>
-      <div className="flex-1">
-        <h1 className="text-lg font-semibold tracking-tight">{getPageTitle()}</h1>
-      </div>
+    <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-4 border-b bg-background/95 backdrop-blur-sm px-4 sm:px-6">
       <div className="flex items-center gap-2">
+        <BrainCircuit className="w-8 h-8 text-primary" />
+        <h1 className="text-xl font-semibold tracking-tighter">SoMetrik</h1>
+      </div>
+      
+      <div className="ml-auto flex items-center gap-2">
         <Button variant="ghost" size="icon">
           <Bell className="h-5 w-5" />
           <span className="sr-only">Alternar notificaciones</span>

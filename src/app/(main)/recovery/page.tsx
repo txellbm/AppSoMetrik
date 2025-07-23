@@ -1,79 +1,70 @@
-
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { DailyMetric } from "@/ai/schemas";
-import { collection, onSnapshot, query, doc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { DataTable } from "@/components/dashboard/data-table";
-import { HeartPulse } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Bell, LifeBuoy, LogOut, Settings, User, BrainCircuit } from "lucide-react";
+import Image from "next/image";
 
-export default function RecoveryPage() {
-    const [dailyMetrics, setDailyMetrics] = useState<DailyMetric[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const userId = "user_test_id";
-
-    useEffect(() => {
-        const userRef = doc(db, "users", userId);
-        const qDailyMetrics = query(collection(userRef, "dailyMetrics"));
-
-        const unsubscribe = onSnapshot(qDailyMetrics, (snapshot) => {
-            const metrics = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as DailyMetric[];
-            setDailyMetrics(metrics);
-            setIsLoading(false);
-        }, (error) => {
-            console.error("Error loading daily metrics:", error);
-            setIsLoading(false);
-        });
-
-        return () => unsubscribe();
-    }, [userId]);
-    
-    const sortedMetrics = useMemo(() => {
-        return [...dailyMetrics].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [dailyMetrics]);
-
-    const recoveryDataRows = useMemo(() => {
-        return sortedMetrics
-            .map(metric => ({
-                key: metric.date,
-                cells: [
-                  metric.date,
-                  metric.hrv || "-",
-                  metric.restingHeartRate || "-",
-                  metric.respiracion || "-",
-                  "N/A", // Placeholder for stress
-                  "N/A", // Placeholder for quality
-                ],
-            }));
-    }, [sortedMetrics]);
-
-
-    return (
-        <div className="flex flex-col gap-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <HeartPulse className="text-primary"/>
-                        Historial de Recuperación
-                    </CardTitle>
-                    <CardDescription>
-                        Métricas clave de recuperación como VFC, Frecuencia Cardíaca en Reposo y más.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {isLoading ? (
-                        <p>Cargando datos de recuperación...</p>
-                    ) : (
-                        <DataTable
-                            headers={["Fecha", "VFC (ms)", "FC Reposo", "Respiración", "Estrés", "Calidad"]}
-                            rows={recoveryDataRows}
-                            emptyMessage="No hay datos de recuperación registrados."
-                        />
-                    )}
-                </CardContent>
-            </Card>
-        </div>
-    );
+export function AppHeader() {
+  return (
+    <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-4 border-b bg-background/95 backdrop-blur-sm px-4 sm:px-6">
+      <div className="flex items-center gap-2">
+        <BrainCircuit className="w-8 h-8 text-primary" />
+        <h1 className="text-xl font-semibold tracking-tighter">SoMetrik</h1>
+      </div>
+      
+      <div className="ml-auto flex items-center gap-2">
+        <Button variant="ghost" size="icon">
+          <Bell className="h-5 w-5" />
+          <span className="sr-only">Alternar notificaciones</span>
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+              <Avatar className="h-9 w-9">
+                <AvatarImage src="https://placehold.co/100x100.png" alt="@meri" data-ai-hint="woman smiling" />
+                <AvatarFallback>M</AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56" align="end" forceMount>
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">Meri</p>
+                <p className="text-xs leading-none text-muted-foreground">
+                  meri@example.com
+                </p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              <User className="mr-2 h-4 w-4" />
+              <span>Perfil</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Configuración</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <LifeBuoy className="mr-2 h-4 w-4" />
+              <span>Soporte</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Cerrar sesión</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </header>
+  );
 }

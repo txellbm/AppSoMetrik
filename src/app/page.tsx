@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -10,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Shield } from "lucide-react";
+import { Shield, Moon, Dumbbell, HeartPulse, Stethoscope, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,6 +19,13 @@ import {
   DialogDescription,
   DialogClose,
 } from "@/components/ui/dialog";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { generateHealthSummary } from "@/ai/flows/ai-health-summary";
@@ -29,6 +35,7 @@ import DataActions from "@/components/dashboard/data-actions";
 import NotificationsWidget from "@/components/dashboard/notifications-widget";
 import SleepChart from "@/components/dashboard/sleep-chart";
 import MenstrualCyclePanel from "@/components/dashboard/menstrual-cycle-panel";
+import { DataTable } from "@/components/dashboard/data-table";
 import { collection, writeBatch, onSnapshot, doc, getDocs, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { differenceInDays, format, isValid, parseISO, startOfToday } from "date-fns";
@@ -38,31 +45,20 @@ const initialDashboardData: DashboardData = {
   dailyMetrics: [],
 };
 
-// Helper function to safely parse dates that might be in different formats
 const safeParseDate = (dateInput: any): Date | null => {
     if (!dateInput) return null;
-    
-    // If it's already a Date object and is valid
-    if (dateInput instanceof Date) {
-        return isValid(dateInput) ? dateInput : null;
-    }
-
-    // If it's a Firestore Timestamp object
+    if (dateInput instanceof Date && isValid(dateInput)) return dateInput;
     if (typeof dateInput === 'object' && dateInput.seconds) {
         const d = new Date(dateInput.seconds * 1000);
         return isValid(d) ? d : null;
     }
-
-    // If it's a string
     if (typeof dateInput === 'string') {
+        const localDate = new Date(dateInput + 'T00:00:00');
+        if (isValid(localDate)) return localDate;
         const isoDate = parseISO(dateInput);
         if (isValid(isoDate)) return isoDate;
-
-        const date = new Date(dateInput);
-        if (isValid(date)) return date;
     }
-    
-    return null; // Return null if parsing fails for any reason
+    return null;
 };
 
 
@@ -77,7 +73,6 @@ export default function Home() {
 
   useEffect(() => {
     const userRef = doc(db, "users", userId);
-
     const qWorkouts = query(collection(userRef, "workouts"));
     const qDailyMetrics = query(collection(userRef, "dailyMetrics"));
 
@@ -105,22 +100,16 @@ export default function Home() {
 
     try {
         const batch = writeBatch(db);
-        
         const workoutsSnapshot = await getDocs(workoutsRef);
         workoutsSnapshot.forEach(doc => batch.delete(doc.ref));
-
         const dailyMetricsSnapshot = await getDocs(dailyMetricsRef);
         dailyMetricsSnapshot.forEach(doc => batch.delete(doc.ref));
-
         await batch.commit();
-
         setDashboardData(initialDashboardData);
-
         toast({
             title: "Datos eliminados",
             description: "Todas las métricas y entrenamientos han sido borrados de la base de datos.",
         });
-
     } catch (error) {
         console.error("Error al borrar los datos:", error);
         toast({
@@ -141,12 +130,10 @@ export default function Home() {
         return;
     }
     const { workouts, dailyMetrics } = processedData;
-
     const batch = writeBatch(db);
     const userRef = doc(db, "users", userId);
     let changesCount = 0;
 
-    // Process Daily Metrics: one doc per day (date is the ID)
     if (dailyMetrics) {
       dailyMetrics.forEach(item => {
           if (!item.date) return;
@@ -156,11 +143,10 @@ export default function Home() {
       });
     }
 
-    // Process Workouts: a new doc for each workout
     if (workouts) {
       workouts.forEach(item => {
-          if (!item.date || !item.tipo) return; // Basic validation
-          const docRef = doc(collection(userRef, "workouts")); // Auto-generate ID
+          if (!item.date || !item.tipo) return;
+          const docRef = doc(collection(userRef, "workouts"));
           batch.set(docRef, item);
           changesCount++;
       });
@@ -201,14 +187,13 @@ export default function Home() {
         const workoutDetails = dashboardData.workouts.map(w => `${w.date} - ${w.tipo}: ${w.duracion}mins, ${w.calorias}kcal`).join('; ');
         const sleepDetails = dashboardData.dailyMetrics.map(s => `${s.date}: ${s.sueño?.total || 0}m (REM: ${s.sueño?.rem || 0}m, Profundo: ${s.sueño?.profundo || 0}m)`).join('; ');
         const menstrualDetails = dashboardData.dailyMetrics.filter(d => d.estadoCiclo).map(d => `${d.date}: Estado ${d.estadoCiclo}`).join('; ');
-        
         const avgSleep = dashboardData.dailyMetrics.length > 0 ? dashboardData.dailyMetrics.reduce((acc, s) => acc + (s.sueño?.total || 0), 0) / dashboardData.dailyMetrics.length / 60 : 0;
         const totalCalories = dashboardData.workouts.reduce((acc, w) => acc + w.calorias, 0);
 
         const input: HealthSummaryInput = {
             sleepData: `Sueño promedio: ${avgSleep.toFixed(1)}h. Detalles: ${sleepDetails}`,
             exerciseData: `Calorías totales quemadas en entrenos: ${totalCalories}. Entrenamientos: ${workoutDetails}.`,
-            heartRateData: `No hay datos de frecuencia cardíaca disponibles.`, // This needs to be populated from dailyMetrics
+            heartRateData: `No hay datos de frecuencia cardíaca disponibles.`,
             menstruationData: `Detalles del ciclo: ${menstrualDetails}`,
             supplementData: "No hay datos de suplementos disponibles.",
             foodIntakeData: `No hay datos de hidratación disponibles.`,
@@ -238,7 +223,6 @@ export default function Home() {
     });
   }
 
-  // Calculate aggregate metrics for StatCards, ensuring we don't divide by zero or use NaN values.
   const calculateAverage = (items: number[]) => {
       const validItems = items.filter(item => item !== null && item !== undefined && !isNaN(item) && item > 0);
       if (validItems.length === 0) return 0;
@@ -252,8 +236,6 @@ export default function Home() {
   
   const calculatedCycleData = useMemo<CalculatedCycleData>(() => {
     const today = startOfToday();
-    
-    // 1. Parse all dates safely and sort them descending
     const sortedMetrics = [...dashboardData.dailyMetrics]
       .map(d => ({ ...d, parsedDate: safeParseDate(d.date) }))
       .filter(d => d.parsedDate && isValid(d.parsedDate))
@@ -263,48 +245,30 @@ export default function Home() {
       return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
     }
 
-    // 2. Find the most recent day that could be a cycle start
     let lastCycleStartDate: Date | null = null;
-    
-    const flowDays = sortedMetrics.filter(d => d.estadoCiclo === 'menstruacion');
-
-    // Find the start of the most recent contiguous block of flow days
-    for (let i = 0; i < flowDays.length; i++) {
-        const currentFlowDay = flowDays[i];
-        const prevFlowDay = i > 0 ? flowDays[i-1] : null;
-
-        if(!prevFlowDay) { // It's the most recent flow day
-           lastCycleStartDate = currentFlowDay.parsedDate;
-           // now go back in time to find the real start of this block
-           for (let j = i; j < flowDays.length; j++) {
-               const day = flowDays[j];
-               const nextDay = j + 1 < flowDays.length ? flowDays[j+1] : null;
-               if (!nextDay || differenceInDays(day.parsedDate!, nextDay.parsedDate!) > 1) {
-                   lastCycleStartDate = day.parsedDate; // this is the first day of the cycle
-                   break;
-               }
-           }
-           break;
+    for (const metric of sortedMetrics) {
+        if (metric.estadoCiclo === 'menstruacion') {
+            const potentialStartDate = metric.parsedDate;
+            if (potentialStartDate) {
+                lastCycleStartDate = potentialStartDate;
+                break;
+            }
         }
     }
-
 
     if (!lastCycleStartDate) {
       return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
     }
-
-    // 3. Calculate day of cycle and phase
+    
     const dayOfCycle = differenceInDays(today, lastCycleStartDate) + 1;
     let currentPhase = "No disponible";
-
-    if (dayOfCycle < 1) { // Start date is in the future, invalid state
+    if (dayOfCycle < 1) {
          return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
     }
-
     const todayMetric = sortedMetrics.find(d => format(d.parsedDate!, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd'));
     if (todayMetric?.estadoCiclo === 'menstruacion') {
         currentPhase = "Menstrual";
-    } else if (dayOfCycle >= 1 && dayOfCycle <= 7) currentPhase = "Menstrual"; // fallback
+    } else if (dayOfCycle >= 1 && dayOfCycle <= 7) currentPhase = "Menstrual";
     else if (dayOfCycle > 7 && dayOfCycle <= 14) currentPhase = "Folicular";
     else if (dayOfCycle > 14 && dayOfCycle <= 16) currentPhase = "Ovulatoria";
     else if (dayOfCycle > 16) currentPhase = "Lútea";
@@ -316,51 +280,181 @@ export default function Home() {
     };
   }, [dashboardData.dailyMetrics]);
 
+    const sortedMetrics = useMemo(() => {
+        return [...dashboardData.dailyMetrics].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }, [dashboardData.dailyMetrics]);
+
+    const sortedWorkouts = useMemo(() => {
+        return [...dashboardData.workouts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }, [dashboardData.workouts]);
+
+    const sleepDataRows = useMemo(() => {
+        return sortedMetrics
+            .filter(m => m.sueño && m.sueño.total > 0)
+            .map(metric => ({
+                key: metric.date,
+                cells: [
+                    metric.date,
+                    metric.sueño?.total || "-",
+                    metric.sueño?.profundo || "-",
+                    metric.sueño?.ligero || "-",
+                    metric.sueño?.rem || "-",
+                    "N/A", 
+                    "N/A",
+                ],
+            }));
+    }, [sortedMetrics]);
+
+    const workoutDataRows = useMemo(() => {
+        return sortedWorkouts.map((workout, i) => ({
+                key: `${workout.date}-${i}`,
+                cells: [
+                  workout.date,
+                  workout.tipo,
+                  workout.duracion,
+                  workout.calorias,
+                  workout.frecuenciaCardiacaMedia || "-",
+                  "N/A",
+                ],
+              }))
+    }, [sortedWorkouts]);
+
+    const recoveryDataRows = useMemo(() => {
+        return sortedMetrics
+            .map(metric => ({
+                key: metric.date,
+                cells: [
+                  metric.date,
+                  metric.hrv || "-",
+                  metric.restingHeartRate || "-",
+                  metric.respiracion || "-",
+                  "N/A",
+                  "N/A",
+                ],
+            }));
+    }, [sortedMetrics]);
+
+    const cycleDataRows = useMemo(() => {
+        return sortedMetrics
+            .filter(m => m.estadoCiclo || m.sintomas?.length)
+            .map(metric => ({
+                key: metric.date,
+                cells: [
+                    metric.date,
+                    "N/A",
+                    metric.estadoCiclo === "menstruacion" ? "Sí" : "No",
+                    metric.sintomas && metric.sintomas.length > 0
+                        ? <div className="flex flex-wrap gap-1">{metric.sintomas.map((s, i) => <Badge key={i} variant="outline">{s}</Badge>)}</div>
+                        : "Ninguno",
+                    metric.notas || "-",
+                ],
+            }));
+    }, [sortedMetrics]);
 
   return (
     <>
-      <div className="flex flex-col gap-6">
-        <Card className="bg-primary/10 border-primary/20">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold text-primary">Bienvenido a SoMetrik</CardTitle>
-            <CardDescription>
-              Tu asistente personal de bienestar IA. Aquí tienes un resumen de tus métricas clave.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <SleepChart data={dashboardData.dailyMetrics} />
-            
-            <VitalsCard 
-                hrv={avgHRV}
-                respiration={avgRespiration}
-                restingHR={avgRestingHR}
-            />
-
-            <div className="md:col-span-2 lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <MenstrualCyclePanel data={calculatedCycleData} />
-                {/* Menstrual Calendar is now on its own page */}
-            </div>
-
-            <div className="md:col-span-2 lg:col-span-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
-                    <AIChatWidget />
-                </div>
-              <div className="lg:col-span-1 space-y-6">
-                <NotificationsWidget
-                    dailyMetrics={dashboardData.dailyMetrics}
-                    workoutData={dashboardData.workouts}
-                />
-                <DataActions 
-                    onDataProcessed={handleDataProcessed} 
-                    onGenerateReport={handleGenerateReport}
-                    onDeleteAllData={handleDeleteAllData}
-                />
-              </div>
-            </div>
+      <Tabs defaultValue="dashboard" className="flex-grow flex flex-col">
+        <div className="bg-background/95 backdrop-blur-sm sticky top-0 z-10 border-b">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto p-2">
+            <TabsTrigger value="dashboard"><LayoutDashboard className="mr-2 h-4 w-4"/>Panel Principal</TabsTrigger>
+            <TabsTrigger value="sleep"><Moon className="mr-2 h-4 w-4"/>Sueño</TabsTrigger>
+            <TabsTrigger value="workouts"><Dumbbell className="mr-2 h-4 w-4"/>Entrenamientos</TabsTrigger>
+            <TabsTrigger value="recovery"><HeartPulse className="mr-2 h-4 w-4"/>Recuperación</TabsTrigger>
+            <TabsTrigger value="cycle"><Stethoscope className="mr-2 h-4 w-4"/>Ciclo</TabsTrigger>
+          </TabsList>
         </div>
-      </div>
+        
+        <TabsContent value="dashboard" className="flex-grow p-6">
+          <div className="flex flex-col gap-6">
+            <Card className="bg-primary/10 border-primary/20">
+              <CardHeader>
+                <CardTitle className="text-2xl font-bold text-primary">Bienvenido a SoMetrik</CardTitle>
+                <CardDescription>
+                  Tu asistente personal de bienestar IA. Aquí tienes un resumen de tus métricas clave.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <SleepChart data={dashboardData.dailyMetrics} />
+                <VitalsCard 
+                    hrv={avgHRV}
+                    respiration={avgRespiration}
+                    restingHR={avgRestingHR}
+                />
+                <div className="md:col-span-2 lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <MenstrualCyclePanel data={calculatedCycleData} />
+                </div>
+                <div className="md:col-span-2 lg:col-span-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2">
+                        <AIChatWidget />
+                    </div>
+                  <div className="lg:col-span-1 space-y-6">
+                    <NotificationsWidget
+                        dailyMetrics={dashboardData.dailyMetrics}
+                        workoutData={dashboardData.workouts}
+                    />
+                    <DataActions 
+                        onDataProcessed={handleDataProcessed} 
+                        onGenerateReport={handleGenerateReport}
+                        onDeleteAllData={handleDeleteAllData}
+                    />
+                  </div>
+                </div>
+            </div>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="sleep" className="p-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Moon className="text-primary"/>Historial de Sueño</CardTitle>
+                    <CardDescription>Un registro detallado de tus patrones de sueño a lo largo del tiempo.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <DataTable headers={["Fecha", "Total (min)", "Profundo", "Ligero", "REM", "Eficiencia", "FC Nocturna"]} rows={sleepDataRows} emptyMessage="No hay datos de sueño registrados." />
+                </CardContent>
+            </Card>
+        </TabsContent>
+
+        <TabsContent value="workouts" className="p-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Dumbbell className="text-primary"/>Historial de Entrenamientos</CardTitle>
+                    <CardDescription>Todos tus entrenamientos registrados, ordenados por fecha.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <DataTable headers={["Fecha", "Tipo", "Duración (min)", "Calorías", "FC Media", "Intensidad"]} rows={workoutDataRows} emptyMessage="No hay entrenamientos registrados." />
+                </CardContent>
+            </Card>
+        </TabsContent>
+
+        <TabsContent value="recovery" className="p-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><HeartPulse className="text-primary"/>Historial de Recuperación</CardTitle>
+                    <CardDescription>Métricas clave de recuperación como VFC, Frecuencia Cardíaca en Reposo y más.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <DataTable headers={["Fecha", "VFC (ms)", "FC Reposo", "Respiración", "Estrés", "Calidad"]} rows={recoveryDataRows} emptyMessage="No hay datos de recuperación registrados." />
+                </CardContent>
+            </Card>
+        </TabsContent>
+
+        <TabsContent value="cycle" className="p-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Stethoscope className="text-primary"/>Historial del Ciclo Menstrual</CardTitle>
+                    <CardDescription>Un registro detallado de tu ciclo menstrual, síntomas y notas.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <DataTable headers={["Fecha", "Fase", "Menstruación", "Síntomas", "Notas"]} rows={cycleDataRows} emptyMessage="No hay datos del ciclo menstrual registrados." />
+                </CardContent>
+            </Card>
+        </TabsContent>
+
+      </Tabs>
+
       <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
         <DialogContent className="sm:max-w-2xl">
             <DialogHeader>

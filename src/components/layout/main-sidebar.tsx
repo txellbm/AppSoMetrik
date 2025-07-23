@@ -1,81 +1,70 @@
-
 "use client";
 
+import { Button } from "@/components/ui/button";
 import {
-  SidebarHeader,
-  SidebarContent,
-  SidebarFooter,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-} from "@/components/ui/sidebar";
-import { usePathname } from "next/navigation";
-import Link from "next/link";
-import { BrainCircuit, LayoutDashboard, Settings, LifeBuoy, Moon, Dumbbell, HeartPulse, Stethoscope, Droplet, Pill, Flame, Calendar } from "lucide-react";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Bell, LifeBuoy, LogOut, Settings, User, BrainCircuit } from "lucide-react";
+import Image from "next/image";
 
-const menuItems = [
-  { href: "/", label: "Panel", icon: LayoutDashboard },
-  { href: "/sleep", label: "Sueño", icon: Moon },
-  { href: "/workouts", label: "Entrenamientos", icon: Dumbbell },
-  { href: "/recovery", label: "Recuperación", icon: HeartPulse },
-  { href: "/cycle", label: "Ciclo Menstrual", icon: Stethoscope },
-  { href: "/hydration", label: "Hidratación", icon: Droplet },
-  { href: "/supplements", label: "Suplementos", icon: Pill },
-  { href: "/calories", label: "Calorías y Actividad", icon: Flame },
-  { href: "/calendar", label: "Calendario Personal", icon: Calendar },
-];
-
-const bottomMenuItems = [
-    { href: "/settings", label: "Configuración", icon: Settings },
-    { href: "/support", label: "Soporte", icon: LifeBuoy },
-]
-
-export function MainSidebar() {
-  const pathname = usePathname();
-
+export function AppHeader() {
   return (
-    <>
-      <SidebarHeader>
-        <div className="flex items-center gap-2 p-2">
-            <BrainCircuit className="w-8 h-8 text-primary" />
-            <div className="text-xl font-semibold tracking-tighter group-data-[collapsible=icon]:hidden">
-            SoMetrik
-            </div>
-        </div>
-      </SidebarHeader>
-      <SidebarContent className="flex-grow p-2">
-        <SidebarMenu>
-          {menuItems.map((item) => (
-            <SidebarMenuItem key={item.label}>
-              <Link href={item.href} passHref>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname === item.href}
-                  tooltip={item.label}
-                >
-                  <div>
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </div>
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-      </SidebarContent>
-      <SidebarFooter className="p-2">
-         <div className="flex items-center gap-3 p-2 rounded-lg bg-muted">
+    <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-4 border-b bg-background/95 backdrop-blur-sm px-4 sm:px-6">
+      <div className="flex items-center gap-2">
+        <BrainCircuit className="w-8 h-8 text-primary" />
+        <h1 className="text-xl font-semibold tracking-tighter">SoMetrik</h1>
+      </div>
+      
+      <div className="ml-auto flex items-center gap-2">
+        <Button variant="ghost" size="icon">
+          <Bell className="h-5 w-5" />
+          <span className="sr-only">Alternar notificaciones</span>
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="relative h-9 w-9 rounded-full">
               <Avatar className="h-9 w-9">
-                <AvatarImage src="https://placehold.co/100x100.png" alt="@meri" data-ai-hint="woman smiling"/>
+                <AvatarImage src="https://placehold.co/100x100.png" alt="@meri" data-ai-hint="woman smiling" />
                 <AvatarFallback>M</AvatarFallback>
               </Avatar>
-              <div className="group-data-[collapsible=icon]:hidden">
-                <p className="text-sm font-semibold">Meri</p>
-                <p className="text-xs text-muted-foreground">Plan Personal</p>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56" align="end" forceMount>
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">Meri</p>
+                <p className="text-xs leading-none text-muted-foreground">
+                  meri@example.com
+                </p>
               </div>
-            </div>
-      </SidebarFooter>
-    </>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              <User className="mr-2 h-4 w-4" />
+              <span>Perfil</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Configuración</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <LifeBuoy className="mr-2 h-4 w-4" />
+              <span>Soporte</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Cerrar sesión</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </header>
   );
 }
