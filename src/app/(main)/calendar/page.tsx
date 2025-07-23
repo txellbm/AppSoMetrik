@@ -1,9 +1,9 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, query, where, getDocs, doc, writeBatch, deleteDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, where, writeBatch, doc, deleteDoc } from "firebase/firestore";
 import { CalendarEvent } from "@/ai/schemas";
 import { useToast } from "@/hooks/use-toast";
 import { addDays, endOfWeek, format, startOfWeek, subDays } from "date-fns";
@@ -24,8 +24,8 @@ export default function CalendarPage() {
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
     const [dialogDate, setDialogDate] = useState<Date | null>(null);
 
-    const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
-    const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
+    const weekStart = useMemo(() => startOfWeek(currentDate, { weekStartsOn: 1 }), [currentDate]);
+    const weekEnd = useMemo(() => endOfWeek(currentDate, { weekStartsOn: 1 }), [currentDate]);
 
     useEffect(() => {
         setIsLoading(true);
