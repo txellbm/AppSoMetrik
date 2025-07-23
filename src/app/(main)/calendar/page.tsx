@@ -6,7 +6,7 @@ import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query, where, writeBatch, doc, deleteDoc, runTransaction } from "firebase/firestore";
 import { CalendarEvent } from "@/ai/schemas";
 import { useToast } from "@/hooks/use-toast";
-import { addMonths, endOfMonth, format, startOfMonth, subMonths, getDay, addWeeks, startOfWeek, isSameDay } from "date-fns";
+import { addMonths, endOfMonth, format, startOfMonth, subMonths, getDay, addWeeks, startOfWeek, isSameDay, differenceInMinutes, parse } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, PlusCircle, Trash2, Edit } from "lucide-react";
@@ -29,8 +29,9 @@ import { cn } from "@/lib/utils";
 
 type QuickEventType = "Pilates" | "Flexibilidad" | "Fuerza" | "Trabajo";
 type QuickEventTypeInfo = {
-    duration: number; // in minutes
     startTime: string; // HH:mm
+    endTime?: string; // HH:mm, for work
+    duration?: number; // in minutes, for workouts
     defaultDaysOfWeek: number[]; // 0 for Sunday, 1 for Monday, etc.
     type: CalendarEvent['type'];
 };
@@ -51,7 +52,7 @@ export default function CalendarPage() {
     
     const [selectedQuickEventType, setSelectedQuickEventType] = useState<QuickEventType | null>(null);
     const [quickEventTypes, setQuickEventTypes] = useState<QuickEventTypes>({
-        "Trabajo": { duration: 480, startTime: "09:00", defaultDaysOfWeek: [], type: "trabajo" },
+        "Trabajo": { startTime: "09:00", endTime: "17:00", defaultDaysOfWeek: [], type: "trabajo" },
         "Pilates": { duration: 60, startTime: "09:00", defaultDaysOfWeek: [], type: "entrenamiento" },
         "Flexibilidad": { duration: 45, startTime: "18:00", defaultDaysOfWeek: [], type: "entrenamiento" },
         "Fuerza": { duration: 75, startTime: "19:00", defaultDaysOfWeek: [], type: "entrenamiento" },
@@ -67,7 +68,7 @@ export default function CalendarPage() {
         if (typeof window !== 'undefined' && !date) {
             setDate(new Date());
         }
-    }, []);
+    }, [date]);
 
     useEffect(() => {
         setIsLoading(true);
@@ -108,13 +109,22 @@ export default function CalendarPage() {
     
         if (selectedQuickEventType) {
             const config = quickEventTypes[selectedQuickEventType];
+            let endTime: string;
+
+            if (config.endTime) {
+                endTime = config.endTime;
+            } else if (config.duration) {
+                endTime = format(new Date(new Date(`1970-01-01T${config.startTime}`).getTime() + config.duration * 60000), "HH:mm");
+            } else {
+                endTime = config.startTime; // Fallback
+            }
             
             const newEvent: Omit<CalendarEvent, 'id'> = {
                 description: selectedQuickEventType,
                 type: config.type,
                 date: format(day, "yyyy-MM-dd"),
                 startTime: config.startTime,
-                endTime: format(new Date(new Date(`1970-01-01T${config.startTime}`).getTime() + config.duration * 60000), "HH:mm"),
+                endTime: endTime,
             };
             openDialog(newEvent as CalendarEvent, day);
         }
@@ -183,6 +193,15 @@ export default function CalendarPage() {
         const today = new Date();
         const weekStartsOn = 1;
 
+        let endTime: string;
+        if(config.endTime) {
+            endTime = config.endTime;
+        } else if (config.duration) {
+            endTime = format(new Date(new Date(`1970-01-01T${config.startTime}`).getTime() + config.duration * 60000), "HH:mm");
+        } else {
+            endTime = config.startTime; // Fallback
+        }
+
         for (let week = 0; week < 4; week++) {
             const weekStart = startOfWeek(addWeeks(today, week), { weekStartsOn });
             for (const dayOfWeek of config.defaultDaysOfWeek) {
@@ -191,13 +210,12 @@ export default function CalendarPage() {
                 
                 if (targetDay < today && !isSameDay(targetDay, today)) continue;
 
-                const endTime = new Date(new Date(`1970-01-01T${config.startTime}`).getTime() + config.duration * 60000);
                 eventsToAdd.push({
                     description: type,
                     type: config.type,
                     date: format(targetDay, 'yyyy-MM-dd'),
                     startTime: config.startTime,
-                    endTime: format(endTime, 'HH:mm'),
+                    endTime: endTime,
                 });
             }
         }
@@ -282,8 +300,17 @@ export default function CalendarPage() {
                                         <div className="flex justify-between items-center mb-1.5">
                                             <Button variant="link" className="p-0 h-auto text-sm font-semibold" onClick={() => setSelectedQuickEventType(st => st === type ? null : type)}>{type}</Button>
                                              <div className="flex items-center gap-2">
-                                                <InputWithLabel small label="Hora" type="time" value={config.startTime} onChange={(e) => handleQuickEventConfigChange(type, 'startTime', e.target.value)} />
-                                                <InputWithLabel small label="Min" type="number" value={config.duration} onChange={(e) => handleQuickEventConfigChange(type, 'duration', parseInt(e.target.value))} />
+                                                {config.type === 'trabajo' ? (
+                                                    <>
+                                                        <InputWithLabel small label="Inicio" type="time" value={config.startTime} onChange={(e) => handleQuickEventConfigChange(type, 'startTime', e.target.value)} />
+                                                        <InputWithLabel small label="Fin" type="time" value={config.endTime} onChange={(e) => handleQuickEventConfigChange(type, 'endTime', e.target.value)} />
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <InputWithLabel small label="Hora" type="time" value={config.startTime} onChange={(e) => handleQuickEventConfigChange(type, 'startTime', e.target.value)} />
+                                                        <InputWithLabel small label="Min" type="number" value={config.duration} onChange={(e) => handleQuickEventConfigChange(type, 'duration', parseInt(e.target.value))} />
+                                                    </>
+                                                )}
                                                 {config.defaultDaysOfWeek.length > 0 && (
                                                     <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => handleScheduleEvent(type)}>
                                                         <PlusCircle className="h-5 w-5 text-primary"/>
@@ -370,7 +397,5 @@ const InputWithLabel = ({ label, small = false, ...props }: { label: string, sma
         <Input {...props} className={small ? 'h-7 w-16 text-xs' : ''}/>
     </div>
 );
-
-    
 
     
