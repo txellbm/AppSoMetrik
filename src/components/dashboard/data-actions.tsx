@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 type DataActionsProps = {
   onDataProcessed: (data: ProcessHealthDataFileOutput) => void;
   onGenerateReport: () => void;
+  onDeleteAllData: () => void;
 };
 
 // This constant defines how many rows of a CSV are sent to the AI in one go.
@@ -69,7 +70,7 @@ const aggregateResults = (combinedResult: ProcessHealthDataFileOutput, fileResul
 };
 
 
-export default function DataActions({ onDataProcessed, onGenerateReport }: DataActionsProps) {
+export default function DataActions({ onDataProcessed, onGenerateReport, onDeleteAllData }: DataActionsProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -237,7 +238,7 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
     <Card>
       <CardHeader>
         <CardTitle>Gestión de Datos</CardTitle>
-        <CardDescription>Sube archivos (CSV, ZIP) o genera un informe.</CardDescription>
+        <CardDescription>Sube archivos, genera informes o limpia tus datos.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div 
@@ -301,8 +302,13 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
             <Button variant="secondary" className="w-full" onClick={onGenerateReport}>
                 <BrainCircuit className="mr-2 h-4 w-4" /> Generar Informe Detallado
             </Button>
+            <Button variant="destructive" className="w-full" onClick={onDeleteAllData}>
+                <Trash2 className="mr-2 h-4 w-4" /> Borrar Datos Anteriores
+            </Button>
         </div>
       </CardContent>
     </Card>
   );
 }
+
+    

@@ -47,7 +47,7 @@ import NotificationsWidget from "@/components/dashboard/notifications-widget";
 import SleepChart from "@/components/dashboard/sleep-chart";
 import MenstrualCyclePanel from "@/components/dashboard/menstrual-cycle-panel";
 import MenstrualCalendar from "@/components/dashboard/menstrual-calendar";
-import { collection, writeBatch, onSnapshot, doc, getDoc, setDoc, addDoc, query } from "firebase/firestore";
+import { collection, writeBatch, onSnapshot, doc, getDoc, setDoc, addDoc, query, getDocs, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { startOfWeek, endOfWeek, subWeeks, isWithinInterval, parseISO, differenceInDays, startOfToday, format, isValid } from "date-fns";
 
@@ -73,14 +73,14 @@ const safeParseDate = (dateInput: any): Date | null => {
 
     // If it's a string
     if (typeof dateInput === 'string') {
-        // Attempt to parse ISO string first (e.g., "2024-07-23T10:00:00.000Z")
-        let date = parseISO(dateInput);
+        // Handle 'YYYY-MM-DD' strings by parsing them in the local timezone
+        // Appending 'T12:00:00' makes it explicit that it's local time, not UTC.
+        const date = new Date(`${dateInput}T12:00:00`);
         if (isValid(date)) return date;
 
-        // Handle 'YYYY-MM-DD' strings by parsing them in the local timezone
-        // Appending 'T00:00:00' makes it explicit that it's local time, not UTC.
-        date = new Date(`${dateInput}T00:00:00`);
-        if (isValid(date)) return date;
+        // Attempt to parse ISO string as a fallback
+        const isoDate = parseISO(dateInput);
+        if (isValid(isoDate)) return isoDate;
     }
     
     return null; // Return null if parsing fails for any reason
@@ -117,6 +117,44 @@ export default function Home() {
         unsubDailyMetrics();
     };
 }, [userId]);
+
+
+  const handleDeleteAllData = async () => {
+    const userRef = doc(db, "users", userId);
+    const workoutsRef = collection(userRef, "workouts");
+    const dailyMetricsRef = collection(userRef, "dailyMetrics");
+
+    if (!confirm("¿Estás seguro de que quieres borrar TODOS los datos de entrenamientos y métricas diarias? Esta acción no se puede deshacer.")) {
+        return;
+    }
+
+    try {
+        const batch = writeBatch(db);
+        
+        const workoutsSnapshot = await getDocs(workoutsRef);
+        workoutsSnapshot.forEach(doc => batch.delete(doc.ref));
+
+        const dailyMetricsSnapshot = await getDocs(dailyMetricsRef);
+        dailyMetricsSnapshot.forEach(doc => batch.delete(doc.ref));
+
+        await batch.commit();
+
+        setDashboardData(initialDashboardData);
+
+        toast({
+            title: "Datos eliminados",
+            description: "Todas las métricas y entrenamientos han sido borrados de la base de datos.",
+        });
+
+    } catch (error) {
+        console.error("Error al borrar los datos:", error);
+        toast({
+            variant: "destructive",
+            title: "Error al borrar",
+            description: "No se pudieron eliminar los datos. Inténtalo de nuevo.",
+        });
+    }
+  };
 
 
  const handleDataProcessed = async (processedData: ProcessHealthDataFileOutput) => {
@@ -279,6 +317,10 @@ export default function Home() {
                 break;
             }
         }
+        // If no clear start found, take the most recent flow day as a best guess
+        if (!lastCycleStartDate && flowDays.length > 0) {
+            lastCycleStartDate = flowDays[0].parsedDate;
+        }
     }
 
     if (!lastCycleStartDate) {
@@ -349,7 +391,11 @@ export default function Home() {
                     dailyMetrics={dashboardData.dailyMetrics}
                     workoutData={dashboardData.workouts}
                 />
-                <DataActions onDataProcessed={handleDataProcessed} onGenerateReport={handleGenerateReport} />
+                <DataActions 
+                    onDataProcessed={handleDataProcessed} 
+                    onGenerateReport={handleGenerateReport}
+                    onDeleteAllData={handleDeleteAllData}
+                />
               </div>
             </div>
         </div>
@@ -537,3 +583,5 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
     </Card>
   );
 }
+
+    
