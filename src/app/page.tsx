@@ -47,7 +47,7 @@ import NotificationsWidget from "@/components/dashboard/notifications-widget";
 import SleepChart from "@/components/dashboard/sleep-chart";
 import MenstrualCyclePanel from "@/components/dashboard/menstrual-cycle-panel";
 import MenstrualCalendar from "@/components/dashboard/menstrual-calendar";
-import { collection, writeBatch, onSnapshot, doc, getDoc, setDoc } from "firebase/firestore";
+import { collection, writeBatch, onSnapshot, doc, getDoc, setDoc, addDoc, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { startOfWeek, endOfWeek, subWeeks, isWithinInterval, parseISO, differenceInDays, startOfToday, format } from "date-fns";
 
@@ -55,6 +55,15 @@ const initialDashboardData: DashboardData = {
   workouts: [],
   sleepData: [],
   menstrualData: [],
+};
+
+// Helper function to treat date string as local time, not UTC
+const parseDateAsLocal = (dateStr: string): Date => {
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        return new Date(NaN); // Return invalid date if format is wrong
+    }
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day, 12); // Use noon to avoid timezone shifts
 };
 
 export default function Home() {
@@ -67,70 +76,93 @@ export default function Home() {
   const userId = "user_test_id";
 
   useEffect(() => {
-    const healthDataCol = collection(db, "users", userId, "healthData");
+    const userRef = doc(db, "users", userId);
 
-    const unsubscribe = onSnapshot(healthDataCol, (snapshot) => {
-        const allDocs = snapshot.docs.map(doc => doc.data());
-        
-        // This is a simplified aggregation. For a real app, you'd want to aggregate 
-        // across all documents, not just flatten them.
-        const aggregatedData: DashboardData = {
-            workouts: allDocs.flatMap(d => d.workouts || []),
-            sleepData: allDocs.flatMap(d => d.sleepData || []),
-            menstrualData: allDocs.flatMap(d => d.menstrualData || []),
-        };
+    const qWorkouts = query(collection(userRef, "workouts"));
+    const qSleep = query(collection(userRef, "sleepData"));
+    const qMenstrual = query(collection(userRef, "menstrualData"));
 
-        setDashboardData(aggregatedData);
+    const unsubWorkouts = onSnapshot(qWorkouts, (snapshot) => {
+        const workouts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Workout[];
+        setDashboardData(prev => ({ ...prev, workouts }));
+    }, (error) => console.error("Error al cargar entrenamientos:", error));
 
-    }, (error) => {
-      console.error(`Error en el listener de healthData:`, error);
-      toast({
-        variant: "destructive",
-        title: `Error de Firestore`,
-        description: "No se pudieron cargar los datos. Revisa los permisos de la base de datos.",
-      });
-    });
+    const unsubSleep = onSnapshot(qSleep, (snapshot) => {
+        const sleepData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as SleepEntry[];
+        setDashboardData(prev => ({ ...prev, sleepData }));
+    }, (error) => console.error("Error al cargar datos de sueño:", error));
 
-    // Cleanup function
-    return () => unsubscribe();
-  }, [userId, toast]);
+    const unsubMenstrual = onSnapshot(qMenstrual, (snapshot) => {
+        const menstrualData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as MenstrualCycleData[];
+        setDashboardData(prev => ({ ...prev, menstrualData }));
+    }, (error) => console.error("Error al cargar datos menstruales:", error));
+
+    return () => {
+        unsubWorkouts();
+        unsubSleep();
+        unsubMenstrual();
+    };
+}, [userId]);
 
 
  const handleDataProcessed = async (processedData: ProcessHealthDataFileOutput) => {
+    if (!processedData || (!processedData.workouts?.length && !processedData.sleepData?.length && !processedData.menstrualData?.length)) {
+        toast({
+            title: "Sin datos nuevos para procesar",
+            description: "El archivo no contenía información relevante o ya estaba actualizada.",
+        });
+        return;
+    }
     const { workouts, sleepData, menstrualData } = processedData;
 
-    // Group data by date
-    const dataByDate: { [key: string]: Partial<DashboardData> } = {};
-
-    const addToDate = (date: string, key: keyof DashboardData, data: any) => {
-        if (!date) return;
-        if (!dataByDate[date]) dataByDate[date] = {};
-        if (!dataByDate[date][key]) dataByDate[date][key] = [];
-        (dataByDate[date][key] as any[]).push(data);
-    };
-
-    workouts.forEach(item => addToDate(item.date, 'workouts', item));
-    sleepData.forEach(item => addToDate(item.date, 'sleepData', item));
-    menstrualData.forEach(item => addToDate(item.date, 'menstrualData', item));
-
-    const numDays = Object.keys(dataByDate).length;
-    if (numDays === 0) return;
-
     const batch = writeBatch(db);
+    const userRef = doc(db, "users", userId);
+    let changesCount = 0;
 
-    for (const date in dataByDate) {
-        const docRef = doc(db, "users", userId, "healthData", date);
-        const dailyData = dataByDate[date];
-        
-        // Here we use { merge: true } to combine new data with existing data for the day
-        batch.set(docRef, dailyData, { merge: true });
+    // Process Sleep Data: one doc per day (date is the ID)
+    if (sleepData) {
+      sleepData.forEach(item => {
+          if (!item.date) return;
+          const docRef = doc(userRef, "sleepData", item.date);
+          batch.set(docRef, item, { merge: true });
+          changesCount++;
+      });
+    }
+
+    // Process Workouts: a new doc for each workout
+    if (workouts) {
+      workouts.forEach(item => {
+          if (!item.date || !item.name) return; // Basic validation
+          const docRef = doc(collection(userRef, "workouts")); // Auto-generate ID
+          batch.set(docRef, item);
+          changesCount++;
+      });
+    }
+
+    // Process Menstrual Data: a new doc for each entry
+    if (menstrualData) {
+      menstrualData.forEach(item => {
+          if (!item.date) return;
+          const docRef = doc(userRef, "menstrualData", item.date); // Use date as ID to merge symptoms for the same day
+          batch.set(docRef, item, { merge: true });
+          changesCount++;
+      });
+    }
+
+    if (changesCount === 0) {
+      toast({
+          title: "Sin datos nuevos",
+          description: "No se encontraron datos nuevos o válidos para guardar.",
+          variant: "default",
+      });
+      return;
     }
 
     try {
         await batch.commit();
         toast({
             title: "Datos procesados y guardados",
-            description: `Se han actualizado los datos para ${numDays} día(s).`,
+            description: `Se han actualizado/añadido ${changesCount} registros.`,
         });
     } catch (error) {
         console.error("Error guardando los datos procesados en Firestore:", error);
@@ -149,7 +181,7 @@ export default function Home() {
     setReportContent("");
 
     try {
-        const workoutDetails = dashboardData.workouts.map(w => `${w.date} - ${w.name}: ${w.distance.toFixed(1)}km, ${w.calories}kcal, ${w.duration}mins`).join('; ');
+        const workoutDetails = dashboardData.workouts.map(w => `${w.date} - ${w.name}: ${w.distance?.toFixed(1) || 0}km, ${w.calories}kcal, ${w.duration}mins`).join('; ');
         const sleepDetails = dashboardData.sleepData.map(s => `${s.date}: ${s.totalSleep.toFixed(1)}h (Profundo: ${s.deepSleep}h, Ligero: ${s.lightSleep}h, REM: ${s.remSleep}h)`).join('; ');
         const menstrualDetails = dashboardData.menstrualData.map(m => `${m.date}: Flujo ${m.flow || 'N/A'}`).join('; ');
         
@@ -199,8 +231,8 @@ export default function Home() {
   const calculatedCycleData = useMemo<CalculatedCycleData>(() => {
     // Sort by date to ensure chronological order
     const sortedData = [...dashboardData.menstrualData]
-      .filter((d) => d.flow && d.flow !== "spotting")
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      .filter((d) => d.flow && d.flow !== "spotting" && d.date)
+      .sort((a, b) => parseDateAsLocal(a.date).getTime() - parseDateAsLocal(b.date).getTime());
     
     if (sortedData.length === 0) {
         return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
@@ -212,10 +244,10 @@ export default function Home() {
     // Group consecutive bleeding days into periods
     const periods: Date[][] = [];
     if (sortedData.length > 0) {
-        let currentPeriod = [new Date(sortedData[0].date + 'T00:00:00')];
+        let currentPeriod = [parseDateAsLocal(sortedData[0].date)];
         for (let i = 1; i < sortedData.length; i++) {
-            const currentDate = new Date(sortedData[i].date + 'T00:00:00');
-            const prevDate = new Date(sortedData[i-1].date + 'T00:00:00');
+            const currentDate = parseDateAsLocal(sortedData[i].date);
+            const prevDate = parseDateAsLocal(sortedData[i-1].date);
             if (differenceInDays(currentDate, prevDate) === 1) {
                 currentPeriod.push(currentDate);
             } else {
@@ -232,7 +264,7 @@ export default function Home() {
     }
 
 
-    if (!lastPeriodStartDate) {
+    if (!lastPeriodStartDate || isNaN(lastPeriodStartDate.getTime())) {
         return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
     }
 
@@ -260,7 +292,7 @@ export default function Home() {
             ?.symptoms || [];
 
     return {
-        currentDay: currentDay,
+        currentDay: currentDay > 0 ? currentDay : 0,
         currentPhase: currentPhase,
         symptoms: symptomsToday,
     };
@@ -410,32 +442,36 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
   const thisWeekWorkouts = workouts
     .filter(w => {
         try {
-            return isWithinInterval(parseISO(w.date), { start: startOfThisWeek, end: endOfThisWeek })
+            if (!w.date) return false;
+            return isWithinInterval(parseDateAsLocal(w.date), { start: startOfThisWeek, end: endOfThisWeek })
         } catch {
             return false;
         }
     })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    .sort((a, b) => parseDateAsLocal(b.date).getTime() - parseDateAsLocal(a.date).getTime());
 
   const lastWeekWorkouts = workouts
     .filter(w => {
         try {
-            return isWithinInterval(parseISO(w.date), { start: startOfLastWeek, end: endOfLastWeek })
+            if (!w.date) return false;
+            return isWithinInterval(parseDateAsLocal(w.date), { start: startOfLastWeek, end: endOfLastWeek })
         } catch {
             return false;
         }
     })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    .sort((a, b) => parseDateAsLocal(b.date).getTime() - parseDateAsLocal(a.date).getTime());
     
   const olderWorkouts = workouts
     .filter(w => {
         try {
-            return !isWithinInterval(parseISO(w.date), { start: startOfLastWeek, end: endOfThisWeek })
+            if (!w.date) return false;
+            const date = parseDateAsLocal(w.date);
+            return !isWithinInterval(date, { start: startOfThisWeek, end: endOfThisWeek }) && !isWithinInterval(date, { start: startOfLastWeek, end: endOfLastWeek })
         } catch {
             return false;
         }
     })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    .sort((a, b) => parseDateAsLocal(b.date).getTime() - parseDateAsLocal(a.date).getTime());
 
   const WorkoutTable = ({ data }: { data: Workout[] }) => (
     <Table>
@@ -452,11 +488,11 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
         {data.length > 0 ? (
           data.map((workout, index) => (
             <TableRow key={index}>
-              <TableCell>{new Date(workout.date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</TableCell>
+              <TableCell>{parseDateAsLocal(workout.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</TableCell>
               <TableCell className="font-medium">{workout.name}</TableCell>
               <TableCell className="text-right">{workout.duration} min</TableCell>
               <TableCell className="text-right">{workout.calories}</TableCell>
-              <TableCell className="text-right">{workout.averageHeartRate > 0 ? `${workout.averageHeartRate} bpm` : '-'}</TableCell>
+              <TableCell className="text-right">{workout.averageHeartRate && workout.averageHeartRate > 0 ? `${workout.averageHeartRate} bpm` : '-'}</TableCell>
             </TableRow>
           ))
         ) : (

@@ -24,7 +24,7 @@ const prompt = ai.definePrompt({
 
 **Instrucciones Clave:**
 1.  **Detección del Origen y Tipo de Archivo**:
-    - Analiza el nombre del archivo (\`{{{fileName}}}\`) y las cabeceras del CSV para identificar el origen (AutoSleep, HeartWatch, Apple Health via "Simple Health Export CSV") y el tipo de datos.
+    - Analiza el nombre del archivo (\`{{{fileName}}}\`) y las cabeceras del CSV para identificar el origen (AutoSleep, HeartWatch, Apple Health via "Simple Health Export CSV").
     - **Apple Health (Simple Health Export):** Los nombres de archivo son la clave. Ej: \`HKCategoryTypeIdentifierSleepAnalysis.csv\` es sueño, \`HKWorkoutActivityTypeCycling.csv\` es un entrenamiento de ciclismo.
     - **AutoSleep/HeartWatch:** Archivos con nombres como 'AutoSleep.csv' o 'HeartWatch.csv'.
 
@@ -42,7 +42,7 @@ const prompt = ai.definePrompt({
         - **HRV (\`HKQuantityTypeIdentifierHeartRateVariabilitySDNN.csv\`):** Extrae \`value\` (en ms) y asócialo a la fecha.
         - **Frecuencia Cardíaca en Reposo (\`HKQuantityTypeIdentifierRestingHeartRate.csv\`):** Extrae \`value\` (en bpm).
         - **Frecuencia Respiratoria (\`HKQuantityTypeIdentifierRespiratoryRate.csv\`):** Extrae \`value\` (en rpm).
-        - **Ciclo Menstrual (\`HKCategoryTypeIdentifierMenstrualFlow.csv\`):** El campo \`value\` indica la intensidad. \`HKMenstrualCycleStart\` (valor 1) indica el inicio del ciclo.
+        - **Ciclo Menstrual (\`HKCategoryTypeIdentifierMenstrualFlow.csv\`):** El campo \`value\` indica la intensidad. \`HKMenstrualCycleStart\` (valor 1) indica el inicio del ciclo. La fecha correcta es la que indica \`startDate\`, no la modifiques.
 
     - **Formato AutoSleep/HeartWatch (Legado)**:
         - **AutoSleep CSV**: Extrae 'inBed', 'awake', 'deep', 'light', 'rem', 'quality', 'Readiness'. Calcula 'totalSleep' sumando 'deep', 'light' y 'rem'.
@@ -75,6 +75,7 @@ const processHealthDataFileFlow = ai.defineFlow(
     
 
     
+
 
 
 
