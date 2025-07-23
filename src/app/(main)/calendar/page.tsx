@@ -184,22 +184,20 @@ export default function CalendarPage() {
         if (!editingEvent || !editingEvent.id) return;
         
         const docRef = doc(db, "users", userId, "calendar", editingEvent.date, "events", editingEvent.id);
-        const dateDocRef = doc(db, "users", userId, "calendar", editingEvent.date);
-
+        
         try {
-             await runTransaction(db, async (transaction) => {
-                const oldEventDoc = await transaction.get(docRef);
-                const oldEventData = oldEventDoc.data() as CalendarEvent;
-                
-                transaction.update(docRef, eventData);
-
-                if (eventData.type && eventData.type !== oldEventData.type) {
-                     transaction.set(dateDocRef, {
-                        [`types.${oldEventData.type}`]: increment(-1),
+            if (eventData.type && eventData.type !== editingEvent.type) {
+                await runTransaction(db, async (transaction) => {
+                    const dateDocRef = doc(db, "users", userId, "calendar", editingEvent.date);
+                    transaction.update(docRef, eventData);
+                    transaction.set(dateDocRef, {
+                        [`types.${editingEvent.type}`]: increment(-1),
                         [`types.${eventData.type}`]: increment(1)
                     }, { merge: true });
-                }
-            });
+                });
+            } else {
+                 await updateDoc(docRef, eventData);
+            }
 
             toast({ title: "Evento actualizado" });
             setIsDialogOpen(false);
@@ -219,11 +217,11 @@ export default function CalendarPage() {
         try {
             await runTransaction(db, async (transaction) => {
                 const dateDoc = await transaction.get(dateDocRef);
-                const currentCount = dateDoc.exists() ? dateDoc.data()?.count || 0 : 0;
+                const currentData = dateDoc.exists() ? dateDoc.data() : { count: 0, types: {} };
                 
                 transaction.delete(eventDocRef);
 
-                if (currentCount > 1) {
+                if (currentData.count > 1) {
                     transaction.set(dateDocRef, {
                         count: increment(-1),
                         [`types.${event.type}`]: increment(-1)
@@ -271,26 +269,18 @@ export default function CalendarPage() {
         const eventsToAdd: Omit<CalendarEvent, 'id'>[] = [];
         const today = startOfDay(new Date());
         
-        // Schedule for the next 4 weeks
         for (let week = 0; week < 4; week++) {
             workoutInfo.defaultDaysOfWeek.forEach(dayOfWeek => {
-                // date-fns: Monday is 1, Sunday is 0. Our weekDays array matches this.
                 const firstDayOfThisWeek = startOfWeek(addDays(today, week * 7), { weekStartsOn: 1 });
                 let targetDay = firstDayOfThisWeek;
-                const currentDayOfWeek = getDay(targetDay); // Sunday is 0, Monday is 1...
                 
-                // Calculate difference to get to the target day
-                let dayDifference = dayOfWeek - currentDayOfWeek;
-                if (dayOfWeek === 0 && currentDayOfWeek !== 0) { // Target is Sunday
-                    dayDifference = 7 - currentDayOfWeek;
-                } else if (dayOfWeek !== 0 && currentDayOfWeek === 0){ // Current is Sunday, target is not
-                    dayDifference = dayOfWeek - 7;
+                let dayDifference = dayOfWeek - getDay(targetDay);
+                 if (dayDifference < 0) {
+                    dayDifference += 7;
                 }
-                
                 targetDay = addDays(targetDay, dayDifference);
-
-                // Ensure we don't schedule for the past if we're in the first week
-                if(week === 0 && targetDay < today) {
+                
+                if (week === 0 && targetDay < today) {
                     targetDay = addDays(targetDay, 7);
                 }
 
