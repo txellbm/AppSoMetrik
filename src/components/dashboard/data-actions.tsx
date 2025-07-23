@@ -3,7 +3,7 @@
 
 import { useState, useRef } from "react";
 import { processHealthDataFile } from "@/ai/flows/process-health-data-file";
-import { ProcessHealthDataFileOutput } from "@/ai/schemas";
+import { ProcessHealthDataFileOutput, Workout, DailyMetric } from "@/ai/schemas";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Upload, FileText, Loader2, BrainCircuit, Trash2, FileArchive } from "lucide-react";
@@ -55,21 +55,19 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
     setFiles(files.filter((_, i) => i !== index));
   }
 
-  const processFileInChunks = async (fileContent: string, fileName: string) => {
+  const processFileInChunks = async (fileContent: string, fileName: string): Promise<ProcessHealthDataFileOutput | null> => {
       const lines = fileContent.split('\n');
       const header = lines[0];
       const dataRows = lines.slice(1);
       
-      // No need to process if there are no data rows
       if (dataRows.length === 0 || (dataRows.length === 1 && dataRows[0].trim() === '')) {
-          return;
+          return null;
       }
       
-      const totalChunks = Math.ceil(dataRows.length / CHUNK_SIZE);
       let aggregatedResult: ProcessHealthDataFileOutput = {
           summary: "",
           workouts: [],
-          dailyMetrics: {},
+          dailyMetrics: [],
       };
 
       for (let i = 0; i < dataRows.length; i += CHUNK_SIZE) {
@@ -78,19 +76,22 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
           
           try {
               const chunkResult = await processHealthDataFile({ fileContent: chunkContent, fileName });
-              // Aggregate results
-              aggregatedResult.workouts.push(...chunkResult.workouts);
-               // Merge dailyMetrics
-              for (const date in chunkResult.dailyMetrics) {
-                  if (aggregatedResult.dailyMetrics[date]) {
-                      // Deep merge the metrics for the same day
-                      aggregatedResult.dailyMetrics[date] = {
-                          ...aggregatedResult.dailyMetrics[date],
-                          ...chunkResult.dailyMetrics[date],
-                      };
-                  } else {
-                      aggregatedResult.dailyMetrics[date] = chunkResult.dailyMetrics[date];
-                  }
+              if (chunkResult.workouts) {
+                aggregatedResult.workouts.push(...chunkResult.workouts);
+              }
+              if (chunkResult.dailyMetrics) {
+                 // Custom merge logic for dailyMetrics array
+                 chunkResult.dailyMetrics.forEach(newMetric => {
+                    const existingMetricIndex = aggregatedResult.dailyMetrics.findIndex(m => m.date === newMetric.date);
+                    if (existingMetricIndex > -1) {
+                        aggregatedResult.dailyMetrics[existingMetricIndex] = {
+                            ...aggregatedResult.dailyMetrics[existingMetricIndex],
+                            ...newMetric
+                        };
+                    } else {
+                        aggregatedResult.dailyMetrics.push(newMetric);
+                    }
+                });
               }
               aggregatedResult.summary = chunkResult.summary; 
           } catch (error) {
@@ -100,14 +101,13 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
                   title: `Error en el archivo ${fileName}`,
                   description: `No se pudo procesar una parte del archivo.`,
               });
-              // Stop processing this file if a chunk fails
-              return;
+              return null; // Stop processing this file if a chunk fails
           }
       }
-      onDataProcessed(aggregatedResult);
+      return aggregatedResult;
   }
 
-  const processSingleFile = async (file: File) => {
+  const processSingleFile = async (file: File): Promise<ProcessHealthDataFileOutput | null> => {
     const content = await file.text();
     if (!content) {
       toast({
@@ -115,15 +115,21 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
         title: "Archivo vacío",
         description: `El archivo ${file.name} parece estar vacío.`,
       });
-      return;
+      return null;
     }
-    await processFileInChunks(content, file.name);
+    return await processFileInChunks(content, file.name);
   };
   
-  const processZipFile = async (file: File) => {
+  const processZipFile = async (file: File): Promise<ProcessHealthDataFileOutput | null> => {
     const JSZip = (await import('jszip')).default;
     const zip = await JSZip.loadAsync(file);
     let filesProcessed = 0;
+    
+    let combinedResult: ProcessHealthDataFileOutput = {
+      summary: "",
+      workouts: [],
+      dailyMetrics: [],
+    };
 
     for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
       if (!zipEntry.dir && relativePath.toLowerCase().endsWith('.csv')) {
@@ -132,7 +138,23 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
           console.warn(`Archivo vacío en ZIP: ${zipEntry.name}`);
           continue;
         }
-        await processFileInChunks(content, zipEntry.name);
+        const fileResult = await processFileInChunks(content, zipEntry.name);
+        if (fileResult) {
+            if (fileResult.workouts) combinedResult.workouts.push(...fileResult.workouts);
+            if (fileResult.dailyMetrics) {
+                fileResult.dailyMetrics.forEach(newMetric => {
+                    const existingMetricIndex = combinedResult.dailyMetrics.findIndex(m => m.date === newMetric.date);
+                    if (existingMetricIndex > -1) {
+                        combinedResult.dailyMetrics[existingMetricIndex] = {
+                            ...combinedResult.dailyMetrics[existingMetricIndex],
+                            ...newMetric
+                        };
+                    } else {
+                        combinedResult.dailyMetrics.push(newMetric);
+                    }
+                });
+            }
+        }
         filesProcessed++;
       }
     }
@@ -143,7 +165,9 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
             title: "ZIP sin archivos válidos",
             description: "No se encontraron archivos CSV procesables en el ZIP.",
         });
+        return null;
     }
+    return combinedResult;
   };
 
 
@@ -158,15 +182,36 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
     }
 
     setIsLoading(true);
+    let allProcessedData: ProcessHealthDataFileOutput = { summary: "", dailyMetrics: [], workouts: [] };
     
     try {
       for (const file of files) {
+        let result: ProcessHealthDataFileOutput | null = null;
         if (file.name.toLowerCase().endsWith('.zip')) {
-          await processZipFile(file);
+          result = await processZipFile(file);
         } else if (file.name.toLowerCase().endsWith('.csv')) {
-          await processSingleFile(file);
+          result = await processSingleFile(file);
+        }
+
+        if (result) {
+            if(result.dailyMetrics) {
+                 result.dailyMetrics.forEach(newMetric => {
+                    const existingMetricIndex = allProcessedData.dailyMetrics.findIndex(m => m.date === newMetric.date);
+                    if (existingMetricIndex > -1) {
+                        allProcessedData.dailyMetrics[existingMetricIndex] = {
+                            ...allProcessedData.dailyMetrics[existingMetricIndex],
+                            ...newMetric
+                        };
+                    } else {
+                        allProcessedData.dailyMetrics.push(newMetric);
+                    }
+                });
+            }
+            if(result.workouts) allProcessedData.workouts.push(...result.workouts);
         }
       }
+
+      onDataProcessed(allProcessedData);
 
       toast({
         title: "Archivos procesados",
