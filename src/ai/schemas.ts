@@ -36,26 +36,34 @@ export type ProcessHealthDataFileInput = z.infer<
 
 export const SleepDataSchema = z.object({
     date: z.string().describe("Fecha de las métricas (YYYY-MM-DD)."),
-    bedtime: z.string().optional().describe("Hora de dormir."),
-    wakeUpTime: z.string().optional().describe("Hora de despertarse."),
-    inBedTime: z.string().optional().describe("Tiempo en cama."),
-    sleepTime: z.string().optional().describe("Tiempo dormido."),
+    bedtime: z.string().optional().describe("Hora de dormir (HH:mm)."),
+    wakeUpTime: z.string().optional().describe("Hora de despertarse (HH:mm)."),
+    inBedTime: z.string().optional().describe("Tiempo en cama (minutos)."),
+    sleepTime: z.string().optional().describe("Tiempo total dormido (minutos)."),
+    awakeTime: z.string().optional().describe("Tiempo despierto en la cama (minutos)."),
+    timeToFallAsleep: z.string().optional().describe("Tiempo que se tarda en dormir (minutos)."),
+    efficiency: z.string().optional().describe("Eficiencia del sueño (%)."),
+    quality: z.string().optional().describe("Calidad del sueño (%)."),
+    hrv: z.number().optional().describe("VFC dormido (ms).").default(0),
+    hrv7DayAvg: z.number().optional().describe("VFC promedio de 7 días (ms).").default(0),
+    SPO2: z.object({
+        avg: z.string().optional().describe("Saturación de oxígeno media (%)."),
+        min: z.string().optional().describe("Saturación de oxígeno mínima (%)."),
+        max: z.string().optional().describe("Saturación de oxígeno máxima (%)."),
+    }).optional(),
+    respiratoryRate: z.number().optional().describe("Frecuencia respiratoria media (rpm).").default(0),
+    respiratoryRateMin: z.number().optional().describe("Frecuencia respiratoria mínima (rpm).").default(0),
+    respiratoryRateMax: z.number().optional().describe("Frecuencia respiratoria máxima (rpm).").default(0),
+    apnea: z.string().optional().describe("Detección de apnea (Sí/No)."),
+    tags: z.string().optional().describe("Etiquetas o eventos registrados."),
+    notes: z.string().optional().describe("Notas sobre el sueño."),
+    // Campos antiguos que se pueden mantener o eliminar si ya no se usan
     awakenings: z.number().optional().describe("Número de despertares.").default(0),
     deepSleepTime: z.string().optional().describe("Tiempo de sueño profundo."),
-    quality: z.string().optional().describe("Calidad del sueño (ej. '95%')."),
-    efficiency: z.string().optional().describe("Eficiencia del sueño (ej. '98%')."),
     avgHeartRate: z.number().optional().describe("HR promedio dormido (LPM).").default(0),
-    hrv: z.number().optional().describe("VFC dormido (ms).").default(0),
-    respiratoryRate: z.number().optional().describe("Respiración media.").default(0),
-    SPO2: z.object({
-        avg: z.string().optional(),
-        min: z.string().optional(),
-        max: z.string().optional(),
-    }).optional(),
-    apnea: z.string().optional().describe("Detección de apnea."),
-    notes: z.string().optional().describe("Notas sobre el sueño."),
 });
 export type SleepData = z.infer<typeof SleepDataSchema>;
+
 
 export const WorkoutDataSchema = z.object({
     date: z.string().describe("Fecha del entrenamiento (YYYY-MM-DD)."),
@@ -137,3 +145,12 @@ export const CalendarEventSchema = z.object({
     endTime: z.string().optional().describe("Hora de fin (HH:mm)."),
 });
 export type CalendarEvent = z.infer<typeof CalendarEventSchema>;
+
+
+export const DailyMetricSchema = z.object({
+  date: z.string().describe("Fecha de la métrica (YYYY-MM-DD)."),
+  estadoCiclo: z.string().optional().describe("Estado del ciclo, ej. 'menstruacion'"),
+  sintomas: z.array(z.string()).optional().describe("Lista de síntomas."),
+  notas: z.string().optional().describe("Notas generales del día."),
+});
+export type DailyMetric = z.infer<typeof DailyMetricSchema>;

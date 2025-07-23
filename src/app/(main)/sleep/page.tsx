@@ -32,22 +32,35 @@ export default function SleepPage() {
     }, [userId]);
 
     const sleepDataRows = useMemo(() => {
+        // Helper to format date from YYYY-MM-DD to DD/MM/YYYY
+        const formatDate = (dateString: string) => {
+            if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return '-';
+            const [year, month, day] = dateString.split('-');
+            return `${day}/${month}/${year}`;
+        };
+        
         return sleepData.map(metric => ({
             key: metric.date,
             cells: [
-                metric.date,
+                formatDate(metric.date),
                 metric.bedtime || "-",
                 metric.wakeUpTime || "-",
                 metric.inBedTime || "-",
                 metric.sleepTime || "-",
-                metric.awakenings || "-",
-                metric.deepSleepTime || "-",
-                metric.quality || "-",
+                metric.awakeTime || "-",
+                metric.timeToFallAsleep || "-",
                 metric.efficiency || "-",
-                metric.avgHeartRate || "-",
+                metric.quality || "-",
                 metric.hrv || "-",
-                metric.respiratoryRate || "-",
+                metric.hrv7DayAvg || "-",
                 metric.SPO2?.avg || "-",
+                metric.SPO2?.min || "-",
+                metric.SPO2?.max || "-",
+                metric.respiratoryRate || "-",
+                metric.respiratoryRateMin || "-",
+                metric.respiratoryRateMax || "-",
+                metric.apnea || "-",
+                metric.notes || metric.tags || "-",
             ],
         }));
     }, [sleepData]);
@@ -55,8 +68,8 @@ export default function SleepPage() {
     return (
         <div className="flex flex-col gap-6">
             <FileUploadProcessor 
-                title="Subir Datos de Sueño"
-                description="Sube aquí tu archivo CSV de AutoSleep."
+                title="Subir Datos de Sueño de AutoSleep"
+                description="Sube aquí tu archivo CSV exportado desde AutoSleep."
                 dataType="sleepData"
                 userId={userId}
             />
@@ -76,9 +89,10 @@ export default function SleepPage() {
                     ) : (
                         <DataTable
                             headers={[
-                                "Fecha", "Hora de Dormir", "Hora de Despertar", "En Cama", "Tiempo Dormido",
-                                "Despertares", "Sueño Profundo", "Calidad", "Eficiencia", "FC Dormido",
-                                "VFC Dormido", "Respiración", "SpO2 Media"
+                                "Fecha", "Hora de Dormir", "Hora de Despertar", "En Cama (min)", "Dormido (min)", "Despierto (min)",
+                                "Para Dormir (min)", "Eficiencia (%)", "Calidad (%)", "VFC (ms)", "VFC 7d (ms)",
+                                "Sat. O2 Media (%)", "Sat. O2 Mín (%)", "Sat. O2 Máx (%)", "Resp. Media", "Resp. Mín", "Resp. Máx",
+                                "Apnea", "Notas/Etiquetas"
                             ]}
                             rows={sleepDataRows}
                             emptyMessage="No hay datos de sueño registrados. Sube un archivo para empezar."

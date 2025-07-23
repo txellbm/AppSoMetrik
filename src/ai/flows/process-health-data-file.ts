@@ -27,27 +27,32 @@ const prompt = ai.definePrompt({
     - El nombre del archivo (\`{{{fileName}}}\`) es la fuente principal para determinar qué datos contiene.
     - Ignora los archivos que no coincidan con la lista de archivos a procesar.
 
-2.  **Agregación por Fecha**: Todos los datos deben agruparse por fecha (usa el campo 'date', 'from' o 'date Y-M-d' y formatéalo como 'YYYY-MM-DD'). Los datos de un mismo día provenientes de múltiples filas deben sumarse o agregarse lógicamente.
+2.  **Agregación por Fecha**: Todos los datos deben agruparse por fecha (usa el campo 'ISO8601', 'date' o 'date Y-M-d' y formatéalo como 'YYYY-MM-DD'). Los datos de un mismo día provenientes de múltiples filas deben sumarse o agregarse lógicamente.
 
 3.  **Mapeo Estricto de Archivo a Métrica:**
 
     - **Si \`{{{fileName}}}\` contiene 'AutoSleep'**: Procesa como datos de **Sueño**.
         - Extrae y mapea los siguientes campos a \`sleepData\`:
-        - \`date\` -> \`date\`
-        - \`asleep\` -> \`sleepTime\` (tiempo dormido)
-        - \`inBed\` -> \`inBedTime\` (tiempo en cama)
-        - \`awakening\` -> \`awakenings\`
-        - \`quality\` -> \`quality\`
-        - \`sleepHR\` -> \`avgHeartRate\`
-        - \`respRate\` -> \`respiratoryRate\`
-        - \`spO2Avg\` -> \`SPO2.avg\`
-        - \`spO2Min\` -> \`SPO2.min\`
-        - \`spO2Max\` -> \`SPO2.max\`
-        - \`deep\` -> \`deepSleepTime\`
-        - \`efficiency\` -> \`efficiency\`
-        - \`hrv\` -> \`hrv\`
-        - \`sleepTime\` -> \`bedtime\` (hora de dormir)
-        - \`wakeTime\` -> \`wakeUpTime\`
+        - \`ISO8601\` -> \`date\` (extraer solo la fecha)
+        - \`horaDedormir\` -> \`bedtime\`
+        - \`horaDedespertarse\` -> \`wakeUpTime\`
+        - \`enCama\` -> \`inBedTime\`
+        - \`dormido\` -> \`sleepTime\`
+        - \`despierto\` -> \`awakeTime\`
+        - \`seDurmióEn\` -> \`timeToFallAsleep\`
+        - \`eficiencia\` -> \`efficiency\`
+        - \`calidad\` -> \`quality\`
+        - \`vfc\` -> \`hrv\`
+        - \`mediaVFCdormido7días\` -> \`hrv7DayAvg\`
+        - \`mediaSatOx\` -> \`SPO2.avg\`
+        - \`mínSatOx\` -> \`SPO2.min\`
+        - \`máxSatOx\` -> \`SPO2.max\`
+        - \`mediaResp\` -> \`respiratoryRate\`
+        - \`mínResp\` -> \`respiratoryRateMin\`
+        - \`máxResp\` -> \`respiratoryRateMax\`
+        - \`apnea\` -> \`apnea\`
+        - \`etiquetas\` -> \`tags\`
+        - \`notas\` -> \`notes\`
 
     - **Si \`{{{fileName}}}\` contiene 'HeartWatch-Entrenamientos.csv'**: Procesa como datos de **Entrenamientos**.
         - Extrae y mapea los siguientes campos a \`workouts\`:
