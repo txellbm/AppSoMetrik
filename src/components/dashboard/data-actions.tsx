@@ -15,6 +15,8 @@ type DataActionsProps = {
   onGenerateReport: () => void;
 };
 
+const CHUNK_SIZE = 500; // Process 500 rows at a time
+
 export default function DataActions({ onDataProcessed, onGenerateReport }: DataActionsProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -53,6 +55,44 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
     setFiles(files.filter((_, i) => i !== index));
   }
 
+  const processFileInChunks = async (fileContent: string, fileName: string) => {
+      const lines = fileContent.split('\n');
+      const header = lines[0];
+      const dataRows = lines.slice(1);
+      const totalChunks = Math.ceil(dataRows.length / CHUNK_SIZE);
+      let aggregatedResult: ProcessHealthDataFileOutput = {
+          summary: "",
+          workouts: [],
+          sleepData: [],
+          menstrualData: [],
+      };
+
+      for (let i = 0; i < dataRows.length; i += CHUNK_SIZE) {
+          const chunkRows = dataRows.slice(i, i + CHUNK_SIZE);
+          const chunkContent = [header, ...chunkRows].join('\n');
+          
+          try {
+              const chunkResult = await processHealthDataFile({ fileContent: chunkContent, fileName });
+              // Aggregate results
+              aggregatedResult.workouts.push(...chunkResult.workouts);
+              aggregatedResult.sleepData.push(...chunkResult.sleepData);
+              aggregatedResult.menstrualData.push(...chunkResult.menstrualData);
+              // We can build a more detailed summary later if needed
+              aggregatedResult.summary = chunkResult.summary; 
+          } catch (error) {
+              console.error(`Error processing chunk for ${fileName}:`, error);
+              toast({
+                  variant: "destructive",
+                  title: `Error en el archivo ${fileName}`,
+                  description: `No se pudo procesar una parte del archivo.`,
+              });
+              // Stop processing this file if a chunk fails
+              return;
+          }
+      }
+      onDataProcessed(aggregatedResult);
+  }
+
   const processSingleFile = async (file: File) => {
     const content = await file.text();
     if (!content) {
@@ -63,30 +103,23 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
       });
       return;
     }
-    const result = await processHealthDataFile({ fileContent: content, fileName: file.name });
-    onDataProcessed(result);
+    await processFileInChunks(content, file.name);
   };
   
   const processZipFile = async (file: File) => {
     const JSZip = (await import('jszip')).default;
     const zip = await JSZip.loadAsync(file);
-    const processingPromises = [];
 
     for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
       if (!zipEntry.dir && relativePath.toLowerCase().endsWith('.csv')) {
-        const promise = zipEntry.async('string').then(content => {
-          if (!content) {
-            console.warn(`Archivo vacío en ZIP: ${zipEntry.name}`);
-            return;
-          }
-          return processHealthDataFile({ fileContent: content, fileName: zipEntry.name });
-        }).then(result => {
-            if(result) onDataProcessed(result);
-        });
-        processingPromises.push(promise);
+        const content = await zipEntry.async('string');
+        if (!content) {
+          console.warn(`Archivo vacío en ZIP: ${zipEntry.name}`);
+          continue;
+        }
+        await processFileInChunks(content, zipEntry.name);
       }
     }
-    await Promise.all(processingPromises);
   };
 
 
@@ -146,8 +179,8 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
       <CardContent className="space-y-4">
         <div 
             className={cn(
-                "p-4 border-2 border-dashed rounded-lg text-center space-y-2 transition-colors cursor-pointer",
-                "flex flex-col items-center justify-center h-32",
+                "p-4 border-2 border-dashed rounded-lg text-center space-y-2 transition-colors",
+                "flex flex-col items-center justify-center h-32 cursor-pointer",
                 isDragging ? "border-primary bg-primary/10" : "border-border"
             )}
             onDragEnter={handleDragEnter}
