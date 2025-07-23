@@ -9,22 +9,26 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Save, Trash2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export type EventFormData = Omit<CalendarEvent, 'id'>;
 
-type EventDialogProps = {
+type EditEventDialogProps = {
     isOpen: boolean;
     onClose: () => void;
     onSave: (data: EventFormData) => void;
-    onDelete: () => void;
+    onDelete: (event: CalendarEvent) => void;
     event: CalendarEvent | null;
     defaultDate: Date | null;
 };
 
-export default function EventDialog({ isOpen, onClose, onSave, onDelete, event, defaultDate }: EventDialogProps) {
+export default function EditEventDialog({ isOpen, onClose, onSave, onDelete, event, defaultDate }: EditEventDialogProps) {
     const [formData, setFormData] = useState<Partial<EventFormData>>({});
+    const { toast } = useToast();
 
     useEffect(() => {
+        if (!isOpen) return;
+
         if (event) {
             setFormData({
                 description: event.description,
@@ -51,8 +55,7 @@ export default function EventDialog({ isOpen, onClose, onSave, onDelete, event, 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.date || !formData.description || !formData.type) {
-            // Basic validation
-            alert("Por favor, completa todos los campos requeridos.");
+            toast({ variant: "destructive", title: "Error", description: "Por favor, completa todos los campos requeridos." });
             return;
         }
         onSave(formData as EventFormData);
@@ -62,7 +65,7 @@ export default function EventDialog({ isOpen, onClose, onSave, onDelete, event, 
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>{event ? "Editar Evento" : "Añadir Evento"}</DialogTitle>
+                    <DialogTitle>{event?.id ? "Editar Evento" : "Añadir Evento"}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 pt-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -77,7 +80,6 @@ export default function EventDialog({ isOpen, onClose, onSave, onDelete, event, 
                             name="type"
                             value={formData.type}
                             onValueChange={(value) => handleChange('type', value as CalendarEvent['type'])}
-                            required
                         >
                             <SelectTrigger>
                                 <SelectValue placeholder="Tipo de evento" />
@@ -114,10 +116,10 @@ export default function EventDialog({ isOpen, onClose, onSave, onDelete, event, 
                         />
                     </div>
 
-                    <DialogFooter className="flex justify-between w-full">
+                    <DialogFooter className="flex justify-between w-full pt-4">
                         <div>
-                            {event && (
-                                <Button type="button" variant="destructive" onClick={onDelete}>
+                            {event?.id && (
+                                <Button type="button" variant="destructive" onClick={() => onDelete(event)}>
                                     <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                                 </Button>
                             )}
@@ -134,3 +136,5 @@ export default function EventDialog({ isOpen, onClose, onSave, onDelete, event, 
         </Dialog>
     );
 }
+
+    
