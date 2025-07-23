@@ -86,7 +86,7 @@ export const ProcessHealthDataFileOutputSchema = z.object({
   summary: z
     .string()
     .describe('Un resumen completo de los datos de salud del archivo proporcionado.'),
-  dailyMetrics: z.record(z.string(), DailyMetricSchema).describe("Un objeto con métricas diarias, donde cada clave es una fecha 'YYYY-MM-DD'."),
+  dailyMetrics: z.array(DailyMetricSchema).describe("Una lista de métricas diarias, con una entrada por cada día con datos."),
   workouts: z.array(WorkoutSchema).describe("Una lista de los entrenamientos extraídos del archivo.").default([]),
 });
 export type ProcessHealthDataFileOutput = z.infer<

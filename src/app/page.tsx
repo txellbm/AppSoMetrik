@@ -98,7 +98,7 @@ export default function Home() {
 
 
  const handleDataProcessed = async (processedData: ProcessHealthDataFileOutput) => {
-    if (!processedData || (!processedData.workouts?.length && Object.keys(processedData.dailyMetrics).length === 0)) {
+    if (!processedData || (!processedData.workouts?.length && !processedData.dailyMetrics?.length)) {
         toast({
             title: "Sin datos nuevos para procesar",
             description: "El archivo no contenía información relevante o ya estaba actualizada.",
@@ -113,7 +113,7 @@ export default function Home() {
 
     // Process Daily Metrics: one doc per day (date is the ID)
     if (dailyMetrics) {
-      Object.values(dailyMetrics).forEach(item => {
+      dailyMetrics.forEach(item => {
           if (!item.date) return;
           const docRef = doc(userRef, "dailyMetrics", item.date);
           batch.set(docRef, item, { merge: true });
