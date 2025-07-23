@@ -27,13 +27,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
-type WorkoutType = "Pilates" | "Flexibilidad" | "Fuerza";
-type WorkoutTypeInfo = {
+type QuickEventType = "Pilates" | "Flexibilidad" | "Fuerza" | "Trabajo";
+type QuickEventTypeInfo = {
     duration: number; // in minutes
     startTime: string; // HH:mm
     defaultDaysOfWeek: number[]; // 0 for Sunday, 1 for Monday, etc.
+    type: CalendarEvent['type'];
 };
-type WorkoutTypes = Record<WorkoutType, WorkoutTypeInfo>;
+type QuickEventTypes = Record<QuickEventType, QuickEventTypeInfo>;
 
 
 export default function CalendarPage() {
@@ -48,11 +49,12 @@ export default function CalendarPage() {
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
     const [dialogDate, setDialogDate] = useState<Date | null>(null);
     
-    const [selectedWorkoutType, setSelectedWorkoutType] = useState<WorkoutType | null>(null);
-    const [workoutTypes, setWorkoutTypes] = useState<WorkoutTypes>({
-        "Pilates": { duration: 60, startTime: "09:00", defaultDaysOfWeek: [] },
-        "Flexibilidad": { duration: 45, startTime: "18:00", defaultDaysOfWeek: [] },
-        "Fuerza": { duration: 75, startTime: "19:00", defaultDaysOfWeek: [] },
+    const [selectedQuickEventType, setSelectedQuickEventType] = useState<QuickEventType | null>(null);
+    const [quickEventTypes, setQuickEventTypes] = useState<QuickEventTypes>({
+        "Trabajo": { duration: 480, startTime: "09:00", defaultDaysOfWeek: [], type: "trabajo" },
+        "Pilates": { duration: 60, startTime: "09:00", defaultDaysOfWeek: [], type: "entrenamiento" },
+        "Flexibilidad": { duration: 45, startTime: "18:00", defaultDaysOfWeek: [], type: "entrenamiento" },
+        "Fuerza": { duration: 75, startTime: "19:00", defaultDaysOfWeek: [], type: "entrenamiento" },
     });
 
     const [eventToDelete, setEventToDelete] = useState<string | null>(null);
@@ -65,7 +67,7 @@ export default function CalendarPage() {
         if (typeof window !== 'undefined' && !date) {
             setDate(new Date());
         }
-    }, [date]);
+    }, []);
 
     useEffect(() => {
         setIsLoading(true);
@@ -104,12 +106,12 @@ export default function CalendarPage() {
     const handleDateSelect = async (day: Date) => {
         setDate(day);
     
-        if (selectedWorkoutType) {
-            const config = workoutTypes[selectedWorkoutType];
+        if (selectedQuickEventType) {
+            const config = quickEventTypes[selectedQuickEventType];
             
             const newEvent: Omit<CalendarEvent, 'id'> = {
-                description: selectedWorkoutType,
-                type: 'entrenamiento',
+                description: selectedQuickEventType,
+                type: config.type,
                 date: format(day, "yyyy-MM-dd"),
                 startTime: config.startTime,
                 endTime: format(new Date(new Date(`1970-01-01T${config.startTime}`).getTime() + config.duration * 60000), "HH:mm"),
@@ -129,7 +131,7 @@ export default function CalendarPage() {
             toast({ title: "Éxito", description: `Evento ${selectedEvent ? 'actualizado' : 'creado'} correctamente.` });
             setIsDialogOpen(false);
             setSelectedEvent(null);
-            setSelectedWorkoutType(null);
+            setSelectedQuickEventType(null);
         } catch (error) {
             console.error("Error saving event:", error);
             toast({ variant: "destructive", title: "Error", description: "No se pudo guardar el evento." });
@@ -155,23 +157,23 @@ export default function CalendarPage() {
         }
     };
 
-    const handleWorkoutConfigChange = (type: WorkoutType, field: keyof WorkoutTypeInfo, value: any) => {
-        setWorkoutTypes(prev => ({
+    const handleQuickEventConfigChange = (type: QuickEventType, field: keyof QuickEventTypeInfo, value: any) => {
+        setQuickEventTypes(prev => ({
             ...prev,
             [type]: { ...prev[type], [field]: value }
         }));
     };
 
-    const handleDayToggle = (type: WorkoutType, day: number) => {
-        const currentDays = workoutTypes[type].defaultDaysOfWeek;
+    const handleDayToggle = (type: QuickEventType, day: number) => {
+        const currentDays = quickEventTypes[type].defaultDaysOfWeek;
         const newDays = currentDays.includes(day)
             ? currentDays.filter(d => d !== day)
             : [...currentDays, day];
-        handleWorkoutConfigChange(type, 'defaultDaysOfWeek', newDays.sort());
+        handleQuickEventConfigChange(type, 'defaultDaysOfWeek', newDays.sort());
     };
 
-    const handleScheduleWorkout = async (type: WorkoutType) => {
-        const config = workoutTypes[type];
+    const handleScheduleEvent = async (type: QuickEventType) => {
+        const config = quickEventTypes[type];
         if (config.defaultDaysOfWeek.length === 0) {
             toast({ variant: "destructive", title: "Error", description: "Selecciona al menos un día fijo para programar." });
             return;
@@ -192,7 +194,7 @@ export default function CalendarPage() {
                 const endTime = new Date(new Date(`1970-01-01T${config.startTime}`).getTime() + config.duration * 60000);
                 eventsToAdd.push({
                     description: type,
-                    type: 'entrenamiento',
+                    type: config.type,
                     date: format(targetDay, 'yyyy-MM-dd'),
                     startTime: config.startTime,
                     endTime: format(endTime, 'HH:mm'),
@@ -214,10 +216,10 @@ export default function CalendarPage() {
             });
             await batch.commit();
 
-            toast({ title: "Éxito", description: `${eventsToAdd.length} entrenamientos de ${type} han sido añadidos al calendario.` });
+            toast({ title: "Éxito", description: `${eventsToAdd.length} eventos de ${type} han sido añadidos al calendario.` });
         } catch (error) {
-            console.error("Error scheduling workouts:", error);
-            toast({ variant: "destructive", title: "Error", description: "No se pudieron programar los entrenamientos." });
+            console.error("Error scheduling events:", error);
+            toast({ variant: "destructive", title: "Error", description: "No se pudieron programar los eventos." });
         }
     };
     
@@ -269,21 +271,21 @@ export default function CalendarPage() {
                 <aside className="lg:col-span-1 space-y-4">
                     <Card>
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-base">Entrenamientos Rápidos</CardTitle>
+                            <CardTitle className="text-base">Eventos Rápidos</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
-                            {Object.keys(workoutTypes).map((key) => {
-                                const type = key as WorkoutType;
-                                const config = workoutTypes[type];
+                            {Object.keys(quickEventTypes).map((key) => {
+                                const type = key as QuickEventType;
+                                const config = quickEventTypes[type];
                                 return (
                                     <Card key={type} className="p-2">
                                         <div className="flex justify-between items-center mb-1.5">
-                                            <Button variant="link" className="p-0 h-auto text-sm font-semibold" onClick={() => setSelectedWorkoutType(st => st === type ? null : type)}>{type}</Button>
+                                            <Button variant="link" className="p-0 h-auto text-sm font-semibold" onClick={() => setSelectedQuickEventType(st => st === type ? null : type)}>{type}</Button>
                                              <div className="flex items-center gap-2">
-                                                <InputWithLabel small label="Hora" type="time" value={config.startTime} onChange={(e) => handleWorkoutConfigChange(type, 'startTime', e.target.value)} />
-                                                <InputWithLabel small label="Min" type="number" value={config.duration} onChange={(e) => handleWorkoutConfigChange(type, 'duration', parseInt(e.target.value))} />
+                                                <InputWithLabel small label="Hora" type="time" value={config.startTime} onChange={(e) => handleQuickEventConfigChange(type, 'startTime', e.target.value)} />
+                                                <InputWithLabel small label="Min" type="number" value={config.duration} onChange={(e) => handleQuickEventConfigChange(type, 'duration', parseInt(e.target.value))} />
                                                 {config.defaultDaysOfWeek.length > 0 && (
-                                                    <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => handleScheduleWorkout(type)}>
+                                                    <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => handleScheduleEvent(type)}>
                                                         <PlusCircle className="h-5 w-5 text-primary"/>
                                                     </Button>
                                                 )}
@@ -368,5 +370,7 @@ const InputWithLabel = ({ label, small = false, ...props }: { label: string, sma
         <Input {...props} className={small ? 'h-7 w-16 text-xs' : ''}/>
     </div>
 );
+
+    
 
     
