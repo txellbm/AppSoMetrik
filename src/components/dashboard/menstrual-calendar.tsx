@@ -8,7 +8,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Stethoscope, Droplet } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import * as React from "react";
-import { parseISO } from "date-fns";
+import { parseISO, isValid } from "date-fns";
 
 const flowColors: { [key: string]: string } = {
   spotting: 'text-red-300',
@@ -17,13 +17,31 @@ const flowColors: { [key: string]: string } = {
   heavy: 'text-red-600',
 };
 
-// Helper function to treat date string as local time, not UTC
-const parseDateAsLocal = (dateStr: string): Date => {
-    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-        return new Date(NaN); // Return invalid date if format is wrong
+// Helper function to safely parse dates that might be in different formats
+const safeParseDate = (dateInput: any): Date | null => {
+    if (!dateInput) return null;
+    // If it's a Firestore Timestamp object
+    if (typeof dateInput === 'object' && dateInput.seconds) {
+        return new Date(dateInput.seconds * 1000);
     }
-    const [year, month, day] = dateStr.split('-').map(Number);
-    return new Date(year, month - 1, day, 12); // Use noon to avoid timezone shifts
+    // If it's already a Date object
+    if (dateInput instanceof Date) {
+        return isValid(dateInput) ? dateInput : null;
+    }
+    // If it's a string
+    if (typeof dateInput === 'string') {
+        const date = parseISO(dateInput);
+        if (isValid(date)) return date;
+        
+        // Handle 'YYYY-MM-DD' strings by parsing them as local time
+        const parts = dateInput.split('-');
+        if (parts.length === 3) {
+            const [year, month, day] = parts.map(Number);
+            const localDate = new Date(year, month - 1, day, 12); // Use noon to avoid timezone shifts
+            if (isValid(localDate)) return localDate;
+        }
+    }
+    return null; // Return null if parsing fails
 };
 
 
@@ -50,9 +68,8 @@ export default function MenstrualCalendar({ data }: { data: DailyMetric[] }) {
   }
 
   const modifiers = data.reduce((acc, entry) => {
-    // Dates from firestore are strings, so we need to parse them locally.
-    const date = parseDateAsLocal(entry.date);
-    if (entry.menstrualCycle?.flow) {
+    const date = safeParseDate(entry.date);
+    if (date && entry.menstrualCycle?.flow) {
       const flow = entry.menstrualCycle.flow;
       acc[flow] = [...(acc[flow] || []), date];
     }
@@ -68,8 +85,8 @@ export default function MenstrualCalendar({ data }: { data: DailyMetric[] }) {
 
   const DayWithFlow = ({ date }: { date: Date }) => {
     const entryForDay = data.find(d => {
-        const entryDate = parseDateAsLocal(d.date);
-        return entryDate.getDate() === date.getDate() &&
+        const entryDate = safeParseDate(d.date);
+        return entryDate && entryDate.getDate() === date.getDate() &&
                entryDate.getMonth() === date.getMonth() &&
                entryDate.getFullYear() === date.getFullYear();
     });

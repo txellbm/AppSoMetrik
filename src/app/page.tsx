@@ -49,21 +49,40 @@ import MenstrualCyclePanel from "@/components/dashboard/menstrual-cycle-panel";
 import MenstrualCalendar from "@/components/dashboard/menstrual-calendar";
 import { collection, writeBatch, onSnapshot, doc, getDoc, setDoc, addDoc, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { startOfWeek, endOfWeek, subWeeks, isWithinInterval, parseISO, differenceInDays, startOfToday, format } from "date-fns";
+import { startOfWeek, endOfWeek, subWeeks, isWithinInterval, parseISO, differenceInDays, startOfToday, format, isValid } from "date-fns";
 
 const initialDashboardData: DashboardData = {
   workouts: [],
   dailyMetrics: [],
 };
 
-// Helper function to treat date string as local time, not UTC
-const parseDateAsLocal = (dateStr: string): Date => {
-    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-        return new Date(NaN); // Return invalid date if format is wrong
+// Helper function to safely parse dates that might be in different formats
+const safeParseDate = (dateInput: any): Date | null => {
+    if (!dateInput) return null;
+    // If it's a Firestore Timestamp object
+    if (typeof dateInput === 'object' && dateInput.seconds) {
+        return new Date(dateInput.seconds * 1000);
     }
-    const [year, month, day] = dateStr.split('-').map(Number);
-    return new Date(year, month - 1, day, 12); // Use noon to avoid timezone shifts
+    // If it's already a Date object
+    if (dateInput instanceof Date) {
+        return isValid(dateInput) ? dateInput : null;
+    }
+    // If it's a string
+    if (typeof dateInput === 'string') {
+        const date = parseISO(dateInput);
+        if (isValid(date)) return date;
+        
+        // Handle 'YYYY-MM-DD' strings by parsing them as local time
+        const parts = dateInput.split('-');
+        if (parts.length === 3) {
+            const [year, month, day] = parts.map(Number);
+            const localDate = new Date(year, month - 1, day, 12); // Use noon to avoid timezone shifts
+            if (isValid(localDate)) return localDate;
+        }
+    }
+    return null; // Return null if parsing fails
 };
+
 
 export default function Home() {
   const [dashboardData, setDashboardData] = useState<DashboardData>(initialDashboardData);
@@ -203,31 +222,63 @@ export default function Home() {
     });
   }
 
-  // Calculate aggregate metrics for StatCards
-  const avgRestingHR = useMemo(() => dashboardData.dailyMetrics.length > 0 ? dashboardData.dailyMetrics.reduce((acc, s) => acc + (s.restingHeartRate || 0), 0) / dashboardData.dailyMetrics.filter(s => s.restingHeartRate).length : 0, [dashboardData.dailyMetrics]);
-  const avgHRV = useMemo(() => dashboardData.dailyMetrics.length > 0 ? dashboardData.dailyMetrics.reduce((acc, s) => acc + (s.hrv || 0), 0) / dashboardData.dailyMetrics.filter(s => s.hrv).length : 0, [dashboardData.dailyMetrics]);
-  const avgSleepQuality = useMemo(() => dashboardData.dailyMetrics.length > 0 ? dashboardData.dailyMetrics.reduce((acc, s) => acc + (s.sleepQualityScore || 0), 0) / dashboardData.dailyMetrics.filter(s => s.sleepQualityScore).length : 0, [dashboardData.dailyMetrics]);
-  const avgReadiness = useMemo(() => dashboardData.dailyMetrics.length > 0 ? dashboardData.dailyMetrics.reduce((acc, s) => acc + (s.recoveryPercentage || 0), 0) / dashboardData.dailyMetrics.filter(s => s.recoveryPercentage).length : 0, [dashboardData.dailyMetrics]);
-  const avgRespiration = useMemo(() => dashboardData.dailyMetrics.length > 0 ? dashboardData.dailyMetrics.reduce((acc, s) => acc + (s.respirationRate || 0), 0) / dashboardData.dailyMetrics.filter(s => s.respirationRate).length : 0, [dashboardData.dailyMetrics]);
+  // Calculate aggregate metrics for StatCards, ensuring we don't divide by zero or use NaN values.
+  const calculateAverage = (items: number[]) => {
+      const validItems = items.filter(item => item !== null && item !== undefined && !isNaN(item) && item > 0);
+      if (validItems.length === 0) return 0;
+      const sum = validItems.reduce((acc, item) => acc + item, 0);
+      return sum / validItems.length;
+  };
+
+  const avgRestingHR = useMemo(() => calculateAverage(dashboardData.dailyMetrics.map(s => s.restingHeartRate || 0)), [dashboardData.dailyMetrics]);
+  const avgHRV = useMemo(() => calculateAverage(dashboardData.dailyMetrics.map(s => s.hrv || 0)), [dashboardData.dailyMetrics]);
+  const avgSleepQuality = useMemo(() => calculateAverage(dashboardData.dailyMetrics.map(s => s.sleepQualityScore || 0)), [dashboardData.dailyMetrics]);
+  const avgReadiness = useMemo(() => calculateAverage(dashboardData.dailyMetrics.map(s => s.recoveryPercentage || 0)), [dashboardData.dailyMetrics]);
+  const avgRespiration = useMemo(() => calculateAverage(dashboardData.dailyMetrics.map(s => s.respirationRate || 0)), [dashboardData.dailyMetrics]);
   
   const calculatedCycleData = useMemo<CalculatedCycleData>(() => {
     const today = startOfToday();
-    const sortedMetrics = [...dashboardData.dailyMetrics].sort((a, b) => parseDateAsLocal(a.date).getTime() - parseDateAsLocal(b.date).getTime());
+    const sortedMetrics = [...dashboardData.dailyMetrics]
+        .map(d => ({ ...d, parsedDate: safeParseDate(d.date) }))
+        .filter(d => d.parsedDate && isValid(d.parsedDate))
+        .sort((a, b) => a.parsedDate!.getTime() - b.parsedDate!.getTime());
     
-    const todayMetric = sortedMetrics.find(d => d.date === format(today, 'yyyy-MM-dd'));
+    if (sortedMetrics.length === 0) {
+        return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
+    }
 
-    // Find the last menstrual cycle start date
+    const todayMetric = sortedMetrics.find(d => format(d.parsedDate!, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd'));
+
+    // Find the last menstrual cycle start date by looking for the first day of flow
     let lastCycleStartDate: Date | null = null;
+    let lastFlowDay: Date | null = null;
+    let consecutiveFlowDays = 0;
+
     for (let i = sortedMetrics.length - 1; i >= 0; i--) {
         const metric = sortedMetrics[i];
         if (metric.menstrualCycle?.flow && metric.menstrualCycle.flow !== 'spotting') {
-             const prevDayIndex = i - 1;
-             // Check if previous day also had flow. If not, this is the start.
-             if (prevDayIndex < 0 || !sortedMetrics[prevDayIndex].menstrualCycle?.flow || sortedMetrics[prevDayIndex].menstrualCycle?.flow === 'spotting') {
-                lastCycleStartDate = parseDateAsLocal(metric.date);
-                break;
-             }
+            const currentDate = metric.parsedDate!;
+            if (lastFlowDay === null) { // First day of flow found (from backwards)
+                lastFlowDay = currentDate;
+                consecutiveFlowDays = 1;
+            } else {
+                const dayDiff = differenceInDays(lastFlowDay, currentDate);
+                if (dayDiff === 1) { // It's a consecutive day
+                    consecutiveFlowDays++;
+                    lastFlowDay = currentDate;
+                } else { // Gap in flow, so the last flow was the start of a new cycle
+                    lastCycleStartDate = lastFlowDay;
+                    break;
+                }
+            }
+        } else if (lastFlowDay !== null) { // We found the end of the flow period
+            lastCycleStartDate = lastFlowDay;
+            break;
         }
+    }
+    // If loop finishes and we have a flow period, set the start date
+    if (lastCycleStartDate === null && lastFlowDay !== null) {
+        lastCycleStartDate = lastFlowDay;
     }
     
     if (!lastCycleStartDate) {
@@ -237,13 +288,15 @@ export default function Home() {
     const dayOfCycle = differenceInDays(today, lastCycleStartDate) + 1;
     let currentPhase = "No disponible";
 
+    // A more realistic phase calculation
     if (dayOfCycle >= 1 && dayOfCycle <= 7) currentPhase = "Menstrual";
     else if (dayOfCycle > 7 && dayOfCycle <= 14) currentPhase = "Folicular";
     else if (dayOfCycle > 14 && dayOfCycle <= 16) currentPhase = "Ovulatoria";
-    else if (dayOfCycle > 16) currentPhase = "Lútea";
+    else if (dayOfCycle > 16 && dayOfCycle <= 28) currentPhase = "Lútea";
+    else currentPhase = "Lútea"; // Default to Luteal for longer cycles
 
     return {
-        currentDay: dayOfCycle,
+        currentDay: dayOfCycle > 0 ? dayOfCycle : 0,
         currentPhase: currentPhase,
         symptoms: todayMetric?.menstrualCycle?.symptoms || [],
     };
@@ -388,46 +441,34 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
   
   const startOfLastWeek = startOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
   const endOfLastWeek = endOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
-    
-  const thisWeekWorkouts = workouts
-    .filter(w => {
-        try {
-            if (!w.date) return false;
-            const workoutDate = parseDateAsLocal(w.date);
-            return isWithinInterval(workoutDate, { start: startOfThisWeek, end: endOfThisWeek });
-        } catch {
-            return false;
-        }
-    })
-    .sort((a, b) => parseDateAsLocal(b.date).getTime() - parseDateAsLocal(a.date).getTime());
 
-  const lastWeekWorkouts = workouts
-    .filter(w => {
-        try {
-            if (!w.date) return false;
-            const workoutDate = parseDateAsLocal(w.date);
-            return isWithinInterval(workoutDate, { start: startOfLastWeek, end: endOfLastWeek });
-        } catch {
-            return false;
-        }
-    })
-    .sort((a, b) => parseDateAsLocal(b.date).getTime() - parseDateAsLocal(a.date).getTime());
+  const filterAndSortWorkouts = (data: Workout[], interval: { start: Date, end: Date } | null) => {
+    return data
+      .map(w => ({ ...w, parsedDate: safeParseDate(w.date) }))
+      .filter(w => {
+          if (!w.parsedDate) return false;
+          if (interval) {
+              return isWithinInterval(w.parsedDate, interval);
+          }
+          return true; // for older workouts
+      })
+      .sort((a, b) => b.parsedDate!.getTime() - a.parsedDate!.getTime());
+  };
+    
+  const thisWeekWorkouts = filterAndSortWorkouts(workouts, { start: startOfThisWeek, end: endOfThisWeek });
+  const lastWeekWorkouts = filterAndSortWorkouts(workouts, { start: startOfLastWeek, end: endOfLastWeek });
     
   const olderWorkouts = workouts
+    .map(w => ({...w, parsedDate: safeParseDate(w.date)}))
     .filter(w => {
-        try {
-            if (!w.date) return false;
-            const date = parseDateAsLocal(w.date);
-            const isThisWeek = isWithinInterval(date, { start: startOfThisWeek, end: endOfThisWeek });
-            const isLastWeek = isWithinInterval(date, { start: startOfLastWeek, end: endOfLastWeek });
-            return !isThisWeek && !isLastWeek;
-        } catch {
-            return false;
-        }
+        if (!w.parsedDate) return false;
+        const isThisWeek = isWithinInterval(w.parsedDate, { start: startOfThisWeek, end: endOfThisWeek });
+        const isLastWeek = isWithinInterval(w.parsedDate, { start: startOfLastWeek, end: endOfLastWeek });
+        return !isThisWeek && !isLastWeek;
     })
-    .sort((a, b) => parseDateAsLocal(b.date).getTime() - parseDateAsLocal(a.date).getTime());
+    .sort((a, b) => b.parsedDate!.getTime() - a.parsedDate!.getTime());
 
-  const WorkoutTable = ({ data }: { data: Workout[] }) => (
+  const WorkoutTable = ({ data }: { data: (Workout & { parsedDate: Date | null })[] }) => (
     <Table>
       <TableHeader>
         <TableRow>
@@ -442,7 +483,7 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
         {data.length > 0 ? (
           data.map((workout, index) => (
             <TableRow key={index}>
-              <TableCell>{parseDateAsLocal(workout.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</TableCell>
+              <TableCell>{workout.parsedDate?.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }) || 'Fecha inválida'}</TableCell>
               <TableCell className="font-medium">{workout.type}</TableCell>
               <TableCell className="text-right">{workout.duration} min</TableCell>
               <TableCell className="text-right">{workout.calories}</TableCell>
