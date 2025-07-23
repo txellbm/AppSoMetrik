@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { DailyMetric } from "@/ai/schemas";
-import { collection, onSnapshot, query, doc, setDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, doc, setDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { format, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -11,50 +11,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { DataTable } from "@/components/dashboard/data-table";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Stethoscope, Calendar as CalendarIcon, Droplet, PlusCircle, X } from "lucide-react";
+import { Stethoscope, Calendar as CalendarIcon, Save } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export default function CyclePage() {
     const [dailyMetrics, setDailyMetrics] = useState<DailyMetric[]>([]);
+    const [selectedDays, setSelectedDays] = useState<Date[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const userId = "user_test_id";
     const { toast } = useToast();
 
-    // State for the manual entry form
-    const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-    const [cycleStatus, setCycleStatus] = useState<string>("");
-    const [symptoms, setSymptoms] = useState<string[]>([]);
-    const [currentSymptom, setCurrentSymptom] = useState("");
-    const [notes, setNotes] = useState("");
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    
-    // Load existing data for the selected date
-    useEffect(() => {
-        if (!selectedDate) return;
-        const dateStr = format(selectedDate, 'yyyy-MM-dd');
-        const docRef = doc(db, "users", userId, "dailyMetrics", dateStr);
-        const unsubscribe = onSnapshot(docRef, (doc) => {
-            if (doc.exists()) {
-                const data = doc.data() as DailyMetric;
-                setCycleStatus(data.estadoCiclo || "");
-                setSymptoms(data.sintomas || []);
-                setNotes(data.notas || "");
-            } else {
-                // Reset form if no data for this date
-                setCycleStatus("");
-                setSymptoms([]);
-                setNotes("");
-            }
-        });
-        return () => unsubscribe();
-    }, [selectedDate, userId]);
-
-
-    // Fetch all metrics for the history table
+    // Fetch all metrics to initialize calendar and for the history table
     useEffect(() => {
         const userRef = doc(db, "users", userId);
         const qDailyMetrics = query(collection(userRef, "dailyMetrics"));
@@ -62,6 +31,12 @@ export default function CyclePage() {
         const unsubscribe = onSnapshot(qDailyMetrics, (snapshot) => {
             const metrics = snapshot.docs.map(doc => ({ ...doc.data(), date: doc.id })) as DailyMetric[];
             setDailyMetrics(metrics);
+
+            const menstruationDays = metrics
+                .filter(m => m.estadoCiclo === 'menstruacion')
+                .map(m => startOfDay(new Date(m.date)));
+            setSelectedDays(menstruationDays);
+
             setIsLoading(false);
         }, (error) => {
             console.error("Error loading daily metrics:", error);
@@ -71,40 +46,38 @@ export default function CyclePage() {
         return () => unsubscribe();
     }, [userId]);
 
-    const handleAddSymptom = () => {
-        if (currentSymptom && !symptoms.includes(currentSymptom)) {
-            setSymptoms([...symptoms, currentSymptom]);
-            setCurrentSymptom("");
-        }
-    };
-    
-    const handleRemoveSymptom = (symptomToRemove: string) => {
-        setSymptoms(symptoms.filter(s => s !== symptomToRemove));
-    };
-
-    const handleSaveMetric = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!selectedDate) {
-            toast({ variant: "destructive", title: "Error", description: "Por favor, selecciona una fecha." });
-            return;
-        }
+    const handleSaveSelection = async () => {
         setIsSubmitting(true);
-        const dateStr = format(selectedDate, 'yyyy-MM-dd');
-        const docRef = doc(db, "users", userId, "dailyMetrics", dateStr);
-
-        const dataToSave: Partial<DailyMetric> = {
-            date: dateStr,
-            estadoCiclo: cycleStatus,
-            sintomas: symptoms,
-            notas: notes,
-        };
+        const batch = writeBatch(db);
+        const userRef = doc(db, "users", userId);
+        
+        // Create a set of selected dates for efficient lookup
+        const selectedDatesSet = new Set(selectedDays.map(d => format(d, 'yyyy-MM-dd')));
+        
+        // Find days that were previously marked but are now deselected
+        const daysToUnmark = dailyMetrics
+            .filter(m => m.estadoCiclo === 'menstruacion' && !selectedDatesSet.has(m.date))
+            .map(m => m.date);
 
         try {
-            await setDoc(docRef, dataToSave, { merge: true });
-            toast({ title: "Datos guardados", description: `Se ha actualizado el registro para el ${format(selectedDate, 'PPP', { locale: es })}.` });
+            // Mark selected days as 'menstruacion'
+            selectedDays.forEach(day => {
+                const dateStr = format(day, 'yyyy-MM-dd');
+                const docRef = doc(userRef, "dailyMetrics", dateStr);
+                batch.set(docRef, { estadoCiclo: "menstruacion" }, { merge: true });
+            });
+
+            // Unmark deselected days by setting estadoCiclo to 'normal'
+            daysToUnmark.forEach(dateStr => {
+                 const docRef = doc(userRef, "dailyMetrics", dateStr);
+                 batch.set(docRef, { estadoCiclo: "normal" }, { merge: true });
+            });
+
+            await batch.commit();
+            toast({ title: "Registro del ciclo guardado", description: "Se han actualizado los días de tu ciclo." });
         } catch (error) {
-            console.error("Error saving daily metric:", error);
-            toast({ variant: "destructive", title: "Error", description: "No se pudieron guardar los datos." });
+            console.error("Error saving cycle selection:", error);
+            toast({ variant: "destructive", title: "Error", description: "No se pudo guardar la selección." });
         } finally {
             setIsSubmitting(false);
         }
@@ -122,7 +95,7 @@ export default function CyclePage() {
                 cells: [
                     format(new Date(metric.date), 'dd/MM/yyyy'),
                     "N/A", // Fase no disponible aún
-                    metric.estadoCiclo === "menstruacion" ? "Sí" : (metric.estadoCiclo || "No"),
+                    metric.estadoCiclo === "menstruacion" ? <Badge variant="destructive">Sí</Badge> : (metric.estadoCiclo || "No"),
                     metric.sintomas && metric.sintomas.length > 0
                         ? <div className="flex flex-wrap gap-1">{metric.sintomas.map((s, i) => <Badge key={i} variant="outline">{s}</Badge>)}</div>
                         : "Ninguno",
@@ -141,76 +114,28 @@ export default function CyclePage() {
                         Registro Manual del Ciclo
                     </CardTitle>
                     <CardDescription>
-                        Selecciona un día y añade tus síntomas, estado y notas.
+                        Selecciona los días de tu menstruación en el calendario y pulsa guardar. Puedes añadir síntomas y notas desde el historial si es necesario.
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="md:col-span-1 flex justify-center">
-                       <Calendar
-                            mode="single"
-                            selected={selectedDate}
-                            onSelect={setSelectedDate}
-                            locale={es}
-                            className="rounded-md border"
-                            disabled={(date) => date > new Date()}
-                        />
-                    </div>
-                    <div className="md:col-span-2">
-                        <form onSubmit={handleSaveMetric} className="space-y-4">
-                            <h4 className="font-semibold text-lg">
-                                Registrando para: <span className="text-primary">{selectedDate ? format(selectedDate, 'PPP', { locale: es }) : '...'}</span>
-                            </h4>
-                            <div>
-                               <label className="text-sm font-medium">Estado del Ciclo</label>
-                               <Select value={cycleStatus} onValueChange={setCycleStatus}>
-                                   <SelectTrigger>
-                                       <SelectValue placeholder="Selecciona un estado" />
-                                   </SelectTrigger>
-                                   <SelectContent>
-                                       <SelectItem value="menstruacion">Menstruación</SelectItem>
-                                       <SelectItem value="manchado">Manchado (spotting)</SelectItem>
-                                       <SelectItem value="normal">Normal (sin sangrado)</SelectItem>
-                                   </SelectContent>
-                               </Select>
-                            </div>
-                            <div>
-                                <label className="text-sm font-medium">Síntomas</label>
-                                <div className="flex items-center gap-2">
-                                    <Input 
-                                        value={currentSymptom} 
-                                        onChange={(e) => setCurrentSymptom(e.target.value)}
-                                        placeholder="Ej: Cólicos, Hinchazón..."
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                handleAddSymptom();
-                                            }
-                                        }}
-                                    />
-                                    <Button type="button" size="icon" onClick={handleAddSymptom}><PlusCircle className="h-4 w-4"/></Button>
-                                </div>
-                                <div className="flex flex-wrap gap-2 mt-2 min-h-[24px]">
-                                    {symptoms.map(s => (
-                                        <Badge key={s} variant="secondary">
-                                            {s}
-                                            <button onClick={() => handleRemoveSymptom(s)} className="ml-2 rounded-full hover:bg-destructive/20 p-0.5">
-                                                <X className="h-3 w-3" />
-                                            </button>
-                                        </Badge>
-                                    ))}
-                                </div>
-                            </div>
-                             <div>
-                                <label className="text-sm font-medium">Notas Adicionales</label>
-                                <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="¿Algo más que quieras anotar?" />
-                            </div>
-                            <div className="flex justify-end">
-                                <Button type="submit" disabled={isSubmitting || !selectedDate}>
-                                    {isSubmitting ? "Guardando..." : "Guardar Registro del Día"}
-                                </Button>
-                            </div>
-                        </form>
-                    </div>
+                <CardContent className="flex flex-col items-center gap-6">
+                    <Calendar
+                        mode="multiple"
+                        selected={selectedDays}
+                        onSelect={setSelectedDays as any}
+                        locale={es}
+                        className="rounded-md border"
+                        disabled={(date) => date > new Date()}
+                        modifiersStyles={{
+                            selected: { 
+                                backgroundColor: 'hsl(var(--destructive))', 
+                                color: 'hsl(var(--destructive-foreground))' 
+                            },
+                        }}
+                    />
+                    <Button onClick={handleSaveSelection} disabled={isSubmitting}>
+                        <Save className="mr-2 h-4 w-4" />
+                        {isSubmitting ? "Guardando..." : "Guardar Selección"}
+                    </Button>
                 </CardContent>
             </Card>
 
@@ -231,7 +156,7 @@ export default function CyclePage() {
                         <DataTable
                             headers={["Fecha", "Fase", "Sangrado", "Síntomas", "Notas"]}
                             rows={cycleDataRows}
-                            emptyMessage="No hay datos del ciclo menstrual registrados. Usa el formulario de arriba para empezar."
+                            emptyMessage="No hay datos del ciclo menstrual registrados. Usa el calendario de arriba para empezar."
                         />
                     )}
                 </CardContent>
