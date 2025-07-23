@@ -40,7 +40,7 @@ type QuickEventTypes = Record<QuickEventType, QuickEventTypeInfo>;
 
 export default function CalendarPage() {
     const [currentMonth, setCurrentMonth] = useState(new Date());
-    const [date, setDate] = useState<Date | undefined>(new Date());
+    const [date, setDate] = useState<Date | undefined>(undefined);
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { toast } = useToast();
@@ -279,10 +279,6 @@ export default function CalendarPage() {
                         {format(currentMonth, "LLLL yyyy", { locale: es })}
                     </h2>
                 </div>
-                <Button onClick={() => openDialog(undefined, date || new Date())}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Añadir Evento
-                </Button>
             </header>
 
             <main className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 p-4 overflow-auto">
@@ -389,7 +385,7 @@ export default function CalendarPage() {
                 defaultDate={dialogDate}
             />
 
-            <AlertDialog open={!!eventToDelete} onOpenChange={setEventToDelete}>
+            <AlertDialog open={!!eventToDelete} onOpenChange={(open) => !open && setEventToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                     <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
