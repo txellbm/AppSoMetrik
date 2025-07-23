@@ -275,15 +275,6 @@ export default function Home() {
         
         <TabsContent value="dashboard" className="flex-grow p-6">
           <div className="flex flex-col gap-6">
-            <Card className="bg-primary/10 border-primary/20">
-              <CardHeader>
-                <CardTitle className="text-2xl font-bold text-primary">Bienvenido a SoMetrik</CardTitle>
-                <CardDescription>
-                  Tu asistente personal de bienestar IA. Sube tus datos para empezar a chatear.
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
                     <AIChatWidget />
@@ -365,3 +356,4 @@ export default function Home() {
   );
 }
  
+    
