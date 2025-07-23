@@ -25,6 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
 
 type WorkoutType = "Pilates" | "Flexibilidad" | "Fuerza";
 type WorkoutTypeInfo = {
@@ -267,22 +268,22 @@ export default function CalendarPage() {
                 
                 <aside className="lg:col-span-1 space-y-4">
                     <Card>
-                        <CardHeader className="pb-4">
-                            <CardTitle>Entrenamientos Rápidos</CardTitle>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-base">Entrenamientos Rápidos</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
                             {Object.keys(workoutTypes).map((key) => {
                                 const type = key as WorkoutType;
                                 const config = workoutTypes[type];
                                 return (
-                                    <Card key={type} className="p-3">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <Button variant="link" className="p-0 h-auto text-base font-semibold" onClick={() => setSelectedWorkoutType(st => st === type ? null : type)}>{type}</Button>
+                                    <Card key={type} className="p-2">
+                                        <div className="flex justify-between items-center mb-1.5">
+                                            <Button variant="link" className="p-0 h-auto text-sm font-semibold" onClick={() => setSelectedWorkoutType(st => st === type ? null : type)}>{type}</Button>
                                              <div className="flex items-center gap-2">
                                                 <InputWithLabel small label="Hora" type="time" value={config.startTime} onChange={(e) => handleWorkoutConfigChange(type, 'startTime', e.target.value)} />
                                                 <InputWithLabel small label="Min" type="number" value={config.duration} onChange={(e) => handleWorkoutConfigChange(type, 'duration', parseInt(e.target.value))} />
                                                 {config.defaultDaysOfWeek.length > 0 && (
-                                                    <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => handleScheduleWorkout(type)}>
+                                                    <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => handleScheduleWorkout(type)}>
                                                         <PlusCircle className="h-5 w-5 text-primary"/>
                                                     </Button>
                                                 )}
@@ -292,7 +293,7 @@ export default function CalendarPage() {
                                             {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((day, i) => {
                                                 const dayIndex = (i + 1) % 7; // L=1, S=6, D=0
                                                 return (
-                                                    <Button key={day} size="icon" variant={config.defaultDaysOfWeek.includes(dayIndex) ? 'default' : 'outline'} className="h-7 w-7 text-xs" onClick={() => handleDayToggle(type, dayIndex)}>
+                                                    <Button key={day} size="icon" variant={config.defaultDaysOfWeek.includes(dayIndex) ? 'default' : 'outline'} className="h-6 w-6 text-xs" onClick={() => handleDayToggle(type, dayIndex)}>
                                                         {day}
                                                     </Button>
                                                 )
@@ -362,9 +363,9 @@ export default function CalendarPage() {
 
 // Helper for inline label input
 const InputWithLabel = ({ label, small = false, ...props }: { label: string, small?: boolean } & React.ComponentProps<typeof Input>) => (
-    <div className="space-y-1">
+    <div className="space-y-0.5">
         <label className="text-xs text-muted-foreground">{label}</label>
-        <Input {...props} className={small ? 'h-8 w-20' : ''}/>
+        <Input {...props} className={small ? 'h-7 w-16 text-xs' : ''}/>
     </div>
 );
 
