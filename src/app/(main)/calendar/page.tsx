@@ -49,6 +49,7 @@ export default function CalendarPage() {
     const monthEnd = useMemo(() => endOfMonth(currentMonth), [currentMonth]);
 
     useEffect(() => {
+        // Set initial date on client to avoid hydration errors
         setDate(new Date());
     }, []);
 
@@ -85,18 +86,12 @@ export default function CalendarPage() {
     }, []);
     
     const handleDateSelect = async (day: Date) => {
+        // Always set the selected date to allow viewing events for that day.
         setDate(day);
+    
+        // If a workout type is selected, the user is in "add mode".
         if (selectedWorkoutType) {
             const config = workoutTypes[selectedWorkoutType];
-            const dayOfWeek = getDay(day); // Sunday is 0
-            if (config.defaultDaysOfWeek.length > 0 && !config.defaultDaysOfWeek.includes(dayOfWeek)) {
-                toast({
-                    variant: "destructive",
-                    title: "Día incorrecto",
-                    description: `${selectedWorkoutType} solo se puede programar en los días seleccionados.`,
-                });
-                return;
-            }
             const endTime = new Date(new Date(`1970-01-01T${config.startTime}`).getTime() + config.duration * 60000);
             
             const newEvent: Omit<CalendarEvent, 'id'> = {
@@ -106,6 +101,7 @@ export default function CalendarPage() {
                 startTime: config.startTime,
                 endTime: format(endTime, "HH:mm"),
             };
+            // Open the dialog to let the user confirm or change details.
             openDialog(newEvent as CalendarEvent, day);
         }
     };
@@ -265,7 +261,7 @@ export default function CalendarPage() {
                                 return (
                                     <Card key={type} className={cn("p-4", selectedWorkoutType === type && "ring-2 ring-primary")}>
                                         <div className="flex justify-between items-center mb-2">
-                                            <Button variant="ghost" className="p-0 h-auto text-base font-semibold" onClick={() => setSelectedWorkoutType(type)}>{type}</Button>
+                                            <Button variant="ghost" className="p-0 h-auto text-base font-semibold" onClick={() => setSelectedWorkoutType(st => st === type ? null : type)}>{type}</Button>
                                             {config.defaultDaysOfWeek.length > 0 && (
                                                 <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleScheduleWorkout(type)}>
                                                     <PlusCircle className="h-5 w-5 text-primary"/>
@@ -342,3 +338,5 @@ const InputWithLabel = ({ label, ...props }: { label: string } & React.Component
         <Input {...props} />
     </div>
 );
+
+    
