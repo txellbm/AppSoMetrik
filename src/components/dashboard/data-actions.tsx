@@ -69,8 +69,7 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
       let aggregatedResult: ProcessHealthDataFileOutput = {
           summary: "",
           workouts: [],
-          sleepData: [],
-          menstrualData: [],
+          dailyMetrics: {},
       };
 
       for (let i = 0; i < dataRows.length; i += CHUNK_SIZE) {
@@ -81,9 +80,18 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
               const chunkResult = await processHealthDataFile({ fileContent: chunkContent, fileName });
               // Aggregate results
               aggregatedResult.workouts.push(...chunkResult.workouts);
-              aggregatedResult.sleepData.push(...chunkResult.sleepData);
-              aggregatedResult.menstrualData.push(...chunkResult.menstrualData);
-              // We can build a more detailed summary later if needed
+               // Merge dailyMetrics
+              for (const date in chunkResult.dailyMetrics) {
+                  if (aggregatedResult.dailyMetrics[date]) {
+                      // Deep merge the metrics for the same day
+                      aggregatedResult.dailyMetrics[date] = {
+                          ...aggregatedResult.dailyMetrics[date],
+                          ...chunkResult.dailyMetrics[date],
+                      };
+                  } else {
+                      aggregatedResult.dailyMetrics[date] = chunkResult.dailyMetrics[date];
+                  }
+              }
               aggregatedResult.summary = chunkResult.summary; 
           } catch (error) {
               console.error(`Error processing chunk for ${fileName}:`, error);
