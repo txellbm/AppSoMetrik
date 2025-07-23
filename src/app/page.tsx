@@ -146,7 +146,9 @@ export default function Home() {
     if (workouts) {
       workouts.forEach(item => {
           if (!item.date || !item.tipo) return;
-          const docRef = doc(collection(userRef, "workouts"));
+          // Use a unique ID for each workout to avoid overwrites
+          const docId = `${item.date}_${item.tipo}_${item.duracion}_${Math.random().toString(36).substring(2, 9)}`;
+          const docRef = doc(userRef, "workouts", docId);
           batch.set(docRef, item);
           changesCount++;
       });
@@ -299,8 +301,8 @@ export default function Home() {
                     metric.sueño?.profundo || "-",
                     metric.sueño?.ligero || "-",
                     metric.sueño?.rem || "-",
-                    "N/A", 
-                    "N/A",
+                    metric.restingHeartRate || "-",
+                    metric.hrv || "-",
                 ],
             }));
     }, [sortedMetrics]);
@@ -412,7 +414,7 @@ export default function Home() {
                     <CardDescription>Un registro detallado de tus patrones de sueño a lo largo del tiempo.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <DataTable headers={["Fecha", "Total (min)", "Profundo", "Ligero", "REM", "Eficiencia", "FC Nocturna"]} rows={sleepDataRows} emptyMessage="No hay datos de sueño registrados." />
+                    <DataTable headers={["Fecha", "Total (min)", "Profundo (min)", "Ligero (min)", "REM (min)", "FC Reposo", "VFC (ms)"]} rows={sleepDataRows} emptyMessage="No hay datos de sueño registrados." />
                 </CardContent>
             </Card>
         </TabsContent>
@@ -518,3 +520,5 @@ function VitalsCard({ hrv, respiration, restingHR }: { hrv: number, respiration:
         </Card>
     )
 }
+
+    
