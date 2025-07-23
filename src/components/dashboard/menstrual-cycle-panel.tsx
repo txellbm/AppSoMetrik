@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,7 +37,7 @@ export default function MenstrualCyclePanel({ data }: { data: CalculatedCycleDat
             </CardHeader>
             <CardContent>
                 <div className="text-center text-muted-foreground py-8">
-                    Sube un archivo de Clue u otra app para ver tu información.
+                    Sube un archivo de datos para ver tu información.
                 </div>
             </CardContent>
         </Card>
@@ -86,3 +87,4 @@ export default function MenstrualCyclePanel({ data }: { data: CalculatedCycleDat
     </Card>
   );
 }
+

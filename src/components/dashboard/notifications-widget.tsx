@@ -1,11 +1,12 @@
 
+
 "use client";
 
 import { useEffect, useState } from "react";
 import { generatePersonalizedNotifications } from "@/ai/flows/personalized-notifications";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bell, Calendar, Moon, Heart, Dumbbell } from "lucide-react";
-import { SleepEntry, Workout, CalculatedCycleData } from "@/ai/schemas";
+import { DailyMetric, Workout } from "@/ai/schemas";
 
 type Notification = {
     icon: React.ReactNode;
@@ -13,9 +14,8 @@ type Notification = {
 };
 
 type NotificationsWidgetProps = {
-    sleepData: SleepEntry[];
+    dailyMetrics: DailyMetric[];
     workoutData: Workout[];
-    cycleData: CalculatedCycleData;
 }
 
 const iconMap: { [key: string]: React.ReactNode } = {
@@ -35,7 +35,7 @@ const getIconForNotification = (text: string) => {
     return iconMap.default;
 };
 
-export default function NotificationsWidget({ sleepData, workoutData, cycleData }: NotificationsWidgetProps) {
+export default function NotificationsWidget({ dailyMetrics, workoutData }: NotificationsWidgetProps) {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -44,12 +44,12 @@ export default function NotificationsWidget({ sleepData, workoutData, cycleData 
             setIsLoading(true);
             try {
                 // Create a summary of the latest data to send to the AI
-                const latestSleep = sleepData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+                const latestMetric = dailyMetrics.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
                 const latestWorkout = workoutData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
-                const sleepSummary = latestSleep ? `El último registro de sueño fue de ${latestSleep.totalSleep.toFixed(1)}h con una calidad del ${latestSleep.quality}% y un HRV de ${latestSleep.hrv}ms.` : "No hay datos de sueño recientes.";
-                const workoutSummary = latestWorkout ? `El último entrenamiento fue ${latestWorkout.name} de ${latestWorkout.duration} minutos.` : "No ha habido entrenamientos recientes.";
-                const cycleSummary = `Actualmente en el día ${cycleData.currentDay} del ciclo, en la fase ${cycleData.currentPhase}.`;
+                const sleepSummary = latestMetric ? `El último registro de sueño fue de ${latestMetric.sleepHours?.toFixed(1) || 0}h con una calidad del ${latestMetric.sleepQualityScore || 0}% y un HRV de ${latestMetric.hrv || 0}ms.` : "No hay datos de sueño recientes.";
+                const workoutSummary = latestWorkout ? `El último entrenamiento fue ${latestWorkout.type} de ${latestWorkout.duration} minutos.` : "No ha habido entrenamientos recientes.";
+                const cycleSummary = latestMetric?.menstrualCycle ? `Actualmente en el día ${latestMetric.menstrualCycle.dayOfCycle} del ciclo, en la fase ${latestMetric.menstrualCycle.phase}.` : "No hay datos del ciclo menstrual.";
                 
                 const combinedSummary = `Contexto de la usuaria: ${cycleSummary} ${sleepSummary} ${workoutSummary}`;
                 
@@ -76,13 +76,13 @@ export default function NotificationsWidget({ sleepData, workoutData, cycleData 
         };
 
         // Only fetch notifications if there is data to analyze
-        if (cycleData.currentDay > 0 || sleepData.length > 0 || workoutData.length > 0) {
+        if (dailyMetrics.length > 0 || workoutData.length > 0) {
             fetchNotifications();
         } else {
              setNotifications([{ text: "Sube tus datos para recibir ideas personalizadas.", icon: iconMap.default }]);
              setIsLoading(false);
         }
-    }, [sleepData, workoutData, cycleData]);
+    }, [dailyMetrics, workoutData]);
 
     return (
         <Card>
@@ -116,3 +116,4 @@ export default function NotificationsWidget({ sleepData, workoutData, cycleData 
         </Card>
     );
 }
+

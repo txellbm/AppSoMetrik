@@ -1,8 +1,9 @@
 
+
 "use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { MenstrualCycleData } from "@/ai/schemas";
+import { DailyMetric } from "@/ai/schemas";
 import { Calendar } from "@/components/ui/calendar";
 import { Stethoscope, Droplet } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +24,7 @@ const parseDateAsLocal = (dateStr: string): Date => {
 };
 
 
-export default function MenstrualCalendar({ data }: { data: MenstrualCycleData[] }) {
+export default function MenstrualCalendar({ data }: { data: DailyMetric[] }) {
   const [date, setDate] = React.useState<Date | undefined>(new Date());
 
   if (!data || data.length === 0) {
@@ -48,8 +49,9 @@ export default function MenstrualCalendar({ data }: { data: MenstrualCycleData[]
   const modifiers = data.reduce((acc, entry) => {
     // Dates from firestore are strings, so we need to parse them locally.
     const date = parseDateAsLocal(entry.date);
-    if (entry.flow) {
-      acc[entry.flow] = [...(acc[entry.flow] || []), date];
+    if (entry.menstrualCycle?.flow) {
+      const flow = entry.menstrualCycle.flow;
+      acc[flow] = [...(acc[flow] || []), date];
     }
     return acc;
   }, {} as Record<string, Date[]>);
@@ -69,8 +71,8 @@ export default function MenstrualCalendar({ data }: { data: MenstrualCycleData[]
                entryDate.getFullYear() === date.getFullYear();
     });
     
-    if (entryForDay && entryForDay.flow) {
-      const colorClass = flowColors[entryForDay.flow] || 'text-muted-foreground';
+    if (entryForDay && entryForDay.menstrualCycle?.flow) {
+      const colorClass = flowColors[entryForDay.menstrualCycle.flow] || 'text-muted-foreground';
       return (
         <div className="relative flex items-center justify-center h-full w-full">
           {date.getDate()}
@@ -107,3 +109,4 @@ export default function MenstrualCalendar({ data }: { data: MenstrualCycleData[]
     </Card>
   );
 }
+

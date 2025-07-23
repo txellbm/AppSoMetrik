@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { Bar, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
@@ -9,15 +10,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { SleepEntry } from "@/ai/schemas";
+import { DailyMetric } from "@/ai/schemas";
 import { Moon } from "lucide-react";
 
-export default function SleepChart({ data }: { data: SleepEntry[] }) {
+export default function SleepChart({ data }: { data: DailyMetric[] }) {
 
   const formattedData = data.map(entry => ({
     ...entry,
     // Format date for display on X-axis, e.g., "Oct 27"
-    day: new Date(entry.date + 'T00:00:00').toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })
+    day: new Date(entry.date + 'T00:00:00').toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }),
+    // Convert minutes to hours for the chart
+    deepSleepHours: (entry.deepSleepMinutes || 0) / 60,
+    lightSleepHours: (entry.lightSleepMinutes || 0) / 60,
+    remSleepHours: (entry.remSleepMinutes || 0) / 60,
   }));
 
 
@@ -45,9 +50,9 @@ export default function SleepChart({ data }: { data: SleepEntry[] }) {
                 labelStyle={{ fontWeight: 'bold' }}
                 formatter={(value: number, name: string) => {
                     const nameMap: { [key: string]: string } = {
-                        deepSleep: "Profundo",
-                        lightSleep: "Ligero",
-                        remSleep: "REM"
+                        deepSleepHours: "Profundo",
+                        lightSleepHours: "Ligero",
+                        remSleepHours: "REM"
                     };
                     return [`${value.toFixed(1)} horas`, nameMap[name] || name];
                 }}
@@ -60,19 +65,20 @@ export default function SleepChart({ data }: { data: SleepEntry[] }) {
                 iconSize={10}
                 formatter={(value, entry) => {
                     const nameMap: { [key: string]: string } = {
-                        deepSleep: "Profundo",
-                        lightSleep: "Ligero",
-                        remSleep: "REM"
+                        deepSleepHours: "Profundo",
+                        lightSleepHours: "Ligero",
+                        remSleepHours: "REM"
                     };
                     return <span className="text-xs text-muted-foreground font-medium">{nameMap[value]}</span>;
                 }}
             />
-            <Bar dataKey="deepSleep" stackId="a" fill="hsl(var(--chart-1))" radius={[0, 0, 0, 0]} />
-            <Bar dataKey="lightSleep" stackId="a" fill="hsl(var(--chart-2))" />
-            <Bar dataKey="remSleep" stackId="a" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="deepSleepHours" stackId="a" fill="hsl(var(--chart-1))" radius={[0, 0, 0, 0]} />
+            <Bar dataKey="lightSleepHours" stackId="a" fill="hsl(var(--chart-2))" />
+            <Bar dataKey="remSleepHours" stackId="a" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} />
           </RechartsBarChart>
         </ResponsiveContainer>
       </CardContent>
     </Card>
   );
 }
+

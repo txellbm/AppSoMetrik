@@ -23,7 +23,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { generateHealthSummary } from "@/ai/flows/ai-health-summary";
-import { HealthSummaryInput, ProcessHealthDataFileOutput, Workout, SleepEntry, MenstrualCycleData, DashboardData, CalculatedCycleData } from "@/ai/schemas";
+import { HealthSummaryInput, ProcessHealthDataFileOutput, Workout, DashboardData, CalculatedCycleData, DailyMetric } from "@/ai/schemas";
 
 import {
   Table,
@@ -53,8 +53,7 @@ import { startOfWeek, endOfWeek, subWeeks, isWithinInterval, parseISO, differenc
 
 const initialDashboardData: DashboardData = {
   workouts: [],
-  sleepData: [],
-  menstrualData: [],
+  dailyMetrics: [],
 };
 
 // Helper function to treat date string as local time, not UTC
@@ -79,51 +78,44 @@ export default function Home() {
     const userRef = doc(db, "users", userId);
 
     const qWorkouts = query(collection(userRef, "workouts"));
-    const qSleep = query(collection(userRef, "sleepData"));
-    const qMenstrual = query(collection(userRef, "menstrualData"));
+    const qDailyMetrics = query(collection(userRef, "dailyMetrics"));
 
     const unsubWorkouts = onSnapshot(qWorkouts, (snapshot) => {
         const workouts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Workout[];
         setDashboardData(prev => ({ ...prev, workouts }));
     }, (error) => console.error("Error al cargar entrenamientos:", error));
 
-    const unsubSleep = onSnapshot(qSleep, (snapshot) => {
-        const sleepData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as SleepEntry[];
-        setDashboardData(prev => ({ ...prev, sleepData }));
-    }, (error) => console.error("Error al cargar datos de sueño:", error));
-
-    const unsubMenstrual = onSnapshot(qMenstrual, (snapshot) => {
-        const menstrualData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as MenstrualCycleData[];
-        setDashboardData(prev => ({ ...prev, menstrualData }));
-    }, (error) => console.error("Error al cargar datos menstruales:", error));
+    const unsubDailyMetrics = onSnapshot(qDailyMetrics, (snapshot) => {
+        const dailyMetrics = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as DailyMetric[];
+        setDashboardData(prev => ({ ...prev, dailyMetrics }));
+    }, (error) => console.error("Error al cargar métricas diarias:", error));
 
     return () => {
         unsubWorkouts();
-        unsubSleep();
-        unsubMenstrual();
+        unsubDailyMetrics();
     };
 }, [userId]);
 
 
  const handleDataProcessed = async (processedData: ProcessHealthDataFileOutput) => {
-    if (!processedData || (!processedData.workouts?.length && !processedData.sleepData?.length && !processedData.menstrualData?.length)) {
+    if (!processedData || (!processedData.workouts?.length && Object.keys(processedData.dailyMetrics).length === 0)) {
         toast({
             title: "Sin datos nuevos para procesar",
             description: "El archivo no contenía información relevante o ya estaba actualizada.",
         });
         return;
     }
-    const { workouts, sleepData, menstrualData } = processedData;
+    const { workouts, dailyMetrics } = processedData;
 
     const batch = writeBatch(db);
     const userRef = doc(db, "users", userId);
     let changesCount = 0;
 
-    // Process Sleep Data: one doc per day (date is the ID)
-    if (sleepData) {
-      sleepData.forEach(item => {
+    // Process Daily Metrics: one doc per day (date is the ID)
+    if (dailyMetrics) {
+      Object.values(dailyMetrics).forEach(item => {
           if (!item.date) return;
-          const docRef = doc(userRef, "sleepData", item.date);
+          const docRef = doc(userRef, "dailyMetrics", item.date);
           batch.set(docRef, item, { merge: true });
           changesCount++;
       });
@@ -132,19 +124,9 @@ export default function Home() {
     // Process Workouts: a new doc for each workout
     if (workouts) {
       workouts.forEach(item => {
-          if (!item.date || !item.name) return; // Basic validation
+          if (!item.date || !item.type) return; // Basic validation
           const docRef = doc(collection(userRef, "workouts")); // Auto-generate ID
           batch.set(docRef, item);
-          changesCount++;
-      });
-    }
-
-    // Process Menstrual Data: a new doc for each entry
-    if (menstrualData) {
-      menstrualData.forEach(item => {
-          if (!item.date) return;
-          const docRef = doc(userRef, "menstrualData", item.date); // Use date as ID to merge symptoms for the same day
-          batch.set(docRef, item, { merge: true });
           changesCount++;
       });
     }
@@ -181,17 +163,17 @@ export default function Home() {
     setReportContent("");
 
     try {
-        const workoutDetails = dashboardData.workouts.map(w => `${w.date} - ${w.name}: ${w.distance?.toFixed(1) || 0}km, ${w.calories}kcal, ${w.duration}mins`).join('; ');
-        const sleepDetails = dashboardData.sleepData.map(s => `${s.date}: ${s.totalSleep.toFixed(1)}h (Profundo: ${s.deepSleep}h, Ligero: ${s.lightSleep}h, REM: ${s.remSleep}h)`).join('; ');
-        const menstrualDetails = dashboardData.menstrualData.map(m => `${m.date}: Flujo ${m.flow || 'N/A'}`).join('; ');
+        const workoutDetails = dashboardData.workouts.map(w => `${w.date} - ${w.type}: ${w.duration}mins, ${w.calories}kcal`).join('; ');
+        const sleepDetails = dashboardData.dailyMetrics.map(s => `${s.date}: ${s.sleepHours?.toFixed(1) || 0}h (REM: ${s.remSleepMinutes || 0}m, Profundo: ${s.deepSleepMinutes || 0}m)`).join('; ');
+        const menstrualDetails = dashboardData.dailyMetrics.filter(d => d.menstrualCycle).map(d => `${d.date}: Fase ${d.menstrualCycle?.phase}, Día ${d.menstrualCycle?.dayOfCycle}, Flujo ${d.menstrualCycle?.flow || 'N/A'}`).join('; ');
         
-        const avgSleep = dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + s.totalSleep, 0) / dashboardData.sleepData.length : 0;
+        const avgSleep = dashboardData.dailyMetrics.length > 0 ? dashboardData.dailyMetrics.reduce((acc, s) => acc + (s.sleepHours || 0), 0) / dashboardData.dailyMetrics.length : 0;
         const totalCalories = dashboardData.workouts.reduce((acc, w) => acc + w.calories, 0);
 
         const input: HealthSummaryInput = {
             sleepData: `Sueño promedio: ${avgSleep.toFixed(1)}h. Detalles: ${sleepDetails}`,
-            exerciseData: `Calorías totales quemadas: ${totalCalories}. Entrenamientos: ${workoutDetails}.`,
-            heartRateData: `No hay datos de frecuencia cardíaca disponibles.`, // This needs to be populated from sleep or workout data if available
+            exerciseData: `Calorías totales quemadas en entrenos: ${totalCalories}. Entrenamientos: ${workoutDetails}.`,
+            heartRateData: `No hay datos de frecuencia cardíaca disponibles.`, // This needs to be populated from dailyMetrics
             menstruationData: `Detalles del ciclo: ${menstrualDetails}`,
             supplementData: "No hay datos de suplementos disponibles.",
             foodIntakeData: `No hay datos de hidratación disponibles.`,
@@ -222,81 +204,28 @@ export default function Home() {
   }
 
   // Calculate aggregate metrics for StatCards
-  const avgRestingHR = useMemo(() => dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + (s.restingHeartRate || 0), 0) / dashboardData.sleepData.filter(s => s.restingHeartRate).length : 0, [dashboardData.sleepData]);
-  const avgHRV = useMemo(() => dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + (s.hrv || 0), 0) / dashboardData.sleepData.filter(s => s.hrv).length : 0, [dashboardData.sleepData]);
-  const avgSleepQuality = useMemo(() => dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + s.quality, 0) / dashboardData.sleepData.filter(s => s.quality).length : 0, [dashboardData.sleepData]);
-  const avgReadiness = useMemo(() => dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + (s.readiness || 0), 0) / dashboardData.sleepData.filter(s => s.readiness).length : 0, [dashboardData.sleepData]);
-  const avgRespiration = useMemo(() => dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + (s.respiration || 0), 0) / dashboardData.sleepData.filter(s => s.respiration).length : 0, [dashboardData.sleepData]);
+  const avgRestingHR = useMemo(() => dashboardData.dailyMetrics.length > 0 ? dashboardData.dailyMetrics.reduce((acc, s) => acc + (s.restingHeartRate || 0), 0) / dashboardData.dailyMetrics.filter(s => s.restingHeartRate).length : 0, [dashboardData.dailyMetrics]);
+  const avgHRV = useMemo(() => dashboardData.dailyMetrics.length > 0 ? dashboardData.dailyMetrics.reduce((acc, s) => acc + (s.hrv || 0), 0) / dashboardData.dailyMetrics.filter(s => s.hrv).length : 0, [dashboardData.dailyMetrics]);
+  const avgSleepQuality = useMemo(() => dashboardData.dailyMetrics.length > 0 ? dashboardData.dailyMetrics.reduce((acc, s) => acc + (s.sleepQualityScore || 0), 0) / dashboardData.dailyMetrics.filter(s => s.sleepQualityScore).length : 0, [dashboardData.dailyMetrics]);
+  const avgReadiness = useMemo(() => dashboardData.dailyMetrics.length > 0 ? dashboardData.dailyMetrics.reduce((acc, s) => acc + (s.recoveryPercentage || 0), 0) / dashboardData.dailyMetrics.filter(s => s.recoveryPercentage).length : 0, [dashboardData.dailyMetrics]);
+  const avgRespiration = useMemo(() => dashboardData.dailyMetrics.length > 0 ? dashboardData.dailyMetrics.reduce((acc, s) => acc + (s.respirationRate || 0), 0) / dashboardData.dailyMetrics.filter(s => s.respirationRate).length : 0, [dashboardData.dailyMetrics]);
   
   const calculatedCycleData = useMemo<CalculatedCycleData>(() => {
-    // Sort by date to ensure chronological order
-    const sortedData = [...dashboardData.menstrualData]
-      .filter((d) => d.flow && d.flow !== "spotting" && d.date)
-      .sort((a, b) => parseDateAsLocal(a.date).getTime() - parseDateAsLocal(b.date).getTime());
-    
-    if (sortedData.length === 0) {
-        return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
-    }
-
-    // Find the start of the last period
-    let lastPeriodStartDate: Date | null = null;
-    
-    // Group consecutive bleeding days into periods
-    const periods: Date[][] = [];
-    if (sortedData.length > 0) {
-        let currentPeriod = [parseDateAsLocal(sortedData[0].date)];
-        for (let i = 1; i < sortedData.length; i++) {
-            const currentDate = parseDateAsLocal(sortedData[i].date);
-            const prevDate = parseDateAsLocal(sortedData[i-1].date);
-            if (differenceInDays(currentDate, prevDate) === 1) {
-                currentPeriod.push(currentDate);
-            } else {
-                periods.push(currentPeriod);
-                currentPeriod = [currentDate];
-            }
-        }
-        periods.push(currentPeriod);
-        
-        const lastPeriod = periods[periods.length - 1];
-        if (lastPeriod && lastPeriod.length > 0) {
-            lastPeriodStartDate = lastPeriod[0]; // The first day of the last consecutive block is the start date
-        }
-    }
-
-
-    if (!lastPeriodStartDate || isNaN(lastPeriodStartDate.getTime())) {
-        return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
-    }
-
+    // This logic needs to be adapted to the new dailyMetrics structure
     const today = startOfToday();
-    const currentDay = differenceInDays(today, lastPeriodStartDate) + 1;
-
-    let currentPhase = "No disponible";
     const todayStr = format(today, 'yyyy-MM-dd');
-    const isBleedingToday = dashboardData.menstrualData.some(
-      (d) => d.date === todayStr && d.flow && d.flow !== "spotting"
-    );
+    const todayMetric = dashboardData.dailyMetrics.find(d => d.date === todayStr);
 
-    if (isBleedingToday || (currentDay >= 1 && currentDay <= 7)) {
-        currentPhase = "Menstruación";
-    } else if (currentDay > 7 && currentDay < 14) {
-        currentPhase = "Folicular";
-    } else if (currentDay >= 14 && currentDay <= 15) {
-        currentPhase = "Ovulación";
-    } else if (currentDay > 15) {
-        currentPhase = "Lútea";
+    if (!todayMetric || !todayMetric.menstrualCycle) {
+        return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
     }
-
-    const symptomsToday =
-        dashboardData.menstrualData.find((d) => d.date === todayStr)
-            ?.symptoms || [];
-
+    
     return {
-        currentDay: currentDay > 0 ? currentDay : 0,
-        currentPhase: currentPhase,
-        symptoms: symptomsToday,
+        currentDay: todayMetric.menstrualCycle.dayOfCycle || 0,
+        currentPhase: todayMetric.menstrualCycle.phase || "No disponible",
+        symptoms: todayMetric.menstrualCycle.symptoms || [],
     };
-  }, [dashboardData.menstrualData]);
+  }, [dashboardData.dailyMetrics]);
 
 
   return (
@@ -312,7 +241,7 @@ export default function Home() {
         </Card>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <SleepChart data={dashboardData.sleepData} />
+            <SleepChart data={dashboardData.dailyMetrics} />
             
             <VitalsCard 
                 readiness={avgReadiness}
@@ -323,7 +252,7 @@ export default function Home() {
 
             <div className="md:col-span-2 lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <MenstrualCyclePanel data={calculatedCycleData} />
-                <MenstrualCalendar data={dashboardData.menstrualData} />
+                <MenstrualCalendar data={dashboardData.dailyMetrics} />
             </div>
 
             <div className="md:col-span-2 lg:col-span-4">
@@ -336,9 +265,8 @@ export default function Home() {
                 </div>
               <div className="lg:col-span-1 space-y-6">
                 <NotificationsWidget
-                    sleepData={dashboardData.sleepData}
+                    dailyMetrics={dashboardData.dailyMetrics}
                     workoutData={dashboardData.workouts}
-                    cycleData={calculatedCycleData}
                 />
                 <DataActions onDataProcessed={handleDataProcessed} onGenerateReport={handleGenerateReport} />
               </div>
@@ -489,10 +417,10 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
           data.map((workout, index) => (
             <TableRow key={index}>
               <TableCell>{parseDateAsLocal(workout.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</TableCell>
-              <TableCell className="font-medium">{workout.name}</TableCell>
+              <TableCell className="font-medium">{workout.type}</TableCell>
               <TableCell className="text-right">{workout.duration} min</TableCell>
               <TableCell className="text-right">{workout.calories}</TableCell>
-              <TableCell className="text-right">{workout.averageHeartRate && workout.averageHeartRate > 0 ? `${workout.averageHeartRate} bpm` : '-'}</TableCell>
+              <TableCell className="text-right">{workout.heartRateAvg && workout.heartRateAvg > 0 ? `${workout.heartRateAvg} bpm` : '-'}</TableCell>
             </TableRow>
           ))
         ) : (
@@ -536,3 +464,4 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
     </Card>
   );
 }
+
