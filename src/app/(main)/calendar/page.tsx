@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { db } from "@/lib/firebase";
-import { doc, collection, onSnapshot, setDoc, deleteDoc, getDoc, updateDoc, query } from "firebase/firestore";
+import { doc, collection, onSnapshot, setDoc, deleteDoc, getDoc, updateDoc, query, runTransaction } from "firebase/firestore";
 import { format, parseISO, startOfDay, addMinutes } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -27,6 +27,10 @@ type WorkoutTypeInfo = {
     defaultDuration?: number;
 };
 
+type DailyEventInfo = {
+    count: number;
+};
+
 const initialWorkoutTypes: WorkoutTypeInfo[] = [
     { id: 'pilates', label: 'Pilates', icon: <Droplets className="h-4 w-4" />, defaultStartTime: '10:00', defaultDuration: 60 },
     { id: 'flexibilidad', label: 'Flexibilidad/Contorsión', icon: <Star className="h-4 w-4" />, defaultStartTime: '12:00', defaultDuration: 60 },
@@ -48,14 +52,17 @@ export default function CalendarPage() {
     const today = startOfDay(new Date());
     const selectedDateStr = date ? format(date, 'yyyy-MM-dd') : format(today, 'yyyy-MM-dd');
 
-    const [allEventDates, setAllEventDates] = useState<Set<string>>(new Set());
+    const [eventCounts, setEventCounts] = useState<Map<string, DailyEventInfo>>(new Map());
+
     useEffect(() => {
         const eventsColRef = collection(db, "users", userId, "calendar");
         const q = query(eventsColRef);
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const dates = new Set<string>();
-            snapshot.forEach(doc => dates.add(doc.id));
-            setAllEventDates(dates);
+            const newCounts = new Map<string, DailyEventInfo>();
+            snapshot.forEach(doc => {
+                newCounts.set(doc.id, doc.data() as DailyEventInfo);
+            });
+            setEventCounts(newCounts);
         });
         return () => unsubscribe();
     }, [userId]);
@@ -104,8 +111,13 @@ export default function CalendarPage() {
         const dateDocRef = doc(db, "users", userId, "calendar", dayStr);
 
         try {
-            await setDoc(docRef, { date: dayStr, ...eventData });
-            await setDoc(dateDocRef, { hasEvents: true }, { merge: true });
+            await runTransaction(db, async (transaction) => {
+                const dateDoc = await transaction.get(dateDocRef);
+                const currentCount = dateDoc.exists() ? dateDoc.data().count || 0 : 0;
+                
+                transaction.set(docRef, { date: dayStr, ...eventData });
+                transaction.set(dateDocRef, { count: currentCount + 1 }, { merge: true });
+            });
             
             toast({
                 title: `Entrenamiento añadido`,
@@ -147,9 +159,21 @@ export default function CalendarPage() {
     const handleDeleteEvent = async (eventId: string, eventDate: string) => {
         if (!window.confirm("¿Estás seguro de que quieres eliminar este evento?")) return;
         
-        const docRef = doc(db, "users", userId, "calendar", eventDate, "events", eventId);
+        const eventDocRef = doc(db, "users", userId, "calendar", eventDate, "events", eventId);
+        const dateDocRef = doc(db, "users", userId, "calendar", eventDate);
+
         try {
-            await deleteDoc(docRef);
+            await runTransaction(db, async (transaction) => {
+                const dateDoc = await transaction.get(dateDocRef);
+                const currentCount = dateDoc.exists() ? dateDoc.data().count || 0 : 0;
+
+                transaction.delete(eventDocRef);
+                if (currentCount > 1) {
+                    transaction.update(dateDocRef, { count: currentCount - 1 });
+                } else {
+                    transaction.delete(dateDocRef);
+                }
+            });
             toast({ title: "Evento eliminado", variant: "destructive" });
         } catch (error) {
             console.error("Error deleting event:", error);
@@ -171,9 +195,19 @@ export default function CalendarPage() {
         }));
     };
 
-    const eventDayModifier = useMemo(() => {
-        return Array.from(allEventDates).map(dateStr => parseISO(dateStr));
-    }, [allEventDates]);
+    const { singleEventDays, multipleEventDays } = useMemo(() => {
+        const single: Date[] = [];
+        const multiple: Date[] = [];
+        eventCounts.forEach((info, dateStr) => {
+            const date = parseISO(dateStr);
+            if (info.count === 1) {
+                single.push(date);
+            } else if (info.count > 1) {
+                multiple.push(date);
+            }
+        });
+        return { singleEventDays: single, multipleEventDays: multiple };
+    }, [eventCounts]);
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -197,12 +231,21 @@ export default function CalendarPage() {
                             selected={date}
                             onSelect={handleDateSelect}
                             locale={es}
-                            modifiers={{ event: eventDayModifier }}
+                            modifiers={{ 
+                                singleEvent: singleEventDays,
+                                multipleEvents: multipleEventDays 
+                            }}
                             modifiersStyles={{
-                                event: {
+                                singleEvent: {
                                     backgroundColor: 'hsl(var(--primary) / 0.1)',
                                     color: 'hsl(var(--primary))',
                                     fontWeight: 'bold',
+                                },
+                                multipleEvents: {
+                                    backgroundColor: 'hsl(var(--primary) / 0.1)',
+                                    color: 'hsl(var(--primary))',
+                                    fontWeight: 'bold',
+                                    boxShadow: 'inset 0 0 0 2px hsl(var(--primary))',
                                 }
                             }}
                             className="rounded-md border"
@@ -400,7 +443,3 @@ function EditEventDialog({ isOpen, setIsOpen, event, onSave }: EditEventDialogPr
         </Dialog>
     );
 }
-
-    
-
-    
