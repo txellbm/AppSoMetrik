@@ -13,12 +13,21 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar as CalendarIcon, PlusCircle, Trash2, Edit, Save, X, Dumbbell, Star, Droplets } from 'lucide-react';
+import { Calendar as CalendarIcon, PlusCircle, Trash2, Edit, Save, X, Dumbbell, Star, Droplets, Clock } from 'lucide-react';
 import { CalendarEvent } from "@/ai/schemas";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { Label } from "@/components/ui/label";
 
-const workoutTypes = [
+type WorkoutTypeInfo = {
+    id: string;
+    label: string;
+    icon: React.ReactNode;
+    defaultStartTime?: string;
+    defaultDuration?: number;
+};
+
+const initialWorkoutTypes: WorkoutTypeInfo[] = [
     { id: 'pilates', label: 'Pilates', icon: <Droplets className="h-4 w-4" />, defaultStartTime: '10:00', defaultDuration: 60 },
     { id: 'flexibilidad', label: 'Flexibilidad/Contorsión', icon: <Star className="h-4 w-4" />, defaultStartTime: '12:00', defaultDuration: 60 },
     { id: 'fuerza_funcional', label: 'Fuerza Funcional', icon: <Dumbbell className="h-4 w-4" /> }
@@ -33,6 +42,7 @@ export default function CalendarPage() {
     const { toast } = useToast();
     const userId = "user_test_id";
     
+    const [workoutTypes, setWorkoutTypes] = useState<WorkoutTypeInfo[]>(initialWorkoutTypes);
     const [selectedWorkoutType, setSelectedWorkoutType] = useState<string | null>(null);
 
     const today = startOfDay(new Date());
@@ -84,7 +94,7 @@ export default function CalendarPage() {
             eventData.startTime = workoutInfo.defaultStartTime;
             const [hours, minutes] = workoutInfo.defaultStartTime.split(':').map(Number);
             const startDate = new Date(day);
-            startDate.setHours(hours, minutes);
+            startDate.setHours(hours, minutes, 0, 0); // Set seconds and ms to 0
             const endDate = addMinutes(startDate, workoutInfo.defaultDuration);
             eventData.endTime = format(endDate, 'HH:mm');
         }
@@ -152,6 +162,15 @@ export default function CalendarPage() {
         setIsDialogOpen(true);
     };
 
+    const handleWorkoutTimeChange = (id: string, field: 'defaultStartTime' | 'defaultDuration', value: string) => {
+        setWorkoutTypes(prev => prev.map(w => {
+            if (w.id === id) {
+                return { ...w, [field]: field === 'defaultDuration' ? Number(value) : value };
+            }
+            return w;
+        }));
+    };
+
     const eventDayModifier = useMemo(() => {
         return Array.from(allEventDates).map(dateStr => parseISO(dateStr));
     }, [allEventDates]);
@@ -203,17 +222,49 @@ export default function CalendarPage() {
                         <CardTitle>Añadir Entrenamientos Rápidos</CardTitle>
                         <CardDescription>Selecciona un tipo de entreno y luego haz clic en el calendario para añadirlo.</CardDescription>
                     </CardHeader>
-                    <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {workoutTypes.map((workout) => (
-                           <Button 
-                                key={workout.id} 
-                                variant={selectedWorkoutType === workout.id ? "default" : "outline"}
-                                onClick={() => setSelectedWorkoutType(workout.id)}
-                                className="flex items-center justify-center gap-2 h-12 text-base"
-                            >
-                                {workout.icon}
-                                {workout.label}
-                            </Button>
+                           <Card key={workout.id} className={cn("flex flex-col", selectedWorkoutType === workout.id && "ring-2 ring-primary")}>
+                               <CardHeader className="p-4">
+                                   <Button 
+                                        variant={"outline"}
+                                        onClick={() => setSelectedWorkoutType(prev => prev === workout.id ? null : workout.id)}
+                                        className="w-full flex items-center justify-center gap-2 text-base h-12"
+                                    >
+                                        {workout.icon}
+                                        {workout.label}
+                                    </Button>
+                               </CardHeader>
+                               <CardContent className="p-4 pt-0 space-y-3">
+                                   <div className="flex items-center gap-3">
+                                        <Label htmlFor={`${workout.id}-start-time`} className="min-w-fit flex items-center gap-1 text-xs text-muted-foreground">
+                                            <Clock className="h-3 w-3"/>
+                                            Hora Inicio
+                                        </Label>
+                                        <Input
+                                            id={`${workout.id}-start-time`}
+                                            type="time"
+                                            value={workout.defaultStartTime || ''}
+                                            onChange={(e) => handleWorkoutTimeChange(workout.id, 'defaultStartTime', e.target.value)}
+                                            className="h-8"
+                                        />
+                                   </div>
+                                    <div className="flex items-center gap-3">
+                                        <Label htmlFor={`${workout.id}-duration`} className="min-w-fit flex items-center gap-1 text-xs text-muted-foreground">
+                                           <Clock className="h-3 w-3"/>
+                                            Duración (min)
+                                        </Label>
+                                        <Input
+                                            id={`${workout.id}-duration`}
+                                            type="number"
+                                            value={workout.defaultDuration || ''}
+                                            onChange={(e) => handleWorkoutTimeChange(workout.id, 'defaultDuration', e.target.value)}
+                                            className="h-8"
+                                            placeholder="e.g., 60"
+                                        />
+                                   </div>
+                               </CardContent>
+                           </Card>
                         ))}
                     </CardContent>
                 </Card>
@@ -349,5 +400,7 @@ function EditEventDialog({ isOpen, setIsOpen, event, onSave }: EditEventDialogPr
         </Dialog>
     );
 }
+
+    
 
     
