@@ -47,6 +47,7 @@ import NotificationsWidget from "@/components/dashboard/notifications-widget";
 import SleepChart from "@/components/dashboard/sleep-chart";
 import MenstrualCyclePanel from "@/components/dashboard/menstrual-cycle-panel";
 import MenstrualCalendar from "@/components/dashboard/menstrual-calendar";
+import HealthDataViewer from "@/components/dashboard/health-data-viewer";
 import { collection, writeBatch, onSnapshot, doc, getDoc, setDoc, addDoc, query, getDocs, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { startOfWeek, endOfWeek, subWeeks, isWithinInterval, parseISO, differenceInDays, startOfToday, format, isValid } from "date-fns";
@@ -366,6 +367,10 @@ export default function Home() {
 
             <div className="md:col-span-2 lg:col-span-4">
                 <WorkoutSummaryCard workouts={dashboardData.workouts} />
+            </div>
+
+            <div className="md:col-span-2 lg:col-span-4">
+                <HealthDataViewer dailyMetrics={dashboardData.dailyMetrics} workouts={dashboardData.workouts} />
             </div>
 
             <div className="md:col-span-2 lg:col-span-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
