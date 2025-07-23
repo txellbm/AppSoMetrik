@@ -2,55 +2,54 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { DailyMetric } from "@/ai/schemas";
-import { collection, onSnapshot, query, doc } from "firebase/firestore";
+import { SleepData } from "@/ai/schemas";
+import { collection, onSnapshot, query, doc, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/dashboard/data-table";
 import { Moon } from "lucide-react";
 
 export default function SleepPage() {
-    const [dailyMetrics, setDailyMetrics] = useState<DailyMetric[]>([]);
+    const [sleepData, setSleepData] = useState<SleepData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const userId = "user_test_id";
 
     useEffect(() => {
         const userRef = doc(db, "users", userId);
-        const qDailyMetrics = query(collection(userRef, "dailyMetrics"));
+        const qSleep = query(collection(userRef, "sleep"), orderBy("date", "desc"));
 
-        const unsubscribe = onSnapshot(qDailyMetrics, (snapshot) => {
-            const metrics = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as DailyMetric[];
-            setDailyMetrics(metrics);
+        const unsubscribe = onSnapshot(qSleep, (snapshot) => {
+            const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as SleepData[];
+            setSleepData(data);
             setIsLoading(false);
         }, (error) => {
-            console.error("Error loading daily metrics:", error);
+            console.error("Error loading sleep data:", error);
             setIsLoading(false);
         });
 
         return () => unsubscribe();
     }, [userId]);
-    
-    const sortedMetrics = useMemo(() => {
-        return [...dailyMetrics].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [dailyMetrics]);
 
     const sleepDataRows = useMemo(() => {
-        return sortedMetrics
-            .filter(m => m.sueño_total && m.sueño_total > 0)
-            .map(metric => ({
-                key: metric.date,
-                cells: [
-                    metric.date,
-                    metric.sueño_total || "-",
-                    metric.sueño_profundo || "-",
-                    metric.sueño_ligero || "-",
-                    metric.sueño_rem || "-",
-                    metric.restingHeartRate || "-",
-                    metric.hrv || "-",
-                ],
-            }));
-    }, [sortedMetrics]);
-
+        return sleepData.map(metric => ({
+            key: metric.date,
+            cells: [
+                metric.date,
+                metric.bedtime || "-",
+                metric.wakeUpTime || "-",
+                metric.inBedTime || "-",
+                metric.sleepTime || "-",
+                metric.awakenings || "-",
+                metric.deepSleepTime || "-",
+                metric.quality || "-",
+                metric.efficiency || "-",
+                metric.avgHeartRate || "-",
+                metric.hrv || "-",
+                metric.respiratoryRate || "-",
+                metric.SPO2?.avg || "-",
+            ],
+        }));
+    }, [sleepData]);
 
     return (
         <div className="flex flex-col gap-6">
@@ -69,7 +68,11 @@ export default function SleepPage() {
                         <p>Cargando datos de sueño...</p>
                     ) : (
                         <DataTable
-                            headers={["Fecha", "Total (min)", "Profundo (min)", "Ligero (min)", "REM (min)", "FC Reposo", "VFC (ms)"]}
+                            headers={[
+                                "Fecha", "Hora de Dormir", "Hora de Despertar", "En Cama", "Tiempo Dormido",
+                                "Despertares", "Sueño Profundo", "Calidad", "Eficiencia", "FC Dormido",
+                                "VFC Dormido", "Respiración", "SpO2 Media"
+                            ]}
                             rows={sleepDataRows}
                             emptyMessage="No hay datos de sueño registrados. Sube un archivo para empezar."
                         />

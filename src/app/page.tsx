@@ -1,27 +1,17 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogClose,
-} from "@/components/ui/dialog";
+import { useState, useEffect } from "react";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import { DashboardData, DailyMetric, Workout } from "@/ai/schemas";
+import { DashboardData, SleepData, WorkoutData, VitalsData } from "@/ai/schemas";
 import AIChatWidget from "@/components/dashboard/ai-chat-widget";
 import NotificationsWidget from "@/components/dashboard/notifications-widget";
-import { collection, onSnapshot, doc, query } from "firebase/firestore";
+import { collection, onSnapshot, doc, query, orderBy, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { LayoutDashboard, Moon, Dumbbell, HeartPulse, Stethoscope, Pill, CalendarDays, Database } from "lucide-react";
 import SleepPage from "./(main)/sleep/page";
@@ -32,35 +22,42 @@ import SupplementsPage from "./(main)/supplements/page";
 import CalendarPage from "./(main)/calendar/page";
 import DataPage from "./(main)/data/page";
 
-
 const initialDashboardData: DashboardData = {
   workouts: [],
-  dailyMetrics: [],
+  sleepData: [],
+  vitals: []
 };
 
 export default function Home() {
   const [dashboardData, setDashboardData] = useState<DashboardData>(initialDashboardData);
-  const { toast } = useToast();
   const userId = "user_test_id";
 
   useEffect(() => {
     const userRef = doc(db, "users", userId);
-    const qWorkouts = query(collection(userRef, "workouts"));
-    const qDailyMetrics = query(collection(userRef, "dailyMetrics"));
+    
+    const qWorkouts = query(collection(userRef, "workouts"), orderBy("date", "desc"), limit(10));
+    const qSleep = query(collection(userRef, "sleep"), orderBy("date", "desc"), limit(10));
+    const qVitals = query(collection(userRef, "vitals"), orderBy("date", "desc"), limit(10));
 
     const unsubWorkouts = onSnapshot(qWorkouts, (snapshot) => {
-        const workouts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Workout[];
+        const workouts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as WorkoutData[];
         setDashboardData(prev => ({ ...prev, workouts }));
     }, (error) => console.error("Error al cargar entrenamientos:", error));
 
-    const unsubDailyMetrics = onSnapshot(qDailyMetrics, (snapshot) => {
-        const dailyMetrics = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as DailyMetric[];
-        setDashboardData(prev => ({ ...prev, dailyMetrics }));
-    }, (error) => console.error("Error al cargar métricas diarias:", error));
+    const unsubSleep = onSnapshot(qSleep, (snapshot) => {
+        const sleepData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as SleepData[];
+        setDashboardData(prev => ({ ...prev, sleepData }));
+    }, (error) => console.error("Error al cargar datos de sueño:", error));
+    
+    const unsubVitals = onSnapshot(qVitals, (snapshot) => {
+        const vitals = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as VitalsData[];
+        setDashboardData(prev => ({ ...prev, vitals }));
+    }, (error) => console.error("Error al cargar vitales:", error));
 
     return () => {
         unsubWorkouts();
-        unsubDailyMetrics();
+        unsubSleep();
+        unsubVitals();
     };
   }, [userId]);
 
@@ -89,8 +86,7 @@ export default function Home() {
                 </div>
               <div className="lg:col-span-1 space-y-6">
                 <NotificationsWidget
-                    dailyMetrics={dashboardData.dailyMetrics}
-                    workoutData={dashboardData.workouts}
+                    // This will be refactored to use the new granular data
                 />
               </div>
             </div>

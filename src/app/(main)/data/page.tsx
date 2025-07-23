@@ -3,10 +3,10 @@
 
 import { useState, useRef } from "react";
 import { processHealthDataFile } from "@/ai/flows/process-health-data-file";
-import { ProcessHealthDataFileOutput, HealthSummaryInput, DashboardData } from "@/ai/schemas";
+import { ProcessHealthDataFileOutput, HealthSummaryInput, SleepData, WorkoutData, VitalsData } from "@/ai/schemas";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Upload, FileText, Loader2, BrainCircuit, Trash2, FileArchive, Calendar, Moon, Sun } from "lucide-react";
+import { Upload, FileText, Loader2, Trash2, FileArchive, Calendar, Moon, Sun } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
@@ -22,27 +22,32 @@ import { generateHealthSummary } from "@/ai/flows/ai-health-summary";
 import { collection, writeBatch, doc, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-
 const CHUNK_SIZE = 500; 
 
-const aggregateResults = (combined: ProcessHealthDataFileOutput, chunkResult: ProcessHealthDataFileOutput) => {
-    if (chunkResult.summary) {
-        combined.summary = combined.summary ? `${combined.summary} ${chunkResult.summary}` : chunkResult.summary;
+type AggregatedData = {
+    sleep: { [date: string]: SleepData };
+    workouts: WorkoutData[];
+    vitals: { [date: string]: VitalsData };
+}
+
+const aggregateResults = (combined: AggregatedData, chunkResult: ProcessHealthDataFileOutput) => {
+    if (chunkResult.sleepData) {
+        chunkResult.sleepData.forEach(newMetric => {
+            const date = newMetric.date;
+            if (!combined.sleep[date]) combined.sleep[date] = {} as SleepData;
+            combined.sleep[date] = { ...combined.sleep[date], ...newMetric };
+        });
     }
 
     if (chunkResult.workouts) {
         combined.workouts.push(...chunkResult.workouts);
     }
     
-    if (chunkResult.dailyMetrics) {
-        chunkResult.dailyMetrics.forEach(newMetric => {
-            const existingMetricIndex = combined.dailyMetrics.findIndex(m => m.date === newMetric.date);
-            if (existingMetricIndex !== -1) {
-                const existingMetric = combined.dailyMetrics[existingMetricIndex];
-                combined.dailyMetrics[existingMetricIndex] = { ...existingMetric, ...newMetric };
-            } else {
-                combined.dailyMetrics.push(newMetric);
-            }
+    if (chunkResult.vitals) {
+        chunkResult.vitals.forEach(newMetric => {
+            const date = newMetric.date;
+            if (!combined.vitals[date]) combined.vitals[date] = {} as VitalsData;
+            combined.vitals[date] = { ...combined.vitals[date], ...newMetric };
         });
     }
 };
@@ -58,7 +63,6 @@ export default function DataPage() {
 
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [reportContent, setReportContent] = useState("");
-  const [dashboardData, setDashboardData] = useState<DashboardData>({ workouts: [], dailyMetrics: [] }); // Local state for report generation
 
   const handleFiles = (newFiles: FileList | null) => {
     if (newFiles) {
@@ -78,34 +82,37 @@ export default function DataPage() {
   
   const removeFile = (index: number) => setFiles(files.filter((_, i) => i !== index));
 
-  const handleDataProcessed = async (processedData: ProcessHealthDataFileOutput) => {
-    if (!processedData || (!processedData.workouts?.length && !processedData.dailyMetrics?.length)) {
-        toast({ title: "Sin datos nuevos", description: "El archivo no contenía información relevante." });
+  const handleDataProcessed = async (processedData: AggregatedData) => {
+    const { sleep, workouts, vitals } = processedData;
+    
+    if (Object.keys(sleep).length === 0 && workouts.length === 0 && Object.keys(vitals).length === 0) {
+        toast({ title: "Sin datos nuevos", description: "El archivo no contenía información relevante para guardar." });
         return;
     }
-    const { workouts, dailyMetrics } = processedData;
+
     const batch = writeBatch(db);
     const userRef = doc(db, "users", userId);
     let changesCount = 0;
 
-    if (dailyMetrics) {
-      for (const item of dailyMetrics) {
-          if (!item.date) continue;
-          const docRef = doc(userRef, "dailyMetrics", item.date);
-          batch.set(docRef, item, { merge: true });
-          changesCount++;
-      }
+    for (const date in sleep) {
+        const docRef = doc(userRef, "sleep", date);
+        batch.set(docRef, sleep[date], { merge: true });
+        changesCount++;
     }
 
-    if (workouts) {
-        workouts.forEach(item => {
-            if (!item.date || !item.tipo) return;
-            const docId = `${item.date}_${item.tipo.replace(/\s+/g, '')}_${Math.random().toString(36).substring(2, 9)}`;
-            const docRef = doc(userRef, "workouts", docId);
-            batch.set(docRef, item);
-            changesCount++;
-        });
+    for (const date in vitals) {
+        const docRef = doc(userRef, "vitals", date);
+        batch.set(docRef, vitals[date], { merge: true });
+        changesCount++;
     }
+    
+    workouts.forEach(item => {
+        if (!item.date || !item.type) return;
+        const docId = `${item.date}_${item.type.replace(/\s+/g, '')}_${Math.random().toString(36).substring(2, 9)}`;
+        const docRef = doc(userRef, "workouts", docId);
+        batch.set(docRef, item);
+        changesCount++;
+    });
 
     if (changesCount === 0) {
       toast({ title: "Sin datos nuevos", description: "No se encontraron datos válidos para guardar." });
@@ -126,7 +133,7 @@ export default function DataPage() {
       const header = lines[0];
       const dataRows = lines.slice(1);
       
-      let aggregatedResult: ProcessHealthDataFileOutput = { summary: "", workouts: [], dailyMetrics: [] };
+      let aggregatedResult: ProcessHealthDataFileOutput = { summary: "", workouts: [], sleepData: [], vitals: [] };
       
       if (dataRows.length === 0 || (dataRows.length === 1 && dataRows[0].trim() === '')) {
           console.log(`[!] Archivo omitido (vacío): ${fileName}`);
@@ -138,7 +145,9 @@ export default function DataPage() {
           const chunkContent = [header, ...chunkRows].join('\n');
           try {
             const chunkResult = await processHealthDataFile({ fileContent: chunkContent, fileName });
-            if (chunkResult) aggregateResults(aggregatedResult, chunkResult);
+            if (chunkResult?.sleepData) aggregatedResult.sleepData?.push(...chunkResult.sleepData);
+            if (chunkResult?.workouts) aggregatedResult.workouts?.push(...chunkResult.workouts);
+            if (chunkResult?.vitals) aggregatedResult.vitals?.push(...chunkResult.vitals);
           } catch(e) {
              console.error(`[❌] Error procesando chunk de ${fileName}:`, e);
              toast({ variant: "destructive", title: `Error en chunk de ${fileName}`, description: "Se omitió una parte de este archivo." });
@@ -147,10 +156,10 @@ export default function DataPage() {
       return aggregatedResult;
   }
 
-  const processZipFile = async (file: File): Promise<ProcessHealthDataFileOutput> => {
+  const processZipFile = async (file: File): Promise<AggregatedData> => {
     const JSZip = (await import('jszip')).default;
     const zip = await JSZip.loadAsync(file);
-    let combinedResult: ProcessHealthDataFileOutput = { summary: "", workouts: [], dailyMetrics: [] };
+    let combinedResult: AggregatedData = { sleep: {}, workouts: [], vitals: {} };
     const csvFiles = Object.values(zip.files).filter(f => !f.dir && f.name.toLowerCase().endsWith('.csv') && !f.name.startsWith('__MACOSX'));
 
     for (const zipEntry of csvFiles) {
@@ -162,7 +171,7 @@ export default function DataPage() {
                  continue;
             }
             const fileResult = await processFileInChunks(content, zipEntry.name);
-            console.log(`[✅] Archivo procesado: ${zipEntry.name}. Métricas/días: ${fileResult.dailyMetrics.length}, Entrenamientos: ${fileResult.workouts.length}.`);
+            console.log(`[✅] Archivo procesado: ${zipEntry.name}.`, fileResult);
             aggregateResults(combinedResult, fileResult);
         } catch(error) {
             console.error(`[❌] Error al procesar ${zipEntry.name}:`, error);
@@ -178,21 +187,27 @@ export default function DataPage() {
       return;
     }
     setIsLoading(true);
-    let allProcessedData: ProcessHealthDataFileOutput = { summary: "", dailyMetrics: [], workouts: [] };
+    let allProcessedData: AggregatedData = { sleep: {}, workouts: [], vitals: {} };
     try {
       for (const file of files) {
-          let result: ProcessHealthDataFileOutput | null = null;
           if (file.name.toLowerCase().endsWith('.zip')) {
-              result = await processZipFile(file);
+              const result = await processZipFile(file);
+              // Natively aggregate zip results
+              Object.assign(allProcessedData.sleep, result.sleep);
+              allProcessedData.workouts.push(...result.workouts);
+              Object.assign(allProcessedData.vitals, result.vitals);
+
           } else if (file.name.toLowerCase().endsWith('.csv')) {
               console.log(`%c[▶️] Procesando archivo: ${file.name}`, 'color: blue; font-weight: bold;');
               const content = await file.text();
-              if (content) result = await processFileInChunks(content, file.name);
+              if (content) {
+                const result = await processFileInChunks(content, file.name);
+                aggregateResults(allProcessedData, result);
+              }
           }
-          if (result) aggregateResults(allProcessedData, result);
       }
       console.log("%c[📊] Datos finales agregados:", 'color: green; font-weight: bold;', allProcessedData);
-      onDataProcessed(allProcessedData);
+      await handleDataProcessed(allProcessedData);
       toast({ title: "Archivos procesados", description: `Análisis de ${files.length} archivo(s) completado.` });
       setFiles([]);
     } catch (error) {
@@ -206,7 +221,7 @@ export default function DataPage() {
   const handleDeleteAllData = async () => {
     if (!window.confirm("¿Estás seguro de que quieres borrar todos tus datos? Esta acción es irreversible.")) return;
     const userRef = doc(db, "users", userId);
-    const collectionsToDelete = ["workouts", "dailyMetrics", "supplements", "calendar"];
+    const collectionsToDelete = ["workouts", "sleep", "vitals", "supplements", "calendar"];
     try {
         const batch = writeBatch(db);
         for (const coll of collectionsToDelete) {
@@ -269,7 +284,7 @@ export default function DataPage() {
         <Card>
           <CardHeader>
             <CardTitle>Carga de Archivos</CardTitle>
-            <CardDescription>Sube aquí tu archivo ZIP o CSV de Apple Health.</CardDescription>
+            <CardDescription>Sube aquí tu archivo ZIP o CSV de AutoSleep / HeartWatch.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div 

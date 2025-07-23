@@ -1,22 +1,19 @@
 
-
 "use client";
 
 import { useEffect, useState } from "react";
 import { generatePersonalizedNotifications } from "@/ai/flows/personalized-notifications";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bell, Calendar, Moon, Heart, Dumbbell } from "lucide-react";
-import { DailyMetric, Workout } from "@/ai/schemas";
 
 type Notification = {
     icon: React.ReactNode;
     text: string;
 };
 
-type NotificationsWidgetProps = {
-    dailyMetrics: DailyMetric[];
-    workoutData: Workout[];
-}
+// This component will need a refactor to use the new granular data structure
+// For now, it will be simplified to avoid breaking the app.
+type NotificationsWidgetProps = {}
 
 const iconMap: { [key: string]: React.ReactNode } = {
     cycle: <Calendar className="h-4 w-4 text-accent" />,
@@ -35,7 +32,7 @@ const getIconForNotification = (text: string) => {
     return iconMap.default;
 };
 
-export default function NotificationsWidget({ dailyMetrics, workoutData }: NotificationsWidgetProps) {
+export default function NotificationsWidget({}: NotificationsWidgetProps) {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -43,19 +40,10 @@ export default function NotificationsWidget({ dailyMetrics, workoutData }: Notif
         const fetchNotifications = async () => {
             setIsLoading(true);
             try {
-                // Create a summary of the latest data to send to the AI
-                const latestMetric = dailyMetrics.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-                const latestWorkout = workoutData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-
-                const sleepSummary = latestMetric?.sueño_total ? `El último registro de sueño fue de ${(latestMetric.sueño_total / 60).toFixed(1)}h.` : "No hay datos de sueño recientes.";
-                const workoutSummary = latestWorkout ? `El último entrenamiento fue ${latestWorkout.tipo} de ${latestWorkout.duracion} minutos.` : "No ha habido entrenamientos recientes.";
-                const cycleSummary = latestMetric?.estadoCiclo ? `Actualmente en estado: ${latestMetric.estadoCiclo}.` : "No hay datos del ciclo menstrual.";
-                
-                const combinedSummary = `Contexto de la usuaria: ${cycleSummary} ${sleepSummary} ${workoutSummary}`;
-                
+                // This logic needs to be updated to fetch from the new Firestore structure
+                // For now, we'll use a placeholder.
                 const result = await generatePersonalizedNotifications({
-                    // The prompt now expects a generic context string
-                    cycles: combinedSummary,
+                    cycles: "Sube tus datos para recibir un análisis de tu ciclo.",
                     mood: "No disponible",
                     workouts: "No disponible",
                     workSchedule: "No disponible",
@@ -66,23 +54,18 @@ export default function NotificationsWidget({ dailyMetrics, workoutData }: Notif
                     icon: getIconForNotification(n),
                 }));
 
-                setNotifications(formattedNotifications);
+                setNotifications(formattedNotifications.length > 0 ? formattedNotifications : [{ text: "Sube tus datos para recibir ideas personalizadas.", icon: iconMap.default }]);
             } catch (error) {
                 console.error("No se pudieron obtener las notificaciones:", error);
-                setNotifications([{ text: "No se pudieron cargar las sugerencias personalizadas.", icon: iconMap.default }]);
+                setNotifications([{ text: "No se pudieron cargar las sugerencias.", icon: iconMap.default }]);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        // Only fetch notifications if there is data to analyze
-        if (dailyMetrics.length > 0 || workoutData.length > 0) {
-            fetchNotifications();
-        } else {
-             setNotifications([{ text: "Sube tus datos para recibir ideas personalizadas.", icon: iconMap.default }]);
-             setIsLoading(false);
-        }
-    }, [dailyMetrics, workoutData]);
+        fetchNotifications();
+
+    }, []);
 
     return (
         <Card>

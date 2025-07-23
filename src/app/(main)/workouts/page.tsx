@@ -2,24 +2,24 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { Workout } from "@/ai/schemas";
-import { collection, onSnapshot, query, doc } from "firebase/firestore";
+import { WorkoutData } from "@/ai/schemas";
+import { collection, onSnapshot, query, doc, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/dashboard/data-table";
 import { Dumbbell } from "lucide-react";
 
 export default function WorkoutsPage() {
-    const [workouts, setWorkouts] = useState<Workout[]>([]);
+    const [workouts, setWorkouts] = useState<WorkoutData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const userId = "user_test_id";
 
     useEffect(() => {
         const userRef = doc(db, "users", userId);
-        const qWorkouts = query(collection(userRef, "workouts"));
+        const qWorkouts = query(collection(userRef, "workouts"), orderBy("date", "desc"));
 
         const unsubscribe = onSnapshot(qWorkouts, (snapshot) => {
-            const workoutData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Workout[];
+            const workoutData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as WorkoutData[];
             setWorkouts(workoutData);
             setIsLoading(false);
         }, (error) => {
@@ -29,24 +29,25 @@ export default function WorkoutsPage() {
 
         return () => unsubscribe();
     }, [userId]);
-    
-    const sortedWorkouts = useMemo(() => {
-        return [...workouts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [workouts]);
 
     const workoutDataRows = useMemo(() => {
-        return sortedWorkouts.map((workout, i) => ({
+        return workouts.map((workout, i) => ({
                 key: `${workout.date}-${i}`,
                 cells: [
                   workout.date,
-                  workout.tipo,
-                  workout.duracion,
-                  workout.calorias,
-                  workout.frecuenciaCardiacaMedia || "-",
-                  "N/A",
+                  workout.type,
+                  workout.startTime,
+                  workout.duration,
+                  workout.avgHeartRate,
+                  workout.maxHeartRate,
+                  `${workout.zone1Percent || '0%'} / ${workout.zone2Percent || '0%'} / ${workout.zone3Percent || '0%'} / ${workout.zone4Percent || '0%'}`,
+                  workout.rpe,
+                  workout.load,
+                  workout.calories,
+                  workout.distance,
                 ],
               }))
-    }, [sortedWorkouts]);
+    }, [workouts]);
 
 
     return (
@@ -66,7 +67,10 @@ export default function WorkoutsPage() {
                         <p>Cargando entrenamientos...</p>
                     ) : (
                         <DataTable
-                            headers={["Fecha", "Tipo", "Duración (min)", "Calorías", "FC Media", "Intensidad"]}
+                            headers={[
+                                "Fecha", "Tipo", "Hora", "Duración", "FC Media", "FC Máx",
+                                "Zonas Cardíacas (%)", "RPE", "Carga", "Calorías", "Distancia (km)"
+                            ]}
                             rows={workoutDataRows}
                             emptyMessage="No hay entrenamientos registrados. Sube un archivo para empezar."
                         />
