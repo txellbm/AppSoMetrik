@@ -28,6 +28,7 @@ const allSymptoms = [
     { id: 'antojos', label: 'Antojos' },
     { id: 'dolor_lumbar', label: 'Dolor lumbar' },
     { id: 'cambios_de_humor', label: 'Cambios de humor' },
+    { id: 'dolor_piernas', label: 'Dolor de piernas' },
 ];
 
 export default function CyclePage() {
@@ -237,5 +238,3 @@ export default function CyclePage() {
         </div>
     );
 }
-
-    
