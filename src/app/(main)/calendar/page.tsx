@@ -1,13 +1,13 @@
 
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { db } from "@/lib/firebase";
-import { doc, collection, onSnapshot, setDoc, deleteDoc, getDoc, updateDoc, query, runTransaction } from "firebase/firestore";
-import { format, parseISO, startOfDay, addMinutes } from 'date-fns';
+import { doc, collection, onSnapshot, setDoc, deleteDoc, getDoc, updateDoc, query, runTransaction, increment } from "firebase/firestore";
+import { format, parseISO, startOfDay, addMinutes, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Calendar } from "@/components/ui/calendar";
+import { Calendar, DayProps } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -27,9 +27,19 @@ type WorkoutTypeInfo = {
     defaultDuration?: number;
 };
 
-type DailyEventInfo = {
+type DailyEventSummary = {
     count: number;
+    types: Record<string, number>;
 };
+
+const eventTypeColors: Record<string, string> = {
+    entrenamiento: "bg-primary",
+    trabajo: "bg-blue-500",
+    nota: "bg-yellow-500",
+    vacaciones: "bg-green-500",
+    descanso: "bg-teal-500",
+};
+
 
 const initialWorkoutTypes: WorkoutTypeInfo[] = [
     { id: 'pilates', label: 'Pilates', icon: <Droplets className="h-4 w-4" />, defaultStartTime: '10:00', defaultDuration: 60 },
@@ -52,17 +62,21 @@ export default function CalendarPage() {
     const today = startOfDay(new Date());
     const selectedDateStr = date ? format(date, 'yyyy-MM-dd') : format(today, 'yyyy-MM-dd');
 
-    const [eventCounts, setEventCounts] = useState<Map<string, DailyEventInfo>>(new Map());
+    const [eventSummaries, setEventSummaries] = useState<Map<string, DailyEventSummary>>(new Map());
 
     useEffect(() => {
         const eventsColRef = collection(db, "users", userId, "calendar");
         const q = query(eventsColRef);
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const newCounts = new Map<string, DailyEventInfo>();
+            const newSummaries = new Map<string, DailyEventSummary>();
             snapshot.forEach(doc => {
-                newCounts.set(doc.id, doc.data() as DailyEventInfo);
+                 const data = doc.data();
+                 newSummaries.set(doc.id, {
+                    count: data.count || 0,
+                    types: data.types || {},
+                 });
             });
-            setEventCounts(newCounts);
+            setEventSummaries(newSummaries);
         });
         return () => unsubscribe();
     }, [userId]);
@@ -92,41 +106,45 @@ export default function CalendarPage() {
         
         const dayStr = format(day, 'yyyy-MM-dd');
 
-        const eventData: Partial<Omit<CalendarEvent, 'id' | 'date'>> = {
+        const newEventData: Omit<CalendarEvent, 'id'> = {
             type: 'entrenamiento',
             description: workoutInfo.label,
+            date: dayStr,
         };
 
         if (workoutInfo.defaultStartTime && workoutInfo.defaultDuration) {
-            eventData.startTime = workoutInfo.defaultStartTime;
+            newEventData.startTime = workoutInfo.defaultStartTime;
             const [hours, minutes] = workoutInfo.defaultStartTime.split(':').map(Number);
             const startDate = new Date(day);
-            startDate.setHours(hours, minutes, 0, 0); // Set seconds and ms to 0
+            startDate.setHours(hours, minutes, 0, 0);
             const endDate = addMinutes(startDate, workoutInfo.defaultDuration);
-            eventData.endTime = format(endDate, 'HH:mm');
+            newEventData.endTime = format(endDate, 'HH:mm');
         }
-
+        
+        await handleAddEvent(newEventData);
+        toast({
+            title: `Entrenamiento añadido`,
+            description: `${workoutInfo.label} añadido para el ${dayStr}.`,
+            duration: 2000
+        });
+    };
+    
+    const handleAddEvent = async (eventData: Omit<CalendarEvent, 'id'>) => {
         const eventId = doc(collection(db, 'users')).id;
-        const docRef = doc(db, "users", userId, "calendar", dayStr, "events", eventId);
-        const dateDocRef = doc(db, "users", userId, "calendar", dayStr);
-
+        const docRef = doc(db, "users", userId, "calendar", eventData.date, "events", eventId);
+        const dateDocRef = doc(db, "users", userId, "calendar", eventData.date);
+    
         try {
             await runTransaction(db, async (transaction) => {
-                const dateDoc = await transaction.get(dateDocRef);
-                const currentCount = dateDoc.exists() ? dateDoc.data().count || 0 : 0;
-                
-                transaction.set(docRef, { date: dayStr, ...eventData });
-                transaction.set(dateDocRef, { count: currentCount + 1 }, { merge: true });
-            });
-            
-            toast({
-                title: `Entrenamiento añadido`,
-                description: `${workoutInfo.label} añadido para el ${dayStr}.`,
-                duration: 2000
+                transaction.set(docRef, eventData);
+                transaction.set(dateDocRef, {
+                    count: increment(1),
+                    [`types.${eventData.type}`]: increment(1)
+                }, { merge: true });
             });
         } catch (error) {
-            console.error("Error adding quick workout:", error);
-            toast({ variant: "destructive", title: "Error", description: "No se pudo añadir el entrenamiento." });
+            console.error("Error adding event:", error);
+            toast({ variant: "destructive", title: "Error", description: "No se pudo añadir el evento." });
         }
     };
 
@@ -144,9 +162,24 @@ export default function CalendarPage() {
         if (!editingEvent || !editingEvent.id) return;
         
         const docRef = doc(db, "users", userId, "calendar", editingEvent.date, "events", editingEvent.id);
-        
+        const dateDocRef = doc(db, "users", userId, "calendar", editingEvent.date);
+
         try {
-            await updateDoc(docRef, eventData);
+             await runTransaction(db, async (transaction) => {
+                const oldEventDoc = await transaction.get(docRef);
+                const oldEventData = oldEventDoc.data() as CalendarEvent;
+                
+                transaction.update(docRef, eventData);
+
+                // If event type changed, update the counts
+                if (eventData.type && eventData.type !== oldEventData.type) {
+                     transaction.set(dateDocRef, {
+                        [`types.${oldEventData.type}`]: increment(-1),
+                        [`types.${eventData.type}`]: increment(1)
+                    }, { merge: true });
+                }
+            });
+
             toast({ title: "Evento actualizado" });
             setIsDialogOpen(false);
             setEditingEvent(null);
@@ -156,20 +189,24 @@ export default function CalendarPage() {
         }
     };
 
-    const handleDeleteEvent = async (eventId: string, eventDate: string) => {
+    const handleDeleteEvent = async (event: CalendarEvent) => {
         if (!window.confirm("¿Estás seguro de que quieres eliminar este evento?")) return;
         
-        const eventDocRef = doc(db, "users", userId, "calendar", eventDate, "events", eventId);
-        const dateDocRef = doc(db, "users", userId, "calendar", eventDate);
+        const eventDocRef = doc(db, "users", userId, "calendar", event.date, "events", event.id!);
+        const dateDocRef = doc(db, "users", userId, "calendar", event.date);
 
         try {
             await runTransaction(db, async (transaction) => {
                 const dateDoc = await transaction.get(dateDocRef);
-                const currentCount = dateDoc.exists() ? dateDoc.data().count || 0 : 0;
-
+                const currentCount = dateDoc.exists() ? dateDoc.data()?.count || 0 : 0;
+                
                 transaction.delete(eventDocRef);
+
                 if (currentCount > 1) {
-                    transaction.update(dateDocRef, { count: currentCount - 1 });
+                    transaction.set(dateDocRef, {
+                        count: increment(-1),
+                        [`types.${event.type}`]: increment(-1)
+                    }, { merge: true });
                 } else {
                     transaction.delete(dateDocRef);
                 }
@@ -194,20 +231,25 @@ export default function CalendarPage() {
             return w;
         }));
     };
-
-    const { singleEventDays, multipleEventDays } = useMemo(() => {
-        const single: Date[] = [];
-        const multiple: Date[] = [];
-        eventCounts.forEach((info, dateStr) => {
-            const date = parseISO(dateStr);
-            if (info.count === 1) {
-                single.push(date);
-            } else if (info.count > 1) {
-                multiple.push(date);
-            }
-        });
-        return { singleEventDays: single, multipleEventDays: multiple };
-    }, [eventCounts]);
+    
+    const DayContent = useCallback((props: DayProps) => {
+        const dayStr = format(props.date, 'yyyy-MM-dd');
+        const summary = eventSummaries.get(dayStr);
+        const dots = summary?.types ? Object.keys(summary.types).filter(type => summary.types[type] > 0) : [];
+        
+        return (
+            <div className="relative h-full w-full flex items-center justify-center">
+                <span>{format(props.date, 'd')}</span>
+                {dots.length > 0 && (
+                    <div className="absolute bottom-1.5 flex gap-0.5">
+                        {dots.slice(0, 4).map(type => (
+                            <div key={type} className={cn("h-1.5 w-1.5 rounded-full", eventTypeColors[type] || 'bg-gray-400')} />
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    }, [eventSummaries]);
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -231,23 +273,7 @@ export default function CalendarPage() {
                             selected={date}
                             onSelect={handleDateSelect}
                             locale={es}
-                            modifiers={{ 
-                                singleEvent: singleEventDays,
-                                multipleEvents: multipleEventDays 
-                            }}
-                            modifiersStyles={{
-                                singleEvent: {
-                                    backgroundColor: 'hsl(var(--primary) / 0.1)',
-                                    color: 'hsl(var(--primary))',
-                                    fontWeight: 'bold',
-                                },
-                                multipleEvents: {
-                                    backgroundColor: 'hsl(var(--primary) / 0.1)',
-                                    color: 'hsl(var(--primary))',
-                                    fontWeight: 'bold',
-                                    boxShadow: 'inset 0 0 0 2px hsl(var(--primary))',
-                                }
-                            }}
+                            components={{ Day: DayContent }}
                             className="rounded-md border"
                         />
                         {selectedWorkoutType && (
@@ -322,18 +348,21 @@ export default function CalendarPage() {
                             <div className="space-y-3">
                                 {events.length > 0 ? events.map(event => (
                                     <div key={event.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                                        <div className="flex-grow">
-                                            <p className="font-semibold">{event.description}</p>
-                                            <p className="text-sm text-muted-foreground">
-                                                <span className="capitalize font-medium">{event.type}</span>
-                                                {event.startTime && ` a las ${event.startTime}`}
-                                            </p>
+                                        <div className="flex-grow flex items-center gap-3">
+                                            <div className={cn("h-2.5 w-2.5 rounded-full flex-shrink-0", eventTypeColors[event.type] || "bg-gray-400")} />
+                                            <div>
+                                                <p className="font-semibold">{event.description}</p>
+                                                <p className="text-sm text-muted-foreground">
+                                                    <span className="capitalize font-medium">{event.type}</span>
+                                                    {event.startTime && ` a las ${event.startTime}`}
+                                                </p>
+                                            </div>
                                         </div>
                                         <div className="flex gap-2">
                                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEditing(event)}>
                                                 <Edit className="h-4 w-4"/>
                                             </Button>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteEvent(event.id!, event.date)}>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteEvent(event)}>
                                                 <Trash2 className="h-4 w-4"/>
                                             </Button>
                                         </div>
