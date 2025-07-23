@@ -158,7 +158,6 @@ export default function CalendarPage() {
         }
     };
 
-
     const handleDateSelect = (day: Date | undefined) => {
         if (!day) return;
 
@@ -166,7 +165,6 @@ export default function CalendarPage() {
             const workoutInfo = workoutTypes.find(w => w.id === selectedWorkoutType);
             const fixedDays = workoutInfo?.defaultDaysOfWeek;
 
-            // If there are fixed days defined, we validate.
             if (fixedDays && fixedDays.length > 0) {
                 const clickedDay = getDay(day);
                 if (!fixedDays.includes(clickedDay)) {
@@ -175,17 +173,14 @@ export default function CalendarPage() {
                         title: "Día incorrecto",
                         description: `El entrenamiento '${workoutInfo?.label}' solo puede ser añadido a los días configurados.`,
                     });
-                    return; // Stop if the day is not allowed
+                    return; 
                 }
             }
-            
-            // If validation passes (or there are no fixed days), add the workout.
             handleQuickAddWorkout(day);
-
-        } else {
-            // If no workout type is selected, just set the date to view events.
-            setDate(day);
         }
+        
+        // Always update the selected date to view its events.
+        setDate(day);
     };
     
     const handleUpdateEvent = async (eventData: Partial<CalendarEvent>) => {
