@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Activity, Calendar, Dumbbell, FileText, HeartPulse, Zap, Shield, Moon } from "lucide-react";
+import { Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,33 +24,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { generateHealthSummary } from "@/ai/flows/ai-health-summary";
 import { HealthSummaryInput, ProcessHealthDataFileOutput, Workout, DashboardData, CalculatedCycleData, DailyMetric } from "@/ai/schemas";
-
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-
-import {
-    Tabs,
-    TabsContent,
-    TabsList,
-    TabsTrigger,
-} from "@/components/ui/tabs"
-
 import AIChatWidget from "@/components/dashboard/ai-chat-widget";
 import DataActions from "@/components/dashboard/data-actions";
 import NotificationsWidget from "@/components/dashboard/notifications-widget";
 import SleepChart from "@/components/dashboard/sleep-chart";
 import MenstrualCyclePanel from "@/components/dashboard/menstrual-cycle-panel";
-import MenstrualCalendar from "@/components/dashboard/menstrual-calendar";
-import HealthDataViewer from "@/components/dashboard/health-data-viewer";
-import { collection, writeBatch, onSnapshot, doc, getDoc, setDoc, addDoc, query, getDocs, deleteDoc } from "firebase/firestore";
+import { collection, writeBatch, onSnapshot, doc, getDocs, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { startOfWeek, endOfWeek, subWeeks, isWithinInterval, parseISO, differenceInDays, startOfToday, format, isValid } from "date-fns";
+import { differenceInDays, format, isValid, parseISO, startOfToday } from "date-fns";
 
 const initialDashboardData: DashboardData = {
   workouts: [],
@@ -74,14 +55,11 @@ const safeParseDate = (dateInput: any): Date | null => {
 
     // If it's a string
     if (typeof dateInput === 'string') {
-        // Handle 'YYYY-MM-DD' strings by parsing them in the local timezone
-        // Appending 'T12:00:00' makes it explicit that it's local time, not UTC.
-        const date = new Date(`${dateInput}T12:00:00`);
-        if (isValid(date)) return date;
-
-        // Attempt to parse ISO string as a fallback
         const isoDate = parseISO(dateInput);
         if (isValid(isoDate)) return isoDate;
+
+        const date = new Date(dateInput);
+        if (isValid(date)) return date;
     }
     
     return null; // Return null if parsing fails for any reason
@@ -362,15 +340,7 @@ export default function Home() {
 
             <div className="md:col-span-2 lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <MenstrualCyclePanel data={calculatedCycleData} />
-                <MenstrualCalendar data={dashboardData.dailyMetrics} />
-            </div>
-
-            <div className="md:col-span-2 lg:col-span-4">
-                <WorkoutSummaryCard workouts={dashboardData.workouts} />
-            </div>
-
-            <div className="md:col-span-2 lg:col-span-4">
-                <HealthDataViewer dailyMetrics={dashboardData.dailyMetrics} workouts={dashboardData.workouts} />
+                {/* Menstrual Calendar is now on its own page */}
             </div>
 
             <div className="md:col-span-2 lg:col-span-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -402,7 +372,7 @@ export default function Home() {
             <div className="py-4">
                 {isReportLoading ? (
                     <div className="flex justify-center items-center h-48">
-                        <FileText className="h-12 w-12 animate-pulse text-primary" />
+                        <p>Generando informe...</p>
                     </div>
                 ) : (
                     <Textarea
@@ -424,21 +394,6 @@ export default function Home() {
         </DialogContent>
       </Dialog>
     </>
-  );
-}
-
-function StatCard({ icon, title, value, description }: { icon: React.ReactNode; title: string; value: string, description: string }) {
-  return (
-    <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{title}</CardTitle>
-            {icon}
-        </CardHeader>
-        <CardContent>
-            <div className="text-2xl font-bold">{value}</div>
-            <p className="text-xs text-muted-foreground">{description}</p>
-        </CardContent>
-    </Card>
   );
 }
 
@@ -469,104 +424,3 @@ function VitalsCard({ hrv, respiration, restingHR }: { hrv: number, respiration:
         </Card>
     )
 }
-
-
-function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
-  const now = new Date();
-  const startOfThisWeek = startOfWeek(now, { weekStartsOn: 1 });
-  const endOfThisWeek = endOfWeek(now, { weekStartsOn: 1 });
-  
-  const startOfLastWeek = startOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
-  const endOfLastWeek = endOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
-
-  const filterAndSortWorkouts = (data: Workout[], interval: { start: Date, end: Date } | null) => {
-    return data
-      .map(w => ({ ...w, parsedDate: safeParseDate(w.date) }))
-      .filter(w => {
-          if (!w.parsedDate) return false;
-          if (interval) {
-              return isWithinInterval(w.parsedDate, interval);
-          }
-          return true; // for older workouts
-      })
-      .sort((a, b) => b.parsedDate!.getTime() - a.parsedDate!.getTime());
-  };
-    
-  const thisWeekWorkouts = filterAndSortWorkouts(workouts, { start: startOfThisWeek, end: endOfThisWeek });
-  const lastWeekWorkouts = filterAndSortWorkouts(workouts, { start: startOfLastWeek, end: endOfLastWeek });
-    
-  const olderWorkouts = workouts
-    .map(w => ({...w, parsedDate: safeParseDate(w.date)}))
-    .filter(w => {
-        if (!w.parsedDate) return false;
-        const isThisWeek = isWithinInterval(w.parsedDate, { start: startOfThisWeek, end: endOfThisWeek });
-        const isLastWeek = isWithinInterval(w.parsedDate, { start: startOfLastWeek, end: endOfLastWeek });
-        return !isThisWeek && !isLastWeek;
-    })
-    .sort((a, b) => b.parsedDate!.getTime() - a.parsedDate!.getTime());
-
-  const WorkoutTable = ({ data }: { data: (Workout & { parsedDate: Date | null })[] }) => (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Fecha</TableHead>
-          <TableHead>Entrenamiento</TableHead>
-          <TableHead className="text-right">Duración</TableHead>
-          <TableHead className="text-right">Calorías</TableHead>
-          <TableHead className="text-right">Intensidad (FC)</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {data.length > 0 ? (
-          data.map((workout, index) => (
-            <TableRow key={index}>
-              <TableCell>{workout.parsedDate?.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }) || 'Fecha inválida'}</TableCell>
-              <TableCell className="font-medium">{workout.tipo}</TableCell>
-              <TableCell className="text-right">{workout.duracion} min</TableCell>
-              <TableCell className="text-right">{workout.calorias}</TableCell>
-              <TableCell className="text-right">{workout.frecuenciaCardiacaMedia && workout.frecuenciaCardiacaMedia > 0 ? `${workout.frecuenciaCardiacaMedia} bpm` : '-'}</TableCell>
-            </TableRow>
-          ))
-        ) : (
-          <TableRow>
-            <TableCell colSpan={5} className="text-center text-muted-foreground h-24">
-              No hay entrenamientos registrados para este período.
-            </TableCell>
-          </TableRow>
-        )}
-      </TableBody>
-    </Table>
-  );
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Dumbbell className="text-primary" />
-          Panel de Entrenamientos
-        </CardTitle>
-        <CardDescription>Tus entrenamientos recientes organizados por semana.</CardDescription>
-      </CardHeader>
-      <CardContent className="pt-4">
-        <Tabs defaultValue="thisWeek">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="thisWeek">Esta Semana</TabsTrigger>
-            <TabsTrigger value="lastWeek">Semana Anterior</TabsTrigger>
-            <TabsTrigger value="older">Anteriores</TabsTrigger>
-          </TabsList>
-          <TabsContent value="thisWeek">
-            <WorkoutTable data={thisWeekWorkouts} />
-          </TabsContent>
-          <TabsContent value="lastWeek">
-            <WorkoutTable data={lastWeekWorkouts} />
-          </TabsContent>
-          <TabsContent value="older">
-            <WorkoutTable data={olderWorkouts} />
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
-  );
-}
-
-    

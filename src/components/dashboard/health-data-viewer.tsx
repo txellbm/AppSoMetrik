@@ -25,7 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Database, Droplet, HeartPulse, Moon, Dumbbell, Stethoscope } from "lucide-react";
+import { Database, Moon, Dumbbell, HeartPulse, Stethoscope } from "lucide-react";
 
 type HealthDataViewerProps = {
   dailyMetrics: DailyMetric[];
@@ -42,7 +42,6 @@ export default function HealthDataViewer({ dailyMetrics, workouts }: HealthDataV
     }, [workouts]);
     
     const hasHydrationData = useMemo(() => sortedMetrics.some(m => m.hidratacion && m.hidratacion > 0), [sortedMetrics]);
-    // const hasSupplementData = useMemo(() => sortedMetrics.some(m => m.suplementos), [sortedMetrics]); // Add when supplement data is available
 
 
     if (sortedMetrics.length === 0 && sortedWorkouts.length === 0) {
@@ -67,7 +66,6 @@ export default function HealthDataViewer({ dailyMetrics, workouts }: HealthDataV
             <TabsTrigger value="workouts"><Dumbbell className="mr-2 h-4 w-4"/>Entrenamientos</TabsTrigger>
             <TabsTrigger value="recovery"><HeartPulse className="mr-2 h-4 w-4"/>Recuperación</TabsTrigger>
             <TabsTrigger value="cycle"><Stethoscope className="mr-2 h-4 w-4"/>Ciclo</TabsTrigger>
-            {/* {hasHydrationData && <TabsTrigger value="hydration">Hidratación</TabsTrigger>} */}
           </TabsList>
 
           <TabsContent value="sleep">
@@ -149,7 +147,7 @@ export default function HealthDataViewer({ dailyMetrics, workouts }: HealthDataV
 
 function DataTable({ headers, rows, emptyMessage }: { headers: string[], rows: {key: string, cells: (string | number | React.ReactNode)[]}[], emptyMessage: string }) {
     return (
-        <div className="max-h-96 overflow-y-auto">
+        <div className="max-h-96 overflow-y-auto rounded-md border">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -160,7 +158,7 @@ function DataTable({ headers, rows, emptyMessage }: { headers: string[], rows: {
                     {rows.length > 0 ? (
                         rows.map(row => (
                             <TableRow key={row.key}>
-                                {row.cells.map((cell, i) => <TableCell key={i} className={i > 0 ? 'text-right' : ''}>{cell}</TableCell>)}
+                                {row.cells.map((cell, i) => <TableCell key={i} className={typeof cell === 'number' ? 'text-right' : ''}>{cell}</TableCell>)}
                             </TableRow>
                         ))
                     ) : (

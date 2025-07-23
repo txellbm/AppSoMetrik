@@ -1,12 +1,12 @@
 
 
+
 "use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DailyMetric } from "@/ai/schemas";
 import { Calendar } from "@/components/ui/calendar";
-import { Stethoscope, Droplet } from 'lucide-react';
-import { Badge } from "@/components/ui/badge";
+import { Stethoscope } from 'lucide-react';
 import * as React from "react";
 import { parseISO, isValid } from "date-fns";
 
@@ -23,16 +23,16 @@ const safeParseDate = (dateInput: any): Date | null => {
     }
     // If it's a string
     if (typeof dateInput === 'string') {
-        const date = parseISO(dateInput);
-        if (isValid(date)) return date;
-        
-        // Handle 'YYYY-MM-DD' strings by parsing them as local time
+        // Handle YYYY-MM-DD by parsing as local time to avoid timezone shifts
         const parts = dateInput.split('-');
         if (parts.length === 3) {
-            const [year, month, day] = parts.map(Number);
-            const localDate = new Date(year, month - 1, day, 12); // Use noon to avoid timezone shifts
+            const localDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0);
             if (isValid(localDate)) return localDate;
         }
+
+        // Fallback to ISO parsing
+        const isoDate = parseISO(dateInput);
+        if (isValid(isoDate)) return isoDate;
     }
     return null; // Return null if parsing fails
 };

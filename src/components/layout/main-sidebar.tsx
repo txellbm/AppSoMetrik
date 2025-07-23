@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -10,15 +11,19 @@ import {
 } from "@/components/ui/sidebar";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { BrainCircuit, LayoutDashboard, Bot, Settings, Upload, Calendar, PenSquare, LifeBuoy, Stethoscope } from "lucide-react";
+import { BrainCircuit, LayoutDashboard, Settings, LifeBuoy, Moon, Dumbbell, HeartPulse, Stethoscope, Droplet, Pill, Flame, Calendar } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const menuItems = [
   { href: "/", label: "Panel", icon: LayoutDashboard },
-  { href: "/upload", label: "Subir Datos", icon: Upload },
-  { href: "/calendar", label: "Calendario", icon: Calendar },
-  { href: "/log", label: "Registrar Entrada", icon: PenSquare },
-  { href: "/assistant", label: "Asistente IA", icon: Bot },
+  { href: "/sleep", label: "Sueño", icon: Moon },
+  { href: "/workouts", label: "Entrenamientos", icon: Dumbbell },
+  { href: "/recovery", label: "Recuperación", icon: HeartPulse },
+  { href: "/cycle", label: "Ciclo Menstrual", icon: Stethoscope },
+  { href: "/hydration", label: "Hidratación", icon: Droplet },
+  { href: "/supplements", label: "Suplementos", icon: Pill },
+  { href: "/calories", label: "Calorías y Actividad", icon: Flame },
+  { href: "/calendar", label: "Calendario Personal", icon: Calendar },
 ];
 
 const bottomMenuItems = [
