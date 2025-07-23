@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, query, where, writeBatch, doc, deleteDoc, getDoc, runTransaction, getDocs, setDoc, Transaction, DocumentReference } from "firebase/firestore";
+import { collection, onSnapshot, query, where, writeBatch, doc, deleteDoc, runTransaction } from "firebase/firestore";
 import { CalendarEvent } from "@/ai/schemas";
 import { useToast } from "@/hooks/use-toast";
 import { addMonths, endOfMonth, format, startOfMonth, subMonths, getDay, addWeeks, startOfWeek, isSameDay } from "date-fns";
@@ -28,7 +28,7 @@ type WorkoutTypes = Record<WorkoutType, WorkoutTypeInfo>;
 
 export default function CalendarPage() {
     const [currentMonth, setCurrentMonth] = useState(new Date());
-    const [date, setDate] = useState<Date | undefined>(new Date());
+    const [date, setDate] = useState<Date | undefined>(undefined);
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { toast } = useToast();
@@ -47,6 +47,10 @@ export default function CalendarPage() {
 
     const monthStart = useMemo(() => startOfMonth(currentMonth), [currentMonth]);
     const monthEnd = useMemo(() => endOfMonth(currentMonth), [currentMonth]);
+
+    useEffect(() => {
+        setDate(new Date());
+    }, []);
 
     useEffect(() => {
         setIsLoading(true);
@@ -110,17 +114,9 @@ export default function CalendarPage() {
         try {
             await runTransaction(db, async (transaction) => {
                 const userEventsRef = collection(db, "users", userId, "events");
-                let docRef: DocumentReference;
-                
-                if (selectedEvent?.id) {
-                    docRef = doc(userEventsRef, selectedEvent.id);
-                } else {
-                    docRef = doc(userEventsRef);
-                }
-
+                const docRef = selectedEvent?.id ? doc(userEventsRef, selectedEvent.id) : doc(userEventsRef);
                 const eventData: CalendarEvent = { ...data, id: docRef.id };
                 transaction.set(docRef, eventData);
-
             });
             toast({ title: "Éxito", description: `Evento ${selectedEvent ? 'actualizado' : 'creado'} correctamente.` });
             setIsDialogOpen(false);
