@@ -9,8 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Upload, FileText, Loader2, BrainCircuit, Trash2, FileArchive } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import JSZip from 'jszip';
-
 
 type DataActionsProps = {
   onDataProcessed: (data: ProcessHealthDataFileOutput) => void;
@@ -70,6 +68,7 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
   };
   
   const processZipFile = async (file: File) => {
+    const JSZip = (await import('jszip')).default;
     const zip = await JSZip.loadAsync(file);
     const processingPromises = [];
 
