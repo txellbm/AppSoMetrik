@@ -16,6 +16,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type WorkoutType = "Pilates" | "Flexibilidad" | "Fuerza";
 type WorkoutTypeInfo = {
@@ -44,6 +54,8 @@ export default function CalendarPage() {
         "Flexibilidad": { duration: 45, startTime: "18:00", defaultDaysOfWeek: [] },
         "Fuerza": { duration: 75, startTime: "19:00", defaultDaysOfWeek: [] },
     });
+
+    const [eventToDelete, setEventToDelete] = useState<string | null>(null);
 
     const monthStart = useMemo(() => startOfMonth(currentMonth), [currentMonth]);
     const monthEnd = useMemo(() => endOfMonth(currentMonth), [currentMonth]);
@@ -110,7 +122,7 @@ export default function CalendarPage() {
                 const userEventsRef = collection(db, "users", userId, "events");
                 const docRef = selectedEvent?.id ? doc(userEventsRef, selectedEvent.id) : doc(userEventsRef);
                 const eventData: CalendarEvent = { ...data, id: docRef.id };
-                transaction.set(docRef, eventData);
+                transaction.set(docRef, eventData, { merge: true });
             });
             toast({ title: "Éxito", description: `Evento ${selectedEvent ? 'actualizado' : 'creado'} correctamente.` });
             setIsDialogOpen(false);
@@ -122,13 +134,18 @@ export default function CalendarPage() {
         }
     };
 
-    const handleDeleteEvent = async (eventId: string) => {
-        if (!window.confirm("¿Estás seguro de que quieres eliminar este evento?")) return;
+    const confirmDelete = (eventId: string) => {
+        setIsDialogOpen(false); // Close the edit dialog
+        setEventToDelete(eventId);
+    }
+
+    const handleDeleteEvent = async () => {
+        if (!eventToDelete) return;
         
         try {
-            await deleteDoc(doc(db, "users", userId, "events", eventId));
+            await deleteDoc(doc(db, "users", userId, "events", eventToDelete));
             toast({ title: "Evento eliminado" });
-            setIsDialogOpen(false);
+            setEventToDelete(null);
             setSelectedEvent(null);
         } catch (error) {
             console.error("Error deleting event:", error);
@@ -304,7 +321,7 @@ export default function CalendarPage() {
                                         </div>
                                         <div className="flex gap-1">
                                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openDialog(event)}><Edit className="h-4 w-4"/></Button>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteEvent(event.id!)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => event.id && confirmDelete(event.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                                         </div>
                                     </li>
                                 ))}
@@ -321,14 +338,26 @@ export default function CalendarPage() {
                 isOpen={isDialogOpen}
                 onClose={() => setIsDialogOpen(false)}
                 onSave={handleSaveEvent}
-                onDelete={() => {
-                    if (selectedEvent && selectedEvent.id) {
-                        handleDeleteEvent(selectedEvent.id);
-                    }
-                }}
+                onConfirmDelete={(eventId) => confirmDelete(eventId)}
                 event={selectedEvent}
                 defaultDate={dialogDate}
             />
+
+            <AlertDialog open={!!eventToDelete} onOpenChange={() => setEventToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Esta acción no se puede deshacer. Esto eliminará permanentemente el evento
+                        de tus registros.
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setEventToDelete(null)}>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteEvent}>Continuar</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }
@@ -340,3 +369,5 @@ const InputWithLabel = ({ label, ...props }: { label: string } & React.Component
         <Input {...props} />
     </div>
 );
+
+    

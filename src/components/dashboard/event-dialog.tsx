@@ -17,12 +17,12 @@ type EditEventDialogProps = {
     isOpen: boolean;
     onClose: () => void;
     onSave: (data: EventFormData) => void;
-    onDelete: () => void;
+    onConfirmDelete: (eventId: string) => void;
     event: CalendarEvent | null;
     defaultDate: Date | null;
 };
 
-export default function EditEventDialog({ isOpen, onClose, onSave, onDelete, event, defaultDate }: EditEventDialogProps) {
+export default function EditEventDialog({ isOpen, onClose, onSave, onConfirmDelete, event, defaultDate }: EditEventDialogProps) {
     const [formData, setFormData] = useState<Partial<EventFormData>>({});
     const { toast } = useToast();
 
@@ -63,7 +63,7 @@ export default function EditEventDialog({ isOpen, onClose, onSave, onDelete, eve
     
     const handleDelete = () => {
         if (event?.id) {
-            onDelete();
+            onConfirmDelete(event.id);
         }
     }
 
@@ -142,3 +142,5 @@ export default function EditEventDialog({ isOpen, onClose, onSave, onDelete, eve
         </Dialog>
     );
 }
+
+    
