@@ -3,8 +3,8 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { db } from "@/lib/firebase";
-import { doc, collection, onSnapshot, setDoc, deleteDoc, getDoc, updateDoc, query, runTransaction, increment } from "firebase/firestore";
-import { format, parseISO, startOfDay, addMinutes, isSameDay, getDay } from 'date-fns';
+import { doc, collection, onSnapshot, setDoc, deleteDoc, getDoc, updateDoc, query, runTransaction, increment, writeBatch } from "firebase/firestore";
+import { format, parseISO, startOfDay, addMinutes, isSameDay, getDay, addDays, startOfWeek, nextDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Calendar, DayProps } from "@/components/ui/calendar";
@@ -193,7 +193,6 @@ export default function CalendarPage() {
                 
                 transaction.update(docRef, eventData);
 
-                // If event type changed, update the counts
                 if (eventData.type && eventData.type !== oldEventData.type) {
                      transaction.set(dateDocRef, {
                         [`types.${oldEventData.type}`]: increment(-1),
@@ -262,6 +261,75 @@ export default function CalendarPage() {
         }));
     };
     
+    const handleScheduleWorkout = async (workoutId: string) => {
+        const workoutInfo = workoutTypes.find(w => w.id === workoutId);
+        if (!workoutInfo || !workoutInfo.defaultDaysOfWeek || workoutInfo.defaultDaysOfWeek.length === 0) {
+            toast({ variant: "destructive", title: "Error", description: "Selecciona al menos un día fijo para programar." });
+            return;
+        }
+
+        const eventsToAdd: Omit<CalendarEvent, 'id'>[] = [];
+        const today = new Date();
+        
+        // Schedule for the next 4 weeks
+        for (let week = 0; week < 4; week++) {
+            workoutInfo.defaultDaysOfWeek.forEach(dayOfWeek => {
+                let targetDay = startOfWeek(addDays(today, week * 7), { weekStartsOn: 1 }); // week starts on Monday
+                targetDay = nextDay(targetDay, dayOfWeek === 0 ? 6 : dayOfWeek -1); // nextDay treats Sunday as 0, etc.
+                 if(getDay(targetDay) !== dayOfWeek) {
+                    targetDay = addDays(targetDay, -7);
+                 }
+
+
+                const dayStr = format(targetDay, 'yyyy-MM-dd');
+                const newEventData: Omit<CalendarEvent, 'id'> = {
+                    type: 'entrenamiento',
+                    description: workoutInfo.label,
+                    date: dayStr,
+                };
+
+                if (workoutInfo.defaultStartTime && workoutInfo.defaultDuration) {
+                    newEventData.startTime = workoutInfo.defaultStartTime;
+                    const [hours, minutes] = workoutInfo.defaultStartTime.split(':').map(Number);
+                    const startDate = new Date(targetDay);
+                    startDate.setHours(hours, minutes, 0, 0);
+                    const endDate = addMinutes(startDate, workoutInfo.defaultDuration);
+                    newEventData.endTime = format(endDate, 'HH:mm');
+                }
+                eventsToAdd.push(newEventData);
+            });
+        }
+        
+        try {
+            const batch = writeBatch(db);
+            const userCalendarRef = collection(db, "users", userId, "calendar");
+
+            for (const eventData of eventsToAdd) {
+                const eventId = doc(collection(db, 'users')).id;
+                const eventDocRef = doc(userCalendarRef, eventData.date, "events", eventId);
+                const dateDocRef = doc(userCalendarRef, eventData.date);
+
+                batch.set(eventDocRef, eventData);
+                batch.set(dateDocRef, {
+                    count: increment(1),
+                    [`types.${eventData.type}`]: increment(1)
+                }, { merge: true });
+            }
+            
+            await batch.commit();
+
+            toast({
+                title: "Entrenamientos Programados",
+                description: `Se han añadido ${eventsToAdd.length} entrenamientos al calendario para las próximas 4 semanas.`,
+            });
+
+        } catch (error) {
+            console.error("Error scheduling workouts:", error);
+            toast({ variant: "destructive", title: "Error", description: "No se pudieron programar los entrenamientos." });
+        }
+    };
+
+
     const DayContent = useCallback((props: DayProps) => {
         const dayStr = format(props.date, 'yyyy-MM-dd');
         const summary = eventSummaries.get(dayStr);
@@ -324,7 +392,7 @@ export default function CalendarPage() {
                     <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {workoutTypes.map((workout) => (
                            <Card key={workout.id} className={cn("flex flex-col", selectedWorkoutType === workout.id && "ring-2 ring-primary")}>
-                               <CardHeader className="p-4">
+                               <CardHeader className="flex flex-row items-center justify-between p-4">
                                    <Button 
                                         variant={"outline"}
                                         onClick={() => setSelectedWorkoutType(prev => prev === workout.id ? null : workout.id)}
@@ -332,6 +400,15 @@ export default function CalendarPage() {
                                     >
                                         {workout.icon}
                                         {workout.label}
+                                    </Button>
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        onClick={() => handleScheduleWorkout(workout.id)}
+                                        disabled={!workout.defaultDaysOfWeek || workout.defaultDaysOfWeek.length === 0}
+                                        title="Programar entrenamientos para las próximas 4 semanas"
+                                    >
+                                        <PlusCircle className="h-6 w-6 text-primary" />
                                     </Button>
                                </CardHeader>
                                <CardContent className="p-4 pt-0 space-y-3">
