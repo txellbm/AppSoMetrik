@@ -38,7 +38,7 @@ const prompt = ai.definePrompt({
     - **Formato Apple Health (Simple Health Export CSV)**:
         - La estructura suele ser \`startDate\`, \`endDate\`, \`value\`, y a veces \`sourceName\`.
         - **Sueño (\`HKCategoryTypeIdentifierSleepAnalysis.csv\`):** El campo \`value\` contiene la fase ('inBed', 'asleep', 'awake', 'rem', 'deep', 'light'). La duración es la diferencia entre \`endDate\` y \`startDate\` en segundos. Debes **agregar todas las duraciones por cada fase** para la misma fecha. Convierte los segundos totales de cada fase a horas.
-        - **Entrenamientos (\`HKWorkout...\`):** El tipo de entrenamiento viene en el nombre del archivo (ej. de 'HKWorkoutActivityTypePilates.csv' extraer 'Pilates'). Extrae \`duration\` (minutos) y \`activeEnergyBurned\` (kcal). **IMPORTANTE: Ignora por completo el archivo \`HKQuantityTypeIdentifierAppleExerciseTime.csv\`, ya que no es un entrenamiento real y no debe ser procesado.**
+        - **Entrenamientos (\`HKWorkout...\`):** El tipo de entrenamiento viene en el nombre del archivo (ej. de 'HKWorkoutActivityTypePilates.csv' extraer 'Pilates'). Extrae \`duration\` (minutos) y \`activeEnergyBurned\` (kcal). **IMPORTANTE: Ignora por completo el archivo \`HKQuantityTypeIdentifierAppleExerciseTime.csv\` y \`HKQuantityTypeIdentifierFlightsClimbed.csv\` ya que no son entrenamientos reales y no deben ser procesados como tal.**
         - **HRV (\`HKQuantityTypeIdentifierHeartRateVariabilitySDNN.csv\`):** Extrae \`value\` (en ms) y asócialo a la fecha.
         - **Frecuencia Cardíaca en Reposo (\`HKQuantityTypeIdentifierRestingHeartRate.csv\`):** Extrae \`value\` (en bpm).
         - **Frecuencia Respiratoria (\`HKQuantityTypeIdentifierRespiratoryRate.csv\`):** Extrae \`value\` (en rpm).
@@ -75,6 +75,8 @@ const processHealthDataFileFlow = ai.defineFlow(
     
 
     
+
+
 
 
 
