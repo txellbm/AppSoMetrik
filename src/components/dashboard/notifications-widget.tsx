@@ -47,7 +47,7 @@ export default function NotificationsWidget({ dailyMetrics, workoutData }: Notif
                 const latestMetric = dailyMetrics.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
                 const latestWorkout = workoutData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
-                const sleepSummary = latestMetric?.sueño ? `El último registro de sueño fue de ${(latestMetric.sueño.total / 60).toFixed(1)}h.` : "No hay datos de sueño recientes.";
+                const sleepSummary = latestMetric?.sueño_total ? `El último registro de sueño fue de ${(latestMetric.sueño_total / 60).toFixed(1)}h.` : "No hay datos de sueño recientes.";
                 const workoutSummary = latestWorkout ? `El último entrenamiento fue ${latestWorkout.tipo} de ${latestWorkout.duracion} minutos.` : "No ha habido entrenamientos recientes.";
                 const cycleSummary = latestMetric?.estadoCiclo ? `Actualmente en estado: ${latestMetric.estadoCiclo}.` : "No hay datos del ciclo menstrual.";
                 
