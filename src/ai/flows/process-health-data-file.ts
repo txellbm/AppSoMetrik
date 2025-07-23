@@ -20,7 +20,7 @@ const prompt = ai.definePrompt({
   name: 'processHealthDataFilePrompt',
   input: {schema: ProcessHealthDataFileInputSchema},
   output: {schema: ProcessHealthDataFileOutputSchema},
-  prompt: `Eres un asistente de salud de IA experto en analizar y consolidar datos de salud de varios archivos CSV. Tu tarea es analizar el contenido del archivo, identificar el tipo de datos y su origen, extraer la información relevante y devolverla en un formato JSON estructurado y válido que se adhiera estrictamente al esquema de salida.
+  prompt: `Eres un asistente de salud de IA experto en analizar y consolidar datos de salud de varios archivos CSV. Tu tarea es analizar el contenido del archivo, identificar el tipo de datos y su origen, extraer la información relevante y devolverla en un formato JSON estructurado y válido que se adhiere estrictamente al esquema de salida.
 
 **Instrucciones Clave:**
 1.  **Detección del Origen y Tipo de Archivo**:
@@ -75,6 +75,7 @@ const processHealthDataFileFlow = ai.defineFlow(
     
 
     
+
 
 
 
