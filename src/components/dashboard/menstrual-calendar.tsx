@@ -10,13 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import * as React from "react";
 import { parseISO, isValid } from "date-fns";
 
-const flowColors: { [key: string]: string } = {
-  spotting: 'text-red-300',
-  light: 'text-red-400',
-  medium: 'text-red-500',
-  heavy: 'text-red-600',
-};
-
 // Helper function to safely parse dates that might be in different formats
 const safeParseDate = (dateInput: any): Date | null => {
     if (!dateInput) return null;
@@ -67,42 +60,24 @@ export default function MenstrualCalendar({ data }: { data: DailyMetric[] }) {
     );
   }
 
-  const modifiers = data.reduce((acc, entry) => {
-    const date = safeParseDate(entry.date);
-    if (date && entry.menstrualCycle?.flow) {
-      const flow = entry.menstrualCycle.flow;
-      acc[flow] = [...(acc[flow] || []), date];
-    }
-    return acc;
-  }, {} as Record<string, Date[]>);
+  const flowDays = new Set(
+      data
+        .filter(d => d.estadoCiclo === 'menstruacion')
+        .map(d => safeParseDate(d.date)?.toDateString())
+        .filter(Boolean)
+  );
+
+  const modifiers = {
+      flow: (date: Date) => flowDays.has(date.toDateString()),
+  };
 
   const modifiersStyles = {
-    spotting: { color: 'hsl(var(--primary))', opacity: 0.3 },
-    light: { color: 'hsl(var(--primary))', opacity: 0.5 },
-    medium: { color: 'hsl(var(--primary))', opacity: 0.8 },
-    heavy: { color: 'hsl(var(--primary))', opacity: 1.0 },
+    flow: { 
+        backgroundColor: 'hsl(var(--primary) / 0.5)',
+        color: 'hsl(var(--primary-foreground))',
+        borderRadius: '50%',
+    },
   };
-
-  const DayWithFlow = ({ date }: { date: Date }) => {
-    const entryForDay = data.find(d => {
-        const entryDate = safeParseDate(d.date);
-        return entryDate && entryDate.getDate() === date.getDate() &&
-               entryDate.getMonth() === date.getMonth() &&
-               entryDate.getFullYear() === date.getFullYear();
-    });
-    
-    if (entryForDay && entryForDay.menstrualCycle?.flow) {
-      const colorClass = flowColors[entryForDay.menstrualCycle.flow] || 'text-muted-foreground';
-      return (
-        <div className="relative flex items-center justify-center h-full w-full">
-          {date.getDate()}
-          <Droplet className={`absolute h-3 w-3 ${colorClass}`} style={{ bottom: '1px' }} />
-        </div>
-      );
-    }
-    return <>{date.getDate()}</>;
-  };
-
 
   return (
     <Card className="h-full">
@@ -121,9 +96,6 @@ export default function MenstrualCalendar({ data }: { data: DailyMetric[] }) {
           className="rounded-md"
           modifiers={modifiers}
           modifiersStyles={modifiersStyles}
-          components={{
-            Day: (props) => <DayWithFlow date={props.date} />
-          }}
         />
       </CardContent>
     </Card>

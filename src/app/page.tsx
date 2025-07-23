@@ -180,7 +180,7 @@ export default function Home() {
     // Process Workouts: a new doc for each workout
     if (workouts) {
       workouts.forEach(item => {
-          if (!item.date || !item.type) return; // Basic validation
+          if (!item.date || !item.tipo) return; // Basic validation
           const docRef = doc(collection(userRef, "workouts")); // Auto-generate ID
           batch.set(docRef, item);
           changesCount++;
@@ -219,12 +219,12 @@ export default function Home() {
     setReportContent("");
 
     try {
-        const workoutDetails = dashboardData.workouts.map(w => `${w.date} - ${w.type}: ${w.duration}mins, ${w.calories}kcal`).join('; ');
-        const sleepDetails = dashboardData.dailyMetrics.map(s => `${s.date}: ${s.sleepHours?.toFixed(1) || 0}h (REM: ${s.remSleepMinutes || 0}m, Profundo: ${s.deepSleepMinutes || 0}m)`).join('; ');
-        const menstrualDetails = dashboardData.dailyMetrics.filter(d => d.menstrualCycle).map(d => `${d.date}: Fase ${d.menstrualCycle?.phase}, Día ${d.menstrualCycle?.dayOfCycle}, Flujo ${d.menstrualCycle?.flow || 'N/A'}`).join('; ');
+        const workoutDetails = dashboardData.workouts.map(w => `${w.date} - ${w.tipo}: ${w.duracion}mins, ${w.calorias}kcal`).join('; ');
+        const sleepDetails = dashboardData.dailyMetrics.map(s => `${s.date}: ${s.sueño?.total || 0}m (REM: ${s.sueño?.rem || 0}m, Profundo: ${s.sueño?.profundo || 0}m)`).join('; ');
+        const menstrualDetails = dashboardData.dailyMetrics.filter(d => d.estadoCiclo).map(d => `${d.date}: Estado ${d.estadoCiclo}`).join('; ');
         
-        const avgSleep = dashboardData.dailyMetrics.length > 0 ? dashboardData.dailyMetrics.reduce((acc, s) => acc + (s.sleepHours || 0), 0) / dashboardData.dailyMetrics.length : 0;
-        const totalCalories = dashboardData.workouts.reduce((acc, w) => acc + w.calories, 0);
+        const avgSleep = dashboardData.dailyMetrics.length > 0 ? dashboardData.dailyMetrics.reduce((acc, s) => acc + (s.sueño?.total || 0), 0) / dashboardData.dailyMetrics.length / 60 : 0;
+        const totalCalories = dashboardData.workouts.reduce((acc, w) => acc + w.calorias, 0);
 
         const input: HealthSummaryInput = {
             sleepData: `Sueño promedio: ${avgSleep.toFixed(1)}h. Detalles: ${sleepDetails}`,
@@ -269,9 +269,7 @@ export default function Home() {
 
   const avgRestingHR = useMemo(() => calculateAverage(dashboardData.dailyMetrics.map(s => s.restingHeartRate || 0)), [dashboardData.dailyMetrics]);
   const avgHRV = useMemo(() => calculateAverage(dashboardData.dailyMetrics.map(s => s.hrv || 0)), [dashboardData.dailyMetrics]);
-  const avgSleepQuality = useMemo(() => calculateAverage(dashboardData.dailyMetrics.map(s => s.sleepQualityScore || 0)), [dashboardData.dailyMetrics]);
-  const avgReadiness = useMemo(() => calculateAverage(dashboardData.dailyMetrics.map(s => s.recoveryPercentage || 0)), [dashboardData.dailyMetrics]);
-  const avgRespiration = useMemo(() => calculateAverage(dashboardData.dailyMetrics.map(s => s.respirationRate || 0)), [dashboardData.dailyMetrics]);
+  const avgRespiration = useMemo(() => calculateAverage(dashboardData.dailyMetrics.map(s => s.respiracion || 0)), [dashboardData.dailyMetrics]);
   
   const calculatedCycleData = useMemo<CalculatedCycleData>(() => {
     const today = startOfToday();
@@ -287,37 +285,30 @@ export default function Home() {
     }
 
     // 2. Find the most recent day that could be a cycle start
-    // A cycle start is either marked as dayOfCycle: 1, or is the first day of flow after a gap.
     let lastCycleStartDate: Date | null = null;
     
-    // Prioritize `dayOfCycle: 1` if available and recent
-    const explicitStart = sortedMetrics.find(d => d.menstrualCycle?.dayOfCycle === 1);
-    if(explicitStart?.parsedDate) {
-        lastCycleStartDate = explicitStart.parsedDate;
-    } else {
-        // Fallback: Find the most recent day with flow that's preceded by at least 5 days without flow.
-        // This avoids counting spotting as a new cycle.
-        const flowDays = sortedMetrics.filter(d => d.menstrualCycle?.flow && d.menstrualCycle.flow !== 'spotting');
-        for (let i = 0; i < flowDays.length; i++) {
-            const currentFlowDay = flowDays[i];
-            const nextFlowDay = i + 1 < flowDays.length ? flowDays[i + 1] : null;
+    const flowDays = sortedMetrics.filter(d => d.estadoCiclo === 'menstruacion');
 
-            if (!nextFlowDay) { // If it's the earliest flow day on record
-                lastCycleStartDate = currentFlowDay.parsedDate;
-                break;
-            }
-            
-            const daysBetween = differenceInDays(currentFlowDay.parsedDate!, nextFlowDay.parsedDate!);
-            if (daysBetween > 5) { // A gap of more than 5 days indicates a new cycle
-                lastCycleStartDate = currentFlowDay.parsedDate;
-                break;
-            }
-        }
-        // If no clear start found, take the most recent flow day as a best guess
-        if (!lastCycleStartDate && flowDays.length > 0) {
-            lastCycleStartDate = flowDays[0].parsedDate;
+    // Find the start of the most recent contiguous block of flow days
+    for (let i = 0; i < flowDays.length; i++) {
+        const currentFlowDay = flowDays[i];
+        const prevFlowDay = i > 0 ? flowDays[i-1] : null;
+
+        if(!prevFlowDay) { // It's the most recent flow day
+           lastCycleStartDate = currentFlowDay.parsedDate;
+           // now go back in time to find the real start of this block
+           for (let j = i; j < flowDays.length; j++) {
+               const day = flowDays[j];
+               const nextDay = j + 1 < flowDays.length ? flowDays[j+1] : null;
+               if (!nextDay || differenceInDays(day.parsedDate!, nextDay.parsedDate!) > 1) {
+                   lastCycleStartDate = day.parsedDate; // this is the first day of the cycle
+                   break;
+               }
+           }
+           break;
         }
     }
+
 
     if (!lastCycleStartDate) {
       return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
@@ -331,18 +322,18 @@ export default function Home() {
          return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
     }
 
-    if (dayOfCycle >= 1 && dayOfCycle <= 7) currentPhase = "Menstrual";
+    const todayMetric = sortedMetrics.find(d => format(d.parsedDate!, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd'));
+    if (todayMetric?.estadoCiclo === 'menstruacion') {
+        currentPhase = "Menstrual";
+    } else if (dayOfCycle >= 1 && dayOfCycle <= 7) currentPhase = "Menstrual"; // fallback
     else if (dayOfCycle > 7 && dayOfCycle <= 14) currentPhase = "Folicular";
     else if (dayOfCycle > 14 && dayOfCycle <= 16) currentPhase = "Ovulatoria";
     else if (dayOfCycle > 16) currentPhase = "Lútea";
 
-    // 4. Get symptoms for today
-    const todayMetric = sortedMetrics.find(d => format(d.parsedDate!, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd'));
-
     return {
       currentDay: dayOfCycle,
       currentPhase: currentPhase,
-      symptoms: todayMetric?.menstrualCycle?.symptoms || [],
+      symptoms: todayMetric?.sintomas || [],
     };
   }, [dashboardData.dailyMetrics]);
 
@@ -363,7 +354,6 @@ export default function Home() {
             <SleepChart data={dashboardData.dailyMetrics} />
             
             <VitalsCard 
-                readiness={avgReadiness}
                 hrv={avgHRV}
                 respiration={avgRespiration}
                 restingHR={avgRestingHR}
@@ -447,34 +437,28 @@ function StatCard({ icon, title, value, description }: { icon: React.ReactNode; 
   );
 }
 
-function VitalsCard({ readiness, hrv, respiration, restingHR }: { readiness: number, hrv: number, respiration: number, restingHR: number }) {
+function VitalsCard({ hrv, respiration, restingHR }: { hrv: number, respiration: number, restingHR: number }) {
     return (
         <Card className="md:col-span-2 lg:col-span-2">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <Shield className="text-primary" />
-                    Vitales y Recuperación
+                    Vitales Clave
                 </CardTitle>
-                <CardDescription>Métricas clave de recuperación de la última noche.</CardDescription>
+                <CardDescription>Promedio de tus métricas de salud más importantes.</CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 pt-2">
+            <CardContent className="grid grid-cols-3 gap-4 pt-2">
                  <div className="flex flex-col items-center justify-center p-4 bg-muted rounded-lg text-center space-y-1">
-                    <p className="text-sm text-muted-foreground">Recuperación</p>
-                    <p className="text-3xl font-bold text-primary">{!isNaN(readiness) ? readiness.toFixed(0) : '0'}<span className="text-lg">%</span></p>
+                    <p className="text-sm text-muted-foreground">VFC (HRV)</p>
+                    <p className="text-2xl font-bold text-primary">{!isNaN(hrv) ? hrv.toFixed(1) : '0'}<span className="text-sm ml-1">ms</span></p>
                  </div>
-                 <div className="grid grid-cols-2 gap-4">
-                    <div className="p-2 bg-muted/50 rounded-lg text-center">
-                        <p className="text-xs text-muted-foreground">VFC (HRV)</p>
-                        <p className="text-lg font-semibold">{!isNaN(hrv) ? hrv.toFixed(1) : '0'} <span className="text-sm">ms</span></p>
-                    </div>
-                    <div className="p-2 bg-muted/50 rounded-lg text-center">
-                        <p className="text-xs text-muted-foreground">FC Reposo</p>
-                        <p className="text-lg font-semibold">{!isNaN(restingHR) ? restingHR.toFixed(0) : '0'} <span className="text-sm">bpm</span></p>
-                    </div>
-                    <div className="p-2 bg-muted/50 rounded-lg text-center col-span-2">
-                        <p className="text-xs text-muted-foreground">Frec. Respiratoria</p>
-                        <p className="text-lg font-semibold">{!isNaN(respiration) ? respiration.toFixed(1) : '0'} <span className="text-sm">rpm</span></p>
-                    </div>
+                 <div className="flex flex-col items-center justify-center p-4 bg-muted rounded-lg text-center space-y-1">
+                    <p className="text-sm text-muted-foreground">FC Reposo</p>
+                    <p className="text-2xl font-bold text-primary">{!isNaN(restingHR) ? restingHR.toFixed(0) : '0'}<span className="text-sm ml-1">bpm</span></p>
+                 </div>
+                 <div className="flex flex-col items-center justify-center p-4 bg-muted rounded-lg text-center space-y-1">
+                    <p className="text-sm text-muted-foreground">Respiración</p>
+                    <p className="text-2xl font-bold text-primary">{!isNaN(respiration) ? respiration.toFixed(1) : '0'}<span className="text-sm ml-1">rpm</span></p>
                  </div>
             </CardContent>
         </Card>
@@ -532,10 +516,10 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
           data.map((workout, index) => (
             <TableRow key={index}>
               <TableCell>{workout.parsedDate?.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }) || 'Fecha inválida'}</TableCell>
-              <TableCell className="font-medium">{workout.type}</TableCell>
-              <TableCell className="text-right">{workout.duration} min</TableCell>
-              <TableCell className="text-right">{workout.calories}</TableCell>
-              <TableCell className="text-right">{workout.heartRateAvg && workout.heartRateAvg > 0 ? `${workout.heartRateAvg} bpm` : '-'}</TableCell>
+              <TableCell className="font-medium">{workout.tipo}</TableCell>
+              <TableCell className="text-right">{workout.duracion} min</TableCell>
+              <TableCell className="text-right">{workout.calorias}</TableCell>
+              <TableCell className="text-right">{workout.frecuenciaCardiacaMedia && workout.frecuenciaCardiacaMedia > 0 ? `${workout.frecuenciaCardiacaMedia} bpm` : '-'}</TableCell>
             </TableRow>
           ))
         ) : (

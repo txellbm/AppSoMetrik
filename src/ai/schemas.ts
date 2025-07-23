@@ -35,63 +35,52 @@ export type ProcessHealthDataFileInput = z.infer<
   typeof ProcessHealthDataFileInputSchema
 >;
 
-export const WorkoutSchema = z.object({
-  date: z.string().describe("La fecha del entrenamiento (YYYY-MM-DD)."),
-  type: z.string().describe("El tipo de entrenamiento (ej. Pilates, Fuerza)."),
-  duration: z.number().describe("La duración del entrenamiento en minutos.").default(0),
-  calories: z.number().describe("Las calorías quemadas durante el entrenamiento.").default(0),
-  intensity: z.string().optional().describe("Intensidad del entrenamiento (baja, media, alta)."),
-  heartRateAvg: z.number().optional().describe("Frecuencia cardíaca promedio.").default(0),
-  startTime: z.string().describe("La hora de inicio del entrenamiento (ej. '18:30:05').").optional().default("00:00:00"),
-  endTime: z.string().describe("La hora de finalización del entrenamiento (ej. '19:30:10').").optional().default("00:00:00"),
-});
-export type Workout = z.infer<typeof WorkoutSchema>;
-
-const MenstrualCycleSchema = z.object({
-  phase: z.string().optional().describe("Fase del ciclo (menstrual, folicular, ovulatoria, lútea)."),
-  dayOfCycle: z.number().optional().describe("El día actual dentro del ciclo menstrual."),
-  symptoms: z.array(z.string()).optional().describe("Síntomas registrados."),
-  flow: z.enum(['light', 'medium', 'heavy', 'spotting']).optional().describe("El nivel de sangrado."),
+const SleepSchema = z.object({
+    profundo: z.number().describe("Minutos de sueño profundo.").default(0),
+    ligero: z.number().describe("Minutos de sueño ligero.").default(0),
+    rem: z.number().describe("Minutos de sueño REM.").default(0),
+    total: z.number().describe("Duración total del sueño en minutos.").default(0),
 });
 
 export const DailyMetricSchema = z.object({
     date: z.string().describe("Fecha de las métricas (YYYY-MM-DD)."),
-    // Sleep
-    sleepHours: z.number().optional().default(0),
-    remSleepMinutes: z.number().optional().default(0),
-    deepSleepMinutes: z.number().optional().default(0),
-    lightSleepMinutes: z.number().optional().default(0),
-    sleepQualityScore: z.number().optional().default(0),
-    // Vitals
-    restingHeartRate: z.number().optional().default(0),
+    sueño: SleepSchema.optional(),
     hrv: z.number().optional().default(0),
-    respirationRate: z.number().optional().default(0),
-    // Activity
-    hydrationLiters: z.number().optional().default(0),
-    activeCalories: z.number().optional().default(0),
-    movePercentage: z.number().optional().default(0),
-    standHours: z.number().optional().default(0),
-    steps: z.number().optional().default(0),
-    distance: z.number().optional().default(0),
-    // Wellness
-    energyLevel: z.number().optional().default(0),
-    recoveryPercentage: z.number().optional().default(0),
-    // Menstrual Cycle (embedded)
-    menstrualCycle: MenstrualCycleSchema.optional(),
+    respiracion: z.number().optional().default(0),
+    hidratacion: z.number().optional().default(0),
+    pasos: z.number().optional().default(0),
+    caloriasActivas: z.number().optional().default(0),
+    minutosEnMovimiento: z.number().optional().default(0),
+    estadoCiclo: z.string().optional(),
+    sintomas: z.array(z.string()).optional(),
+    notas: z.string().optional(),
+    // Legacy fields for compatibility, can be removed later
+    restingHeartRate: z.number().optional(),
+    sleepHours: z.number().optional(),
+    deepSleepMinutes: z.number().optional(),
+    lightSleepMinutes: z.number().optional(),
+    remSleepMinutes: z.number().optional(),
 });
 export type DailyMetric = z.infer<typeof DailyMetricSchema>;
 
+export const WorkoutEntrySchema = z.object({
+    date: z.string().describe("La fecha del entrenamiento (YYYY-MM-DD)."),
+    tipo: z.string().describe("El tipo de entrenamiento (ej. Pilates, Fuerza)."),
+    duracion: z.number().describe("La duración del entrenamiento en minutos.").default(0),
+    calorias: z.number().describe("Las calorías quemadas durante el entrenamiento.").default(0),
+    frecuenciaCardiacaMedia: z.number().optional().describe("Frecuencia cardíaca promedio.").default(0),
+});
+export type Workout = z.infer<typeof WorkoutEntrySchema>;
 
 export const ProcessHealthDataFileOutputSchema = z.object({
-  summary: z
-    .string()
-    .describe('Un resumen completo de los datos de salud del archivo proporcionado.'),
+  summary: z.string().describe('Un resumen de 1-2 frases sobre los datos procesados.'),
   dailyMetrics: z.array(DailyMetricSchema).describe("Una lista de métricas diarias, con una entrada por cada día con datos."),
-  workouts: z.array(WorkoutSchema).describe("Una lista de los entrenamientos extraídos del archivo.").default([]),
+  workouts: z.array(WorkoutEntrySchema).describe("Una lista de los entrenamientos extraídos del archivo.").default([]),
 });
 export type ProcessHealthDataFileOutput = z.infer<
   typeof ProcessHealthDataFileOutputSchema
 >;
+
 
 // Combined data structure for the dashboard state
 export type DashboardData = {

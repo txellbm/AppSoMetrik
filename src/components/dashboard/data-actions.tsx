@@ -30,13 +30,15 @@ const mergeDailyMetrics = (existingMetric: DailyMetric, newMetric: DailyMetric):
         const newValue = newMetric[aKey];
 
         if (aKey === 'date' || newValue === undefined || newValue === null) continue;
-
-        if (aKey === 'menstrualCycle') {
-            merged.menstrualCycle = {
-                ...merged.menstrualCycle,
-                ...((newValue || {}) as object),
+        
+        const isObject = typeof newValue === 'object' && !Array.isArray(newValue);
+        if (isObject) {
+             (merged as any)[aKey] = {
+                ...((merged as any)[aKey] || {}),
+                ...(newValue as object),
             };
-        } else if (newValue !== 0 && newValue !== '' && !Number.isNaN(newValue)) {
+        }
+        else if (newValue !== 0 && newValue !== '' && !Number.isNaN(newValue)) {
              // Only update if the new value is not a default/empty one, and not NaN
             (merged as any)[aKey] = newValue;
         }

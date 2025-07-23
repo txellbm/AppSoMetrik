@@ -15,14 +15,16 @@ import { Moon } from "lucide-react";
 
 export default function SleepChart({ data }: { data: DailyMetric[] }) {
 
-  const formattedData = data.map(entry => ({
+  const formattedData = data
+    .filter(entry => entry.sueño) // Only include entries with sleep data
+    .map(entry => ({
     ...entry,
     // Format date for display on X-axis, e.g., "Oct 27"
     day: new Date(entry.date + 'T00:00:00').toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }),
     // Convert minutes to hours for the chart
-    deepSleepHours: (entry.deepSleepMinutes || 0) / 60,
-    lightSleepHours: (entry.lightSleepMinutes || 0) / 60,
-    remSleepHours: (entry.remSleepMinutes || 0) / 60,
+    deepSleepHours: (entry.sueño?.profundo || 0) / 60,
+    lightSleepHours: (entry.sueño?.ligero || 0) / 60,
+    remSleepHours: (entry.sueño?.rem || 0) / 60,
   }));
 
 
@@ -81,4 +83,3 @@ export default function SleepChart({ data }: { data: DailyMetric[] }) {
     </Card>
   );
 }
-
