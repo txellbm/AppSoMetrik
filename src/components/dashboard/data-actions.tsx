@@ -36,7 +36,8 @@ const mergeDailyMetrics = (existingMetric: DailyMetric, newMetric: DailyMetric):
                 ...merged.menstrualCycle,
                 ...((newValue || {}) as object),
             };
-        } else if (newValue !== 0 && newValue !== '') {
+        } else if (newValue !== 0 && newValue !== '' && !Number.isNaN(newValue)) {
+             // Only update if the new value is not a default/empty one, and not NaN
             (merged as any)[aKey] = newValue;
         }
     }
@@ -122,7 +123,7 @@ export default function DataActions({ onDataProcessed, onGenerateReport, onDelet
       
       // If the file is empty or just has a header
       if (dataRows.length === 0 || (dataRows.length === 1 && dataRows[0].trim() === '')) {
-          console.log(`Skipping empty or header-only file: ${fileName}`);
+          console.log(`[!] Archivo omitido (vacío o solo encabezado): ${fileName}`);
           return aggregatedResult;
       }
       
@@ -130,8 +131,13 @@ export default function DataActions({ onDataProcessed, onGenerateReport, onDelet
           const chunkRows = dataRows.slice(i, i + CHUNK_SIZE);
           const chunkContent = [header, ...chunkRows].join('\n');
           
-          const chunkResult = await processHealthDataFile({ fileContent: chunkContent, fileName });
-          aggregateResults(aggregatedResult, chunkResult);
+          try {
+            const chunkResult = await processHealthDataFile({ fileContent: chunkContent, fileName });
+            aggregateResults(aggregatedResult, chunkResult);
+          } catch(e) {
+             console.error(`[❌] Error al procesar un trozo del archivo ${fileName}:`, e);
+             // Optionally, toast a non-blocking error for the user
+          }
       }
       return aggregatedResult;
   }
@@ -150,25 +156,28 @@ export default function DataActions({ onDataProcessed, onGenerateReport, onDelet
     const csvFiles = Object.values(zip.files).filter(f => !f.dir && f.name.toLowerCase().endsWith('.csv'));
 
     for (const zipEntry of csvFiles) {
-        console.log(`[+] Processing file from ZIP: ${zipEntry.name}`);
+        console.log(`[▶️] Procesando archivo del ZIP: ${zipEntry.name}`);
         try {
             const content = await zipEntry.async('string');
-            if (!content) {
-                 console.log(`[!] Skipping empty file: ${zipEntry.name}`);
+            if (!content || content.trim() === '') {
+                 console.log(`[!] Archivo omitido (vacío): ${zipEntry.name}`);
                  continue;
             }
 
             const fileResult = await processFileInChunks(content, zipEntry.name);
-            console.log(`[✅] Generated metrics for ${zipEntry.name}:`, fileResult);
-
+            const metricsFound = fileResult.dailyMetrics.length;
+            const workoutsFound = fileResult.workouts.length;
+            
+            console.log(`[✅] Archivo procesado: ${zipEntry.name}. Métricas encontradas: ${metricsFound}, Entrenamientos: ${workoutsFound}.`, fileResult);
+            
             aggregateResults(combinedResult, fileResult);
             filesProcessed++;
         } catch(error) {
-            console.error(`[❌] Error processing file ${zipEntry.name}:`, error);
+            console.error(`[❌] Error al procesar el archivo ${zipEntry.name}:`, error);
             toast({
                 variant: "destructive",
                 title: `Error en ${zipEntry.name}`,
-                description: `Este archivo no se pudo procesar y fue omitido. El resto continuará.`
+                description: `Este archivo no se pudo procesar y fue omitido.`
             });
         }
     }
@@ -196,17 +205,19 @@ export default function DataActions({ onDataProcessed, onGenerateReport, onDelet
           if (file.name.toLowerCase().endsWith('.zip')) {
               result = await processZipFile(file);
           } else if (file.name.toLowerCase().endsWith('.csv')) {
-              console.log(`[+] Processing single file: ${file.name}`);
+              console.log(`[▶️] Procesando archivo único: ${file.name}`);
               const content = await file.text();
               if (content) {
                   result = await processFileInChunks(content, file.name);
-                  console.log(`[✅] Generated metrics for ${file.name}:`, result);
+                  const metricsFound = result.dailyMetrics.length;
+                  const workoutsFound = result.workouts.length;
+                  console.log(`[✅] Archivo procesado: ${file.name}. Métricas encontradas: ${metricsFound}, Entrenamientos: ${workoutsFound}.`, result);
               }
           }
           aggregateResults(allProcessedData, result);
       }
       
-      console.log("[📊] Final aggregated data to be saved:", allProcessedData);
+      console.log("[📊] Datos finales agregados para guardar:", allProcessedData);
       onDataProcessed(allProcessedData);
 
       toast({
