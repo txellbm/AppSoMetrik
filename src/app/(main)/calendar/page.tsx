@@ -6,7 +6,7 @@ import { db } from "@/lib/firebase";
 import { doc, collection, onSnapshot, setDoc, deleteDoc, getDoc, updateDoc, query, runTransaction, increment } from "firebase/firestore";
 import { format, parseISO, startOfDay, addMinutes, isSameDay, getDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Calendar, DayProps } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,7 @@ type WorkoutTypeInfo = {
     icon: React.ReactNode;
     defaultStartTime?: string;
     defaultDuration?: number;
-    defaultDayOfWeek?: number; // 0 for Sunday, ..., 6 for Saturday
+    defaultDaysOfWeek?: number[];
 };
 
 type DailyEventSummary = {
@@ -42,19 +42,19 @@ const eventTypeColors: Record<string, string> = {
 };
 
 const weekDays = [
-    { value: 1, label: 'Lunes' },
-    { value: 2, label: 'Martes' },
-    { value: 3, label: 'Miércoles' },
-    { value: 4, label: 'Jueves' },
-    { value: 5, label: 'Viernes' },
-    { value: 6, label: 'Sábado' },
-    { value: 0, label: 'Domingo' },
+    { value: 1, label: 'L' },
+    { value: 2, label: 'M' },
+    { value: 3, label: 'X' },
+    { value: 4, label: 'J' },
+    { value: 5, label: 'V' },
+    { value: 6, label: 'S' },
+    { value: 0, label: 'D' },
 ];
 
 const initialWorkoutTypes: WorkoutTypeInfo[] = [
-    { id: 'pilates', label: 'Pilates', icon: <Droplets className="h-4 w-4" /> },
-    { id: 'flexibilidad', label: 'Flexibilidad/Contorsión', icon: <Star className="h-4 w-4" /> },
-    { id: 'fuerza_funcional', label: 'Fuerza Funcional', icon: <Dumbbell className="h-4 w-4" /> }
+    { id: 'pilates', label: 'Pilates', icon: <Droplets className="h-4 w-4" />, defaultDaysOfWeek: [] },
+    { id: 'flexibilidad', label: 'Flexibilidad/Contorsión', icon: <Star className="h-4 w-4" />, defaultDaysOfWeek: [] },
+    { id: 'fuerza_funcional', label: 'Fuerza Funcional', icon: <Dumbbell className="h-4 w-4" />, defaultDaysOfWeek: [] }
 ];
 
 export default function CalendarPage() {
@@ -163,14 +163,13 @@ export default function CalendarPage() {
         if (!day) return;
         if (selectedWorkoutType) {
             const workoutInfo = workoutTypes.find(w => w.id === selectedWorkoutType);
-            if (workoutInfo?.defaultDayOfWeek !== undefined) {
-                // getDay() returns 0 for Sunday, 1 for Monday...
+            if (workoutInfo?.defaultDaysOfWeek && workoutInfo.defaultDaysOfWeek.length > 0) {
                 const clickedDay = getDay(day);
-                if (clickedDay !== workoutInfo.defaultDayOfWeek) {
+                if (!workoutInfo.defaultDaysOfWeek.includes(clickedDay)) {
                     toast({
                         variant: "destructive",
                         title: "Día incorrecto",
-                        description: `El entrenamiento '${workoutInfo.label}' solo puede ser añadido a los ${weekDays.find(wd => wd.value === workoutInfo.defaultDayOfWeek)?.label}.`,
+                        description: `El entrenamiento '${workoutInfo.label}' solo puede ser añadido a los días configurados.`,
                     });
                     return;
                 }
@@ -246,14 +245,18 @@ export default function CalendarPage() {
         setIsDialogOpen(true);
     };
 
-    const handleWorkoutConfigChange = (id: string, field: keyof WorkoutTypeInfo, value: string | number) => {
+    const handleWorkoutConfigChange = (id: string, field: keyof WorkoutTypeInfo, value: any) => {
+        setWorkoutTypes(prev => prev.map(w => w.id === id ? { ...w, [field]: value } : w));
+    };
+
+    const handleDayToggle = (workoutId: string, dayValue: number) => {
         setWorkoutTypes(prev => prev.map(w => {
-            if (w.id === id) {
-                if (field === 'defaultDayOfWeek' && value === -1) {
-                     const { [field]: _, ...rest } = w;
-                     return rest;
-                }
-                return { ...w, [field]: value };
+            if (w.id === workoutId) {
+                const currentDays = w.defaultDaysOfWeek || [];
+                const newDays = currentDays.includes(dayValue)
+                    ? currentDays.filter(d => d !== dayValue)
+                    : [...currentDays, dayValue];
+                return { ...w, defaultDaysOfWeek: newDays };
             }
             return w;
         }));
@@ -359,27 +362,28 @@ export default function CalendarPage() {
                                             placeholder="e.g., 60"
                                         />
                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <Label htmlFor={`${workout.id}-day`} className="min-w-fit flex items-center gap-1 text-xs text-muted-foreground">
-                                            <CalendarDays className="h-3 w-3"/>
-                                            Día Fijo
-                                        </Label>
-                                        <Select
-                                            value={workout.defaultDayOfWeek?.toString() ?? "-1"}
-                                            onValueChange={(value) => handleWorkoutConfigChange(workout.id, 'defaultDayOfWeek', Number(value))}
-                                        >
-                                            <SelectTrigger className="h-8">
-                                                <SelectValue placeholder="Cualquier día" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="-1">Cualquier día</SelectItem>
-                                                {weekDays.map(day => (
-                                                     <SelectItem key={day.value} value={day.value.toString()}>{day.label}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                   </div>
                                </CardContent>
+                               <CardFooter className="p-4 pt-0">
+                                   <div className="w-full">
+                                        <Label className="min-w-fit flex items-center gap-1 text-xs text-muted-foreground mb-2">
+                                            <CalendarDays className="h-3 w-3"/>
+                                            Días Fijos
+                                        </Label>
+                                        <div className="flex justify-between gap-1">
+                                            {weekDays.map(day => (
+                                                <Button 
+                                                    key={day.value}
+                                                    variant={workout.defaultDaysOfWeek?.includes(day.value) ? "default" : "outline"}
+                                                    size="icon"
+                                                    className="h-8 w-8 rounded-full"
+                                                    onClick={() => handleDayToggle(workout.id, day.value)}
+                                                >
+                                                    {day.label}
+                                                </Button>
+                                            ))}
+                                        </div>
+                                   </div>
+                                </CardFooter>
                            </Card>
                         ))}
                     </CardContent>
@@ -519,3 +523,5 @@ function EditEventDialog({ isOpen, setIsOpen, event, onSave }: EditEventDialogPr
         </Dialog>
     );
 }
+
+    
