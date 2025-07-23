@@ -6,9 +6,11 @@ import { processHealthDataFile } from "@/ai/flows/process-health-data-file";
 import { ProcessHealthDataFileOutput } from "@/ai/schemas";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Upload, FileText, Loader2, BrainCircuit, Trash2 } from "lucide-react";
+import { Upload, FileText, Loader2, BrainCircuit, Trash2, FileArchive } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import JSZip from 'jszip';
+
 
 type DataActionsProps = {
   onDataProcessed: (data: ProcessHealthDataFileOutput) => void;
@@ -53,6 +55,42 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
     setFiles(files.filter((_, i) => i !== index));
   }
 
+  const processSingleFile = async (file: File) => {
+    const content = await file.text();
+    if (!content) {
+      toast({
+        variant: "destructive",
+        title: "Archivo vacío",
+        description: `El archivo ${file.name} parece estar vacío.`,
+      });
+      return;
+    }
+    const result = await processHealthDataFile({ fileContent: content, fileName: file.name });
+    onDataProcessed(result);
+  };
+  
+  const processZipFile = async (file: File) => {
+    const zip = await JSZip.loadAsync(file);
+    const processingPromises = [];
+
+    for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
+      if (!zipEntry.dir && relativePath.toLowerCase().endsWith('.csv')) {
+        const promise = zipEntry.async('string').then(content => {
+          if (!content) {
+            console.warn(`Archivo vacío en ZIP: ${zipEntry.name}`);
+            return;
+          }
+          return processHealthDataFile({ fileContent: content, fileName: zipEntry.name });
+        }).then(result => {
+            if(result) onDataProcessed(result);
+        });
+        processingPromises.push(promise);
+      }
+    }
+    await Promise.all(processingPromises);
+  };
+
+
   const processFiles = async () => {
     if (files.length === 0) {
       toast({
@@ -66,20 +104,12 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
     setIsLoading(true);
     
     try {
-      // Since we process files one by one to show progress, we'll call onDataProcessed for each.
-      // A better approach for multiple files would be to aggregate results then call onDataProcessed once.
       for (const file of files) {
-        const content = await file.text();
-        if (!content) {
-          toast({
-            variant: "destructive",
-            title: "Archivo vacío",
-            description: `El archivo ${file.name} parece estar vacío.`,
-          });
-          continue; // Skip this file
+        if (file.name.toLowerCase().endsWith('.zip')) {
+          await processZipFile(file);
+        } else {
+          await processSingleFile(file);
         }
-        const result = await processHealthDataFile({ fileContent: content, fileName: file.name });
-        onDataProcessed(result); // Process and save each file's data
       }
 
       toast({
@@ -101,11 +131,18 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
     }
   };
 
+  const getFileIcon = (fileName: string) => {
+    if (fileName.toLowerCase().endsWith('.zip')) {
+        return <FileArchive className="h-5 w-5 text-muted-foreground flex-shrink-0" />;
+    }
+    return <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />;
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Gestión de Datos</CardTitle>
-        <CardDescription>Sube archivos o genera un informe.</CardDescription>
+        <CardDescription>Sube archivos (CSV, ZIP) o genera un informe.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div 
@@ -123,7 +160,7 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
               ref={fileInputRef}
               onChange={(e) => handleFiles(e.target.files)}
               className="hidden"
-              accept=".csv,.txt,.json"
+              accept=".csv,.txt,.json,.zip"
               multiple
             />
             <div className="flex flex-col items-center justify-center space-y-2 h-24 cursor-pointer" onClick={() => fileInputRef.current?.click()}>
@@ -139,7 +176,7 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
               {files.map((file, index) => (
                 <div key={index} className="flex items-center justify-between bg-muted p-2 rounded-md">
                    <div className="flex items-center gap-2 overflow-hidden">
-                    <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                    {getFileIcon(file.name)}
                     <span className="text-sm truncate" title={file.name}>{file.name}</span>
                    </div>
                   <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeFile(index)}>

@@ -47,10 +47,9 @@ import NotificationsWidget from "@/components/dashboard/notifications-widget";
 import SleepChart from "@/components/dashboard/sleep-chart";
 import MenstrualCyclePanel from "@/components/dashboard/menstrual-cycle-panel";
 import MenstrualCalendar from "@/components/dashboard/menstrual-calendar";
-import { collection, writeBatch, onSnapshot } from "firebase/firestore";
+import { collection, writeBatch, onSnapshot, doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { startOfWeek, endOfWeek, subWeeks, isWithinInterval, parseISO, differenceInDays, startOfToday } from "date-fns";
-import { doc } from "firebase/firestore";
+import { startOfWeek, endOfWeek, subWeeks, isWithinInterval, parseISO, differenceInDays, startOfToday, format } from "date-fns";
 
 const initialDashboardData: DashboardData = {
   workouts: [],
@@ -68,65 +67,68 @@ export default function Home() {
   const userId = "user_test_id";
 
   useEffect(() => {
-    const collections = {
-        workouts: collection(db, "users", userId, "workouts"),
-        sleepData: collection(db, "users", userId, "sleepEntries"),
-        menstrualData: collection(db, "users", userId, "menstrualCycles"),
-    };
+    const healthDataCol = collection(db, "users", userId, "healthData");
 
-    const unsubscribers = Object.entries(collections).map(([key, coll]) => {
-        return onSnapshot(coll, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ ...doc.data() } as any)); // Type assertion here
-            setDashboardData(prevData => ({
-                ...prevData,
-                [key]: data,
-            }));
-        }, (error) => {
-          console.error(`Error en el listener de ${key}:`, error);
-          toast({
-            variant: "destructive",
-            title: `Error de Firestore (${key})`,
-            description: "No se pudieron cargar los datos. Revisa los permisos de la base de datos.",
-          });
-        });
+    const unsubscribe = onSnapshot(healthDataCol, (snapshot) => {
+        const allDocs = snapshot.docs.map(doc => doc.data());
+        
+        // This is a simplified aggregation. For a real app, you'd want to aggregate 
+        // across all documents, not just flatten them.
+        const aggregatedData: DashboardData = {
+            workouts: allDocs.flatMap(d => d.workouts || []),
+            sleepData: allDocs.flatMap(d => d.sleepData || []),
+            menstrualData: allDocs.flatMap(d => d.menstrualData || []),
+        };
+
+        setDashboardData(aggregatedData);
+
+    }, (error) => {
+      console.error(`Error en el listener de healthData:`, error);
+      toast({
+        variant: "destructive",
+        title: `Error de Firestore`,
+        description: "No se pudieron cargar los datos. Revisa los permisos de la base de datos.",
+      });
     });
 
     // Cleanup function
-    return () => unsubscribers.forEach(unsub => unsub());
+    return () => unsubscribe();
   }, [userId, toast]);
 
 
-  const handleDataProcessed = async (processedData: ProcessHealthDataFileOutput) => {
-    const batch = writeBatch(db);
+ const handleDataProcessed = async (processedData: ProcessHealthDataFileOutput) => {
     const { workouts, sleepData, menstrualData } = processedData;
 
+    // Group data by date
+    const dataByDate: { [key: string]: Partial<DashboardData> } = {};
+
+    const addToDate = (date: string, key: keyof DashboardData, data: any) => {
+        if (!date) return;
+        if (!dataByDate[date]) dataByDate[date] = {};
+        if (!dataByDate[date][key]) dataByDate[date][key] = [];
+        (dataByDate[date][key] as any[]).push(data);
+    };
+
+    workouts.forEach(item => addToDate(item.date, 'workouts', item));
+    sleepData.forEach(item => addToDate(item.date, 'sleepData', item));
+    menstrualData.forEach(item => addToDate(item.date, 'menstrualData', item));
+
+    const batch = writeBatch(db);
+
+    for (const date in dataByDate) {
+        const docRef = doc(db, "users", userId, "healthData", date);
+        const dailyData = dataByDate[date];
+        
+        // Here we use { merge: true } to combine new data with existing data for the day
+        batch.set(docRef, dailyData, { merge: true });
+    }
+
     try {
-        if (workouts.length > 0) {
-            workouts.forEach(item => {
-                const docRef = doc(db, "users", userId, "workouts", item.date);
-                batch.set(docRef, item, { merge: true });
-            });
-        }
-        if (sleepData.length > 0) {
-            sleepData.forEach(item => {
-                const docRef = doc(db, "users", userId, "sleepEntries", item.date);
-                batch.set(docRef, item, { merge: true });
-            });
-        }
-        if (menstrualData.length > 0) {
-            menstrualData.forEach(item => {
-                const docRef = doc(db, "users", userId, "menstrualCycles", item.date);
-                batch.set(docRef, item, { merge: true });
-            });
-        }
-
         await batch.commit();
-
         toast({
             title: "Datos procesados y guardados",
-            description: `Se han actualizado ${workouts.length} entrenamientos, ${sleepData.length} noches de sueño y ${menstrualData.length} registros del ciclo.`,
+            description: `Se han actualizado los datos para ${Object.keys(dataByDate).length} día(s).`,
         });
-
     } catch (error) {
         console.error("Error guardando los datos procesados en Firestore:", error);
         toast({
@@ -192,23 +194,25 @@ export default function Home() {
   const avgRespiration = useMemo(() => dashboardData.sleepData.length > 0 ? dashboardData.sleepData.reduce((acc, s) => acc + (s.respiration || 0), 0) / dashboardData.sleepData.filter(s => s.respiration).length : 0, [dashboardData.sleepData]);
   
   const calculatedCycleData = useMemo<CalculatedCycleData>(() => {
+    // Sort by date to ensure chronological order
     const sortedData = [...dashboardData.menstrualData]
       .filter((d) => d.flow && d.flow !== "spotting")
-      .sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
-  
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
     if (sortedData.length === 0) {
-      return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
+        return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
     }
-  
+
+    // Find the start of the last period
     let lastPeriodStartDate: Date | null = null;
+    
+    // Group consecutive bleeding days into periods
+    const periods: Date[][] = [];
     if (sortedData.length > 0) {
-        // Find groups of consecutive days
-        const periods = [];
-        let currentPeriod = [parseISO(sortedData[0].date)];
-        
+        let currentPeriod = [new Date(sortedData[0].date + 'T00:00:00')];
         for (let i = 1; i < sortedData.length; i++) {
-            const currentDate = parseISO(sortedData[i].date);
-            const prevDate = parseISO(sortedData[i-1].date);
+            const currentDate = new Date(sortedData[i].date + 'T00:00:00');
+            const prevDate = new Date(sortedData[i-1].date + 'T00:00:00');
             if (differenceInDays(currentDate, prevDate) === 1) {
                 currentPeriod.push(currentDate);
             } else {
@@ -219,41 +223,43 @@ export default function Home() {
         periods.push(currentPeriod);
         
         const lastPeriod = periods[periods.length - 1];
-        if(lastPeriod && lastPeriod.length > 0){
-            lastPeriodStartDate = lastPeriod[0];
+        if (lastPeriod && lastPeriod.length > 0) {
+            lastPeriodStartDate = lastPeriod[0]; // The first day of the last consecutive block is the start date
         }
     }
-  
+
+
     if (!lastPeriodStartDate) {
-      return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
+        return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
     }
-  
+
     const today = startOfToday();
     const currentDay = differenceInDays(today, lastPeriodStartDate) + 1;
-  
+
     let currentPhase = "No disponible";
+    const todayStr = format(today, 'yyyy-MM-dd');
     const isBleedingToday = dashboardData.menstrualData.some(
-      (d) => parseISO(d.date).getTime() === today.getTime() && d.flow && d.flow !== "spotting"
+      (d) => d.date === todayStr && d.flow && d.flow !== "spotting"
     );
-  
+
     if (isBleedingToday || (currentDay >= 1 && currentDay <= 7)) {
-      currentPhase = "Menstruación";
+        currentPhase = "Menstruación";
     } else if (currentDay > 7 && currentDay < 14) {
-      currentPhase = "Folicular";
+        currentPhase = "Folicular";
     } else if (currentDay >= 14 && currentDay <= 15) {
-      currentPhase = "Ovulación";
+        currentPhase = "Ovulación";
     } else if (currentDay > 15) {
-      currentPhase = "Lútea";
+        currentPhase = "Lútea";
     }
-  
+
     const symptomsToday =
-      dashboardData.menstrualData.find((d) => parseISO(d.date).getTime() === today.getTime())
-        ?.symptoms || [];
-  
+        dashboardData.menstrualData.find((d) => d.date === todayStr)
+            ?.symptoms || [];
+
     return {
-      currentDay: currentDay,
-      currentPhase: currentPhase,
-      symptoms: symptomsToday,
+        currentDay: currentDay,
+        currentPhase: currentPhase,
+        symptoms: symptomsToday,
     };
   }, [dashboardData.menstrualData]);
 
