@@ -36,15 +36,15 @@ export default function SleepPage() {
 
     const sleepDataRows = useMemo(() => {
         return sortedMetrics
-            .filter(m => m.sueño && m.sueño.total > 0)
+            .filter(m => m.sueño_total && m.sueño_total > 0)
             .map(metric => ({
                 key: metric.date,
                 cells: [
                     metric.date,
-                    metric.sueño?.total || "-",
-                    metric.sueño?.profundo || "-",
-                    metric.sueño?.ligero || "-",
-                    metric.sueño?.rem || "-",
+                    metric.sueño_total || "-",
+                    metric.sueño_profundo || "-",
+                    metric.sueño_ligero || "-",
+                    metric.sueño_rem || "-",
                     metric.restingHeartRate || "-",
                     metric.hrv || "-",
                 ],
@@ -79,5 +79,3 @@ export default function SleepPage() {
         </div>
     );
 }
-
-    

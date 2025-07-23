@@ -188,9 +188,9 @@ export default function Home() {
 
     try {
         const workoutDetails = dashboardData.workouts.map(w => `${w.date} - ${w.tipo}: ${w.duracion}mins, ${w.calorias}kcal`).join('; ');
-        const sleepDetails = dashboardData.dailyMetrics.map(s => `${s.date}: ${s.sueño?.total || 0}m (REM: ${s.sueño?.rem || 0}m, Profundo: ${s.sueño?.profundo || 0}m)`).join('; ');
+        const sleepDetails = dashboardData.dailyMetrics.map(s => `${s.date}: ${s.sueño_total || 0}m (REM: ${s.sueño_rem || 0}m, Profundo: ${s.sueño_profundo || 0}m)`).join('; ');
         const menstrualDetails = dashboardData.dailyMetrics.filter(d => d.estadoCiclo).map(d => `${d.date}: Estado ${d.estadoCiclo}`).join('; ');
-        const avgSleep = dashboardData.dailyMetrics.length > 0 ? dashboardData.dailyMetrics.reduce((acc, s) => acc + (s.sueño?.total || 0), 0) / dashboardData.dailyMetrics.length / 60 : 0;
+        const avgSleep = dashboardData.dailyMetrics.length > 0 ? dashboardData.dailyMetrics.reduce((acc, s) => acc + (s.sueño_total || 0), 0) / dashboardData.dailyMetrics.length / 60 : 0;
         const totalCalories = dashboardData.workouts.reduce((acc, w) => acc + w.calorias, 0);
 
         const input: HealthSummaryInput = {

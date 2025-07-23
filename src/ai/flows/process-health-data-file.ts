@@ -33,7 +33,7 @@ const prompt = ai.definePrompt({
     -   **Si \`{{{fileName}}}\` contiene 'SleepAnalysis.csv'**:
         -   Extrae la duración en minutos para cada fase ('deep', 'light', 'rem').
         -   Suma todas las duraciones por fase para cada día.
-        -   Rellena el objeto \`sueño\` en \`dailyMetrics\`. \`sueño.total\` es la suma de profundo, ligero y rem.
+        -   Rellena los campos \`sueño_profundo\`, \`sueño_ligero\`, y \`sueño_rem\` en \`dailyMetrics\`. \`sueño_total\` es la suma de estos tres.
 
     -   **Si \`{{{fileName}}}\` contiene 'HeartRateVariability.csv'**:
         -   Extrae el \`value\` (en ms) y guárdalo en \`hrv\` dentro de \`dailyMetrics\`.

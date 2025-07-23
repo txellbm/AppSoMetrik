@@ -35,16 +35,12 @@ export type ProcessHealthDataFileInput = z.infer<
   typeof ProcessHealthDataFileInputSchema
 >;
 
-const SleepSchema = z.object({
-    profundo: z.number().describe("Minutos de sueño profundo.").default(0),
-    ligero: z.number().describe("Minutos de sueño ligero.").default(0),
-    rem: z.number().describe("Minutos de sueño REM.").default(0),
-    total: z.number().describe("Duración total del sueño en minutos.").default(0),
-});
-
 export const DailyMetricSchema = z.object({
     date: z.string().describe("Fecha de las métricas (YYYY-MM-DD)."),
-    sueño: SleepSchema.optional(),
+    sueño_total: z.number().optional().describe("Duración total del sueño en minutos.").default(0),
+    sueño_profundo: z.number().optional().describe("Minutos de sueño profundo.").default(0),
+    sueño_ligero: z.number().optional().describe("Minutos de sueño ligero.").default(0),
+    sueño_rem: z.number().optional().describe("Minutos de sueño REM.").default(0),
     hrv: z.number().optional().default(0),
     respiracion: z.number().optional().default(0),
     hidratacion: z.number().optional().default(0),
@@ -54,12 +50,7 @@ export const DailyMetricSchema = z.object({
     estadoCiclo: z.string().optional(),
     sintomas: z.array(z.string()).optional(),
     notas: z.string().optional(),
-    // Legacy fields for compatibility, can be removed later
     restingHeartRate: z.number().optional(),
-    sleepHours: z.number().optional(),
-    deepSleepMinutes: z.number().optional(),
-    lightSleepMinutes: z.number().optional(),
-    remSleepMinutes: z.number().optional(),
 });
 export type DailyMetric = z.infer<typeof DailyMetricSchema>;
 
