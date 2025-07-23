@@ -78,7 +78,15 @@ const processHealthDataFileFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    return output!;
+    
+    // Fallback mechanism to ensure the output object has the required structure
+    const validatedOutput: ProcessHealthDataFileOutput = {
+        summary: output?.summary || `Procesado ${input.fileName || 'archivo'}.`,
+        dailyMetrics: output?.dailyMetrics || [],
+        workouts: output?.workouts || [],
+    };
+    
+    return validatedOutput;
   }
 );
     
