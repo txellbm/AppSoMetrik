@@ -15,7 +15,9 @@ type DataActionsProps = {
   onGenerateReport: () => void;
 };
 
-const CHUNK_SIZE = 500; // Process 500 rows at a time
+// This constant defines how many rows of a CSV are sent to the AI in one go.
+// A smaller chunk size is more reliable but slower. A larger one is faster but risks hitting token limits.
+const CHUNK_SIZE = 500; 
 
 export default function DataActions({ onDataProcessed, onGenerateReport }: DataActionsProps) {
   const [files, setFiles] = useState<File[]>([]);
@@ -55,17 +57,20 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
     setFiles(files.filter((_, i) => i !== index));
   }
 
+  // Processes a single CSV's content in smaller pieces (chunks)
+  // to avoid hitting the AI model's token limit.
   const processFileInChunks = async (fileContent: string, fileName: string): Promise<ProcessHealthDataFileOutput | null> => {
       const lines = fileContent.split('\n');
       const header = lines[0];
       const dataRows = lines.slice(1);
       
+      // If the file is empty or just has a header, skip it.
       if (dataRows.length === 0 || (dataRows.length === 1 && dataRows[0].trim() === '')) {
           return null;
       }
       
       let aggregatedResult: ProcessHealthDataFileOutput = {
-          summary: "",
+          summary: "", // The summary is generated per-file, the last one will be used.
           workouts: [],
           dailyMetrics: [],
       };
@@ -76,19 +81,22 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
           
           try {
               const chunkResult = await processHealthDataFile({ fileContent: chunkContent, fileName });
+              // Aggregate workouts from the chunk
               if (chunkResult.workouts) {
                 aggregatedResult.workouts.push(...chunkResult.workouts);
               }
+              // Aggregate and merge daily metrics from the chunk
               if (chunkResult.dailyMetrics) {
-                 // Custom merge logic for dailyMetrics array
                  chunkResult.dailyMetrics.forEach(newMetric => {
                     const existingMetricIndex = aggregatedResult.dailyMetrics.findIndex(m => m.date === newMetric.date);
                     if (existingMetricIndex > -1) {
+                        // Merge new metric data into the existing day's metric object
                         aggregatedResult.dailyMetrics[existingMetricIndex] = {
                             ...aggregatedResult.dailyMetrics[existingMetricIndex],
                             ...newMetric
                         };
                     } else {
+                        // Add the new day's metric object
                         aggregatedResult.dailyMetrics.push(newMetric);
                     }
                 });
@@ -96,31 +104,28 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
               aggregatedResult.summary = chunkResult.summary; 
           } catch (error) {
               console.error(`Error processing chunk for ${fileName}:`, error);
-              toast({
-                  variant: "destructive",
-                  title: `Error en el archivo ${fileName}`,
-                  description: `No se pudo procesar una parte del archivo.`,
-              });
-              return null; // Stop processing this file if a chunk fails
+              // Don't stop processing other files, just this one.
+              return null;
           }
       }
       return aggregatedResult;
   }
 
+  // Handles a single file (either a CSV or a ZIP)
   const processSingleFile = async (file: File): Promise<ProcessHealthDataFileOutput | null> => {
-    const content = await file.text();
-    if (!content) {
-      toast({
-        variant: "destructive",
-        title: "Archivo vacío",
-        description: `El archivo ${file.name} parece estar vacío.`,
-      });
-      return null;
+    if (file.name.toLowerCase().endsWith('.zip')) {
+        return processZipFile(file);
     }
-    return await processFileInChunks(content, file.name);
+    if (file.name.toLowerCase().endsWith('.csv')) {
+        const content = await file.text();
+        if (!content) return null;
+        return await processFileInChunks(content, file.name);
+    }
+    return null; // Ignore other file types
   };
   
-  const processZipFile = async (file: File): Promise<ProcessHealthDataFileOutput | null> => {
+  // Unzips a file and processes each CSV inside it sequentially.
+  const processZipFile = async (file: File): Promise<ProcessHealthDataFileOutput> => {
     const JSZip = (await import('jszip')).default;
     const zip = await JSZip.loadAsync(file);
     let filesProcessed = 0;
@@ -131,24 +136,23 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
       dailyMetrics: [],
     };
 
-    for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
-      if (!zipEntry.dir && relativePath.toLowerCase().endsWith('.csv')) {
+    const csvFiles = Object.values(zip.files).filter(f => !f.dir && f.name.toLowerCase().endsWith('.csv'));
+
+    for (const zipEntry of csvFiles) {
         const content = await zipEntry.async('string');
-        if (!content) {
-          console.warn(`Archivo vacío en ZIP: ${zipEntry.name}`);
-          continue;
-        }
+        if (!content) continue;
+
         const fileResult = await processFileInChunks(content, zipEntry.name);
+
         if (fileResult) {
+            // Aggregate workouts
             if (fileResult.workouts) combinedResult.workouts.push(...fileResult.workouts);
+            // Aggregate and merge daily metrics
             if (fileResult.dailyMetrics) {
                 fileResult.dailyMetrics.forEach(newMetric => {
                     const existingMetricIndex = combinedResult.dailyMetrics.findIndex(m => m.date === newMetric.date);
                     if (existingMetricIndex > -1) {
-                        combinedResult.dailyMetrics[existingMetricIndex] = {
-                            ...combinedResult.dailyMetrics[existingMetricIndex],
-                            ...newMetric
-                        };
+                        combinedResult.dailyMetrics[existingMetricIndex] = { ...combinedResult.dailyMetrics[existingMetricIndex], ...newMetric };
                     } else {
                         combinedResult.dailyMetrics.push(newMetric);
                     }
@@ -156,21 +160,13 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
             }
         }
         filesProcessed++;
-      }
     }
-
-    if (filesProcessed === 0) {
-        toast({
-            variant: "destructive",
-            title: "ZIP sin archivos válidos",
-            description: "No se encontraron archivos CSV procesables en el ZIP.",
-        });
-        return null;
-    }
+    
+    combinedResult.summary = `Procesados ${filesProcessed} archivos del ZIP.`;
     return combinedResult;
   };
 
-
+  // Main function to start the processing of all selected files
   const processFiles = async () => {
     if (files.length === 0) {
       toast({
@@ -185,23 +181,17 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
     let allProcessedData: ProcessHealthDataFileOutput = { summary: "", dailyMetrics: [], workouts: [] };
     
     try {
+      // Process each selected file (can be a mix of ZIPs and CSVs)
       for (const file of files) {
-        let result: ProcessHealthDataFileOutput | null = null;
-        if (file.name.toLowerCase().endsWith('.zip')) {
-          result = await processZipFile(file);
-        } else if (file.name.toLowerCase().endsWith('.csv')) {
-          result = await processSingleFile(file);
-        }
+        const result = await processSingleFile(file);
 
         if (result) {
+            // Aggregate and merge results from each file into one final object
             if(result.dailyMetrics) {
                  result.dailyMetrics.forEach(newMetric => {
                     const existingMetricIndex = allProcessedData.dailyMetrics.findIndex(m => m.date === newMetric.date);
                     if (existingMetricIndex > -1) {
-                        allProcessedData.dailyMetrics[existingMetricIndex] = {
-                            ...allProcessedData.dailyMetrics[existingMetricIndex],
-                            ...newMetric
-                        };
+                        allProcessedData.dailyMetrics[existingMetricIndex] = { ...allProcessedData.dailyMetrics[existingMetricIndex], ...newMetric };
                     } else {
                         allProcessedData.dailyMetrics.push(newMetric);
                     }
@@ -210,7 +200,9 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
             if(result.workouts) allProcessedData.workouts.push(...result.workouts);
         }
       }
-
+      
+      // Once all files are processed, send the complete, aggregated data to the parent component
+      // to be saved in Firestore.
       onDataProcessed(allProcessedData);
 
       toast({
