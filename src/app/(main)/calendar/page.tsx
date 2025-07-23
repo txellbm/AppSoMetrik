@@ -3,18 +3,18 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, query, where, writeBatch, doc, deleteDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, where, writeBatch, doc, deleteDoc, getDocs, runTransaction } from "firebase/firestore";
 import { CalendarEvent } from "@/ai/schemas";
 import { useToast } from "@/hooks/use-toast";
-import { addDays, endOfWeek, format, startOfWeek, subDays } from "date-fns";
+import { addMonths, endOfMonth, format, startOfMonth, subMonths } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, PlusCircle } from "lucide-react";
-import { CalendarGrid } from "@/components/dashboard/calendar-view";
+import { MonthlyCalendarView } from "@/components/dashboard/monthly-calendar-view";
 import EventDialog, { EventFormData } from "@/components/dashboard/event-dialog";
 
 export default function CalendarPage() {
-    const [currentDate, setCurrentDate] = useState(new Date());
+    const [currentMonth, setCurrentMonth] = useState(new Date());
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { toast } = useToast();
@@ -24,15 +24,15 @@ export default function CalendarPage() {
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
     const [dialogDate, setDialogDate] = useState<Date | null>(null);
 
-    const weekStart = useMemo(() => startOfWeek(currentDate, { weekStartsOn: 1 }), [currentDate]);
-    const weekEnd = useMemo(() => endOfWeek(currentDate, { weekStartsOn: 1 }), [currentDate]);
+    const monthStart = useMemo(() => startOfMonth(currentMonth), [currentMonth]);
+    const monthEnd = useMemo(() => endOfMonth(currentMonth), [currentMonth]);
 
     useEffect(() => {
         setIsLoading(true);
         const eventsColRef = collection(db, "users", userId, "events");
         const q = query(eventsColRef, 
-            where("date", ">=", format(weekStart, "yyyy-MM-dd")),
-            where("date", "<=", format(weekEnd, "yyyy-MM-dd"))
+            where("date", ">=", format(monthStart, "yyyy-MM-dd")),
+            where("date", "<=", format(monthEnd, "yyyy-MM-dd"))
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -46,28 +46,26 @@ export default function CalendarPage() {
         });
 
         return () => unsubscribe();
-    }, [weekStart, weekEnd, userId, toast]);
+    }, [monthStart, monthEnd, userId, toast]);
 
-    const handlePrevWeek = () => setCurrentDate(subDays(currentDate, 7));
-    const handleNextWeek = () => setCurrentDate(addDays(currentDate, 7));
-    const handleToday = () => setCurrentDate(new Date());
+    const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
+    const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+    const handleToday = () => setCurrentMonth(new Date());
 
     const handleOpenDialog = (event?: CalendarEvent, date?: Date) => {
         setSelectedEvent(event || null);
         setDialogDate(date || (event ? new Date(event.date + "T00:00:00") : new Date()));
         setIsDialogOpen(true);
     };
-
+    
     const handleSaveEvent = async (data: EventFormData) => {
         const batch = writeBatch(db);
         const userEventsRef = collection(db, "users", userId, "events");
         let docRef;
 
-        if (selectedEvent) {
-            // Updating existing event
+        if (selectedEvent && selectedEvent.id) {
             docRef = doc(userEventsRef, selectedEvent.id);
         } else {
-            // Creating new event
             docRef = doc(userEventsRef);
         }
         
@@ -77,6 +75,7 @@ export default function CalendarPage() {
             await batch.commit();
             toast({ title: "Éxito", description: `Evento ${selectedEvent ? 'actualizado' : 'creado'} correctamente.` });
             setIsDialogOpen(false);
+            setSelectedEvent(null);
         } catch (error) {
             console.error("Error saving event:", error);
             toast({ variant: "destructive", title: "Error", description: "No se pudo guardar el evento." });
@@ -92,6 +91,7 @@ export default function CalendarPage() {
             await deleteDoc(docRef);
             toast({ title: "Evento eliminado" });
             setIsDialogOpen(false);
+            setSelectedEvent(null);
         } catch (error) {
             console.error("Error deleting event:", error);
             toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el evento." });
@@ -104,18 +104,18 @@ export default function CalendarPage() {
                 <div className="flex items-center gap-4">
                     <Button onClick={handleToday} variant="outline">Hoy</Button>
                     <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" onClick={handlePrevWeek}>
+                        <Button variant="ghost" size="icon" onClick={handlePrevMonth}>
                             <ChevronLeft className="h-5 w-5" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={handleNextWeek}>
+                        <Button variant="ghost" size="icon" onClick={handleNextMonth}>
                             <ChevronRight className="h-5 w-5" />
                         </Button>
                     </div>
-                    <h2 className="text-xl font-semibold">
-                        {format(weekStart, "d 'de' LLLL", { locale: es })} - {format(weekEnd, "d 'de' LLLL 'de' yyyy", { locale: es })}
+                    <h2 className="text-xl font-semibold capitalize">
+                        {format(currentMonth, "LLLL yyyy", { locale: es })}
                     </h2>
                 </div>
-                <Button onClick={() => handleOpenDialog(undefined, currentDate)}>
+                <Button onClick={() => handleOpenDialog(undefined, new Date())}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Añadir Evento
                 </Button>
@@ -127,10 +127,11 @@ export default function CalendarPage() {
                         <p>Cargando eventos...</p>
                     </div>
                 ) : (
-                    <CalendarGrid 
-                        weekStart={weekStart} 
-                        events={events} 
+                    <MonthlyCalendarView
+                        month={currentMonth}
+                        events={events}
                         onEventClick={handleOpenDialog}
+                        onDayClick={(date) => handleOpenDialog(undefined, date)}
                     />
                 )}
             </main>
