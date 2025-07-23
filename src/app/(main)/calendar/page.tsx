@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { db } from "@/lib/firebase";
-import { doc, collection, onSnapshot, setDoc, deleteDoc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, collection, onSnapshot, setDoc, deleteDoc, getDoc, updateDoc, query } from "firebase/firestore";
 import { format, parseISO, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -86,7 +86,7 @@ export default function CalendarPage() {
 
         try {
             await setDoc(docRef, { date: dayStr, ...eventData });
-            await setDoc(dateDocRef, { hasEvents: true });
+            await setDoc(dateDocRef, { hasEvents: true }, { merge: true });
             
             toast({
                 title: `Entrenamiento añadido`,
@@ -340,7 +340,5 @@ function EditEventDialog({ isOpen, setIsOpen, event, onSave }: EditEventDialogPr
         </Dialog>
     );
 }
-
-    
 
     
