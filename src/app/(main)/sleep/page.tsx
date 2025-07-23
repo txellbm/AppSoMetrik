@@ -8,6 +8,7 @@ import { db } from "@/lib/firebase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/dashboard/data-table";
 import { Moon } from "lucide-react";
+import FileUploadProcessor from "@/components/dashboard/file-upload-processor";
 
 export default function SleepPage() {
     const [sleepData, setSleepData] = useState<SleepData[]>([]);
@@ -53,6 +54,12 @@ export default function SleepPage() {
 
     return (
         <div className="flex flex-col gap-6">
+            <FileUploadProcessor 
+                title="Subir Datos de Sueño"
+                description="Sube aquí tu archivo CSV de AutoSleep."
+                dataType="sleepData"
+                userId={userId}
+            />
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">

@@ -8,6 +8,7 @@ import { db } from "@/lib/firebase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/dashboard/data-table";
 import { HeartPulse } from "lucide-react";
+import FileUploadProcessor from "@/components/dashboard/file-upload-processor";
 
 export default function RecoveryPage() {
     const [vitals, setVitals] = useState<VitalsData[]>([]);
@@ -50,6 +51,12 @@ export default function RecoveryPage() {
 
     return (
         <div className="flex flex-col gap-6">
+             <FileUploadProcessor 
+                title="Subir Datos de Recuperación"
+                description="Sube aquí tus archivos CSV Generales o de Detalles de HeartWatch."
+                dataType="vitals"
+                userId={userId}
+            />
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">

@@ -20,7 +20,6 @@ import RecoveryPage from "./(main)/recovery/page";
 import CyclePage from "./(main)/cycle/page";
 import SupplementsPage from "./(main)/supplements/page";
 import CalendarPage from "./(main)/calendar/page";
-import DataPage from "./(main)/data/page";
 
 const initialDashboardData: DashboardData = {
   workouts: [],
@@ -66,9 +65,8 @@ export default function Home() {
     <>
       <Tabs defaultValue="dashboard" className="flex-grow flex flex-col">
         <div className="bg-background/95 backdrop-blur-sm sticky top-0 z-10 border-b">
-          <TabsList className="grid w-full grid-cols-3 md:grid-cols-8 h-auto p-2">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-7 h-auto p-2">
             <TabsTrigger value="dashboard"><LayoutDashboard className="mr-2 h-4 w-4"/>Panel</TabsTrigger>
-            <TabsTrigger value="data"><Database className="mr-2 h-4 w-4"/>Gestión</TabsTrigger>
             <TabsTrigger value="sleep"><Moon className="mr-2 h-4 w-4"/>Sueño</TabsTrigger>
             <TabsTrigger value="workouts"><Dumbbell className="mr-2 h-4 w-4"/>Entrenos</TabsTrigger>
             <TabsTrigger value="recovery"><HeartPulse className="mr-2 h-4 w-4"/>Recuperación</TabsTrigger>
@@ -93,10 +91,6 @@ export default function Home() {
           </div>
         </TabsContent>
         
-        <TabsContent value="data" className="p-6">
-           <DataPage />
-        </TabsContent>
-
         <TabsContent value="sleep" className="p-6">
            <SleepPage />
         </TabsContent>

@@ -8,6 +8,7 @@ import { db } from "@/lib/firebase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/dashboard/data-table";
 import { Dumbbell } from "lucide-react";
+import FileUploadProcessor from "@/components/dashboard/file-upload-processor";
 
 export default function WorkoutsPage() {
     const [workouts, setWorkouts] = useState<WorkoutData[]>([]);
@@ -52,6 +53,12 @@ export default function WorkoutsPage() {
 
     return (
         <div className="flex flex-col gap-6">
+            <FileUploadProcessor 
+                title="Subir Datos de Entrenamientos"
+                description="Sube aquí tus archivos CSV de Entrenamientos de HeartWatch."
+                dataType="workouts"
+                userId={userId}
+            />
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
