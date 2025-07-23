@@ -50,7 +50,9 @@ export default function CalendarPage() {
 
     useEffect(() => {
         // Set initial date on client to avoid hydration errors
-        setDate(new Date());
+        if (typeof window !== 'undefined') {
+            setDate(new Date());
+        }
     }, []);
 
     useEffect(() => {
@@ -86,10 +88,8 @@ export default function CalendarPage() {
     }, []);
     
     const handleDateSelect = async (day: Date) => {
-        // Always set the selected date to allow viewing events for that day.
         setDate(day);
     
-        // If a workout type is selected, the user is in "add mode".
         if (selectedWorkoutType) {
             const config = workoutTypes[selectedWorkoutType];
             const endTime = new Date(new Date(`1970-01-01T${config.startTime}`).getTime() + config.duration * 60000);
@@ -101,7 +101,6 @@ export default function CalendarPage() {
                 startTime: config.startTime,
                 endTime: format(endTime, "HH:mm"),
             };
-            // Open the dialog to let the user confirm or change details.
             openDialog(newEvent as CalendarEvent, day);
         }
     };
@@ -117,7 +116,7 @@ export default function CalendarPage() {
             toast({ title: "Éxito", description: `Evento ${selectedEvent ? 'actualizado' : 'creado'} correctamente.` });
             setIsDialogOpen(false);
             setSelectedEvent(null);
-            setSelectedWorkoutType(null); // Deselect workout type after adding
+            setSelectedWorkoutType(null);
         } catch (error) {
             console.error("Error saving event:", error);
             toast({ variant: "destructive", title: "Error", description: "No se pudo guardar el evento." });
@@ -162,7 +161,7 @@ export default function CalendarPage() {
 
         const eventsToAdd: Omit<CalendarEvent, 'id'>[] = [];
         const today = new Date();
-        const weekStartsOn = 1; // Monday
+        const weekStartsOn = 1;
 
         for (let week = 0; week < 4; week++) {
             const weekStart = startOfWeek(addWeeks(today, week), { weekStartsOn });
@@ -323,7 +322,7 @@ export default function CalendarPage() {
                 isOpen={isDialogOpen}
                 onClose={() => setIsDialogOpen(false)}
                 onSave={handleSaveEvent}
-                onDelete={(event) => handleDeleteEvent(event.id!)}
+                onDelete={handleDeleteEvent}
                 event={selectedEvent}
                 defaultDate={dialogDate}
             />

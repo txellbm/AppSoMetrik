@@ -17,7 +17,7 @@ type EditEventDialogProps = {
     isOpen: boolean;
     onClose: () => void;
     onSave: (data: EventFormData) => void;
-    onDelete: (event: CalendarEvent) => void;
+    onDelete: (eventId: string) => void;
     event: CalendarEvent | null;
     defaultDate: Date | null;
 };
@@ -60,6 +60,12 @@ export default function EditEventDialog({ isOpen, onClose, onSave, onDelete, eve
         }
         onSave(formData as EventFormData);
     };
+    
+    const handleDelete = () => {
+        if (event?.id) {
+            onDelete(event.id);
+        }
+    }
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -119,7 +125,7 @@ export default function EditEventDialog({ isOpen, onClose, onSave, onDelete, eve
                     <DialogFooter className="flex justify-between w-full pt-4">
                         <div>
                             {event?.id && (
-                                <Button type="button" variant="destructive" onClick={() => onDelete(event)}>
+                                <Button type="button" variant="destructive" onClick={handleDelete}>
                                     <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                                 </Button>
                             )}
