@@ -31,14 +31,14 @@ const prompt = ai.definePrompt({
 2.  **Extracción Precisa y Conversión de Unidades**:
     - Presta atención a las unidades y formatos. Convierte duraciones a horas o minutos según corresponda.
     - Los campos numéricos deben procesarse como números (usando parseFloat). Si un valor no está presente o es inválido, usa los valores por defecto del esquema (ej. 0). No dejes campos como NaN.
-    - **Fechas**: La fecha principal para agrupar datos es \`date\`. Usa el \`startDate\` de los archivos de Apple Health, formateado como 'YYYY-MM-DD'.
+    - **Fechas**: La fecha principal para agrupar datos es \`date\`. Usa el \`startDate\` de los archivos de Apple Health, formateado como 'YYYY-MM-DD'. Es CRÍTICO que la fecha extraída corresponda al día correcto sin desfases por zona horaria.
 
 3.  **Manejo de Formatos Específicos**:
 
     - **Formato Apple Health (Simple Health Export CSV)**:
         - La estructura suele ser \`startDate\`, \`endDate\`, \`value\`, y a veces \`sourceName\`.
         - **Sueño (\`HKCategoryTypeIdentifierSleepAnalysis.csv\`):** El campo \`value\` contiene la fase ('inBed', 'asleep', 'awake', 'rem', 'deep', 'light'). La duración es la diferencia entre \`endDate\` y \`startDate\` en segundos. Debes **agregar todas las duraciones por cada fase** para la misma fecha. Convierte los segundos totales de cada fase a horas.
-        - **Entrenamientos (CRÍTICO: SOLO archivos \`HKWorkout...\`):** El tipo de entrenamiento viene en el nombre del archivo (ej. de 'HKWorkoutActivityTypePilates.csv' extraer 'Pilates'). Extrae \`duration\` (minutos) y \`activeEnergyBurned\` (kcal). **IMPORTANTE: Ignora por completo cualquier archivo que NO empiece por \`HKWorkout\` al rellenar el array 'workouts'. Archivos como \`HKQuantityTypeIdentifierAppleExerciseTime.csv\`, \`HKQuantityTypeIdentifierFlightsClimbed.csv\` y \`HKQuantityTypeIdentifierDistanceWalkingRunning.csv\` NO SON entrenamientos y no deben ser procesados como tal.**
+        - **Entrenamientos (CRÍTICO: SOLO archivos \`HKWorkout...\`):** El tipo de entrenamiento viene en el nombre del archivo (ej. de 'HKWorkoutActivityTypePilates.csv' extraer 'Pilates'). Extrae \`duration\` (minutos) y \`activeEnergyBurned\` (kcal). **IMPORTANTE: Ignora por completo cualquier archivo que NO empiece por \`HKWorkout\` al rellenar el array 'workouts'. Archivos como \`HKQuantityTypeIdentifierAppleExerciseTime.csv\`, \`HKQuantityTypeIdentifierFlightsClimbed.csv\` y \`HKQuantityTypeIdentifierDistanceWalkingRunning.csv\` NO SON entrenamientos y no deben ser procesados como tal.** Ignora también cualquier entrenamiento con una duración inferior a 5 minutos.
         - **HRV (\`HKQuantityTypeIdentifierHeartRateVariabilitySDNN.csv\`):** Extrae \`value\` (en ms) y asócialo a la fecha.
         - **Frecuencia Cardíaca en Reposo (\`HKQuantityTypeIdentifierRestingHeartRate.csv\`):** Extrae \`value\` (en bpm).
         - **Frecuencia Respiratoria (\`HKQuantityTypeIdentifierRespiratoryRate.csv\`):** Extrae \`value\` (en rpm).
@@ -75,6 +75,7 @@ const processHealthDataFileFlow = ai.defineFlow(
     
 
     
+
 
 
 
