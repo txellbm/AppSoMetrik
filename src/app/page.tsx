@@ -113,6 +113,9 @@ export default function Home() {
     sleepData.forEach(item => addToDate(item.date, 'sleepData', item));
     menstrualData.forEach(item => addToDate(item.date, 'menstrualData', item));
 
+    const numDays = Object.keys(dataByDate).length;
+    if (numDays === 0) return;
+
     const batch = writeBatch(db);
 
     for (const date in dataByDate) {
@@ -127,7 +130,7 @@ export default function Home() {
         await batch.commit();
         toast({
             title: "Datos procesados y guardados",
-            description: `Se han actualizado los datos para ${Object.keys(dataByDate).length} día(s).`,
+            description: `Se han actualizado los datos para ${numDays} día(s).`,
         });
     } catch (error) {
         console.error("Error guardando los datos procesados en Firestore:", error);

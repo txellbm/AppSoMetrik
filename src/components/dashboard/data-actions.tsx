@@ -59,6 +59,12 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
       const lines = fileContent.split('\n');
       const header = lines[0];
       const dataRows = lines.slice(1);
+      
+      // No need to process if there are no data rows
+      if (dataRows.length === 0 || (dataRows.length === 1 && dataRows[0].trim() === '')) {
+          return;
+      }
+      
       const totalChunks = Math.ceil(dataRows.length / CHUNK_SIZE);
       let aggregatedResult: ProcessHealthDataFileOutput = {
           summary: "",
@@ -109,6 +115,7 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
   const processZipFile = async (file: File) => {
     const JSZip = (await import('jszip')).default;
     const zip = await JSZip.loadAsync(file);
+    let filesProcessed = 0;
 
     for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
       if (!zipEntry.dir && relativePath.toLowerCase().endsWith('.csv')) {
@@ -118,7 +125,16 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
           continue;
         }
         await processFileInChunks(content, zipEntry.name);
+        filesProcessed++;
       }
+    }
+
+    if (filesProcessed === 0) {
+        toast({
+            variant: "destructive",
+            title: "ZIP sin archivos válidos",
+            description: "No se encontraron archivos CSV procesables en el ZIP.",
+        });
     }
   };
 
@@ -139,14 +155,14 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
       for (const file of files) {
         if (file.name.toLowerCase().endsWith('.zip')) {
           await processZipFile(file);
-        } else {
+        } else if (file.name.toLowerCase().endsWith('.csv')) {
           await processSingleFile(file);
         }
       }
 
       toast({
-        title: "Archivos procesados correctamente",
-        description: `${files.length} archivo(s) analizado(s). Tu panel se ha actualizado.`,
+        title: "Archivos procesados",
+        description: `Se completó el análisis de ${files.length} archivo(s). Tu panel se ha actualizado.`,
       });
       setFiles([]); // Clear file list after successful processing
 
@@ -194,7 +210,7 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
               ref={fileInputRef}
               onChange={(e) => handleFiles(e.target.files)}
               className="hidden"
-              accept=".csv,.txt,.json,.zip"
+              accept=".csv,.zip"
               multiple
             />
             <div className="flex flex-col items-center justify-center space-y-2">
