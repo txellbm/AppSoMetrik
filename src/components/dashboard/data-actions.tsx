@@ -21,7 +21,7 @@ type DataActionsProps = {
 // A smaller chunk size is more reliable but slower. A larger one is faster but risks hitting token limits.
 const CHUNK_SIZE = 500; 
 
-// Helper function to deeply merge two dailyMetric objects, ensuring nested objects like `menstrualCycle` are merged.
+// Helper function to deeply merge two dailyMetric objects.
 const mergeDailyMetrics = (existingMetric: DailyMetric, newMetric: DailyMetric): DailyMetric => {
     const merged: DailyMetric = { ...existingMetric };
 
@@ -31,15 +31,14 @@ const mergeDailyMetrics = (existingMetric: DailyMetric, newMetric: DailyMetric):
 
         if (aKey === 'date' || newValue === undefined || newValue === null) continue;
         
-        const isObject = typeof newValue === 'object' && !Array.isArray(newValue);
-        if (isObject) {
-             (merged as any)[aKey] = {
-                ...((merged as any)[aKey] || {}),
-                ...(newValue as object),
-            };
+        // Handle array merging for symptoms
+        if (aKey === 'sintomas' && Array.isArray(newValue) && newValue.length > 0) {
+            merged.sintomas = [...(merged.sintomas || []), ...newValue];
+            continue;
         }
-        else if (newValue !== 0 && newValue !== '' && !Number.isNaN(newValue)) {
-             // Only update if the new value is not a default/empty one, and not NaN
+
+        // Overwrite only if the new value is not a default/empty one
+        if (newValue !== 0 && newValue !== '' && !Number.isNaN(newValue)) {
             (merged as any)[aKey] = newValue;
         }
     }
@@ -69,8 +68,7 @@ const aggregateResults = (combinedResult: ProcessHealthDataFileOutput, fileResul
         });
     }
     
-    // The summary isn't critical for aggregation, but we can keep the last one.
-    combinedResult.summary = fileResult.summary || combinedResult.summary;
+    combinedResult.summary += (fileResult.summary || "") + " ";
 };
 
 
@@ -123,7 +121,6 @@ export default function DataActions({ onDataProcessed, onGenerateReport, onDelet
           dailyMetrics: [],
       };
       
-      // If the file is empty or just has a header
       if (dataRows.length === 0 || (dataRows.length === 1 && dataRows[0].trim() === '')) {
           console.log(`[!] Archivo omitido (vacío o solo encabezado): ${fileName}`);
           return aggregatedResult;
@@ -138,7 +135,6 @@ export default function DataActions({ onDataProcessed, onGenerateReport, onDelet
             aggregateResults(aggregatedResult, chunkResult);
           } catch(e) {
              console.error(`[❌] Error al procesar un trozo del archivo ${fileName}:`, e);
-             // Optionally, toast a non-blocking error for the user
           }
       }
       return aggregatedResult;
@@ -147,7 +143,6 @@ export default function DataActions({ onDataProcessed, onGenerateReport, onDelet
   const processZipFile = async (file: File): Promise<ProcessHealthDataFileOutput> => {
     const JSZip = (await import('jszip')).default;
     const zip = await JSZip.loadAsync(file);
-    let filesProcessed = 0;
     
     let combinedResult: ProcessHealthDataFileOutput = {
       summary: "",
@@ -158,7 +153,7 @@ export default function DataActions({ onDataProcessed, onGenerateReport, onDelet
     const csvFiles = Object.values(zip.files).filter(f => !f.dir && f.name.toLowerCase().endsWith('.csv'));
 
     for (const zipEntry of csvFiles) {
-        console.log(`[▶️] Procesando archivo del ZIP: ${zipEntry.name}`);
+        console.log(`%c[▶️] Procesando archivo del ZIP: ${zipEntry.name}`, 'color: blue; font-weight: bold;');
         try {
             const content = await zipEntry.async('string');
             if (!content || content.trim() === '') {
@@ -170,10 +165,10 @@ export default function DataActions({ onDataProcessed, onGenerateReport, onDelet
             const metricsFound = fileResult.dailyMetrics.length;
             const workoutsFound = fileResult.workouts.length;
             
-            console.log(`[✅] Archivo procesado: ${zipEntry.name}. Métricas encontradas: ${metricsFound}, Entrenamientos: ${workoutsFound}.`, fileResult);
+            console.log(`[✅] Archivo procesado: ${zipEntry.name}. Métricas/días encontrados: ${metricsFound}, Entrenamientos: ${workoutsFound}.`);
+            console.log("Datos extraídos:", fileResult);
             
             aggregateResults(combinedResult, fileResult);
-            filesProcessed++;
         } catch(error) {
             console.error(`[❌] Error al procesar el archivo ${zipEntry.name}:`, error);
             toast({
@@ -184,7 +179,6 @@ export default function DataActions({ onDataProcessed, onGenerateReport, onDelet
         }
     }
     
-    combinedResult.summary = `Procesados ${filesProcessed} archivos del ZIP.`;
     return combinedResult;
   };
 
@@ -207,19 +201,20 @@ export default function DataActions({ onDataProcessed, onGenerateReport, onDelet
           if (file.name.toLowerCase().endsWith('.zip')) {
               result = await processZipFile(file);
           } else if (file.name.toLowerCase().endsWith('.csv')) {
-              console.log(`[▶️] Procesando archivo único: ${file.name}`);
+              console.log(`%c[▶️] Procesando archivo único: ${file.name}`, 'color: blue; font-weight: bold;');
               const content = await file.text();
               if (content) {
                   result = await processFileInChunks(content, file.name);
                   const metricsFound = result.dailyMetrics.length;
                   const workoutsFound = result.workouts.length;
-                  console.log(`[✅] Archivo procesado: ${file.name}. Métricas encontradas: ${metricsFound}, Entrenamientos: ${workoutsFound}.`, result);
+                  console.log(`[✅] Archivo procesado: ${file.name}. Métricas/días encontrados: ${metricsFound}, Entrenamientos: ${workoutsFound}.`);
+                  console.log("Datos extraídos:", result);
               }
           }
           aggregateResults(allProcessedData, result);
       }
       
-      console.log("[📊] Datos finales agregados para guardar:", allProcessedData);
+      console.log("%c[📊] Datos finales agregados para guardar en Firestore:", 'color: green; font-weight: bold;', allProcessedData);
       onDataProcessed(allProcessedData);
 
       toast({
