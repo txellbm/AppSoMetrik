@@ -59,28 +59,31 @@ const initialDashboardData: DashboardData = {
 // Helper function to safely parse dates that might be in different formats
 const safeParseDate = (dateInput: any): Date | null => {
     if (!dateInput) return null;
-    // If it's a Firestore Timestamp object
-    if (typeof dateInput === 'object' && dateInput.seconds) {
-        return new Date(dateInput.seconds * 1000);
-    }
-    // If it's already a Date object
+    
+    // If it's already a Date object and is valid
     if (dateInput instanceof Date) {
         return isValid(dateInput) ? dateInput : null;
     }
+
+    // If it's a Firestore Timestamp object
+    if (typeof dateInput === 'object' && dateInput.seconds) {
+        const d = new Date(dateInput.seconds * 1000);
+        return isValid(d) ? d : null;
+    }
+
     // If it's a string
     if (typeof dateInput === 'string') {
-        const date = parseISO(dateInput);
+        // Attempt to parse ISO string first (e.g., "2024-07-23T10:00:00.000Z")
+        let date = parseISO(dateInput);
         if (isValid(date)) return date;
-        
-        // Handle 'YYYY-MM-DD' strings by parsing them as local time
-        const parts = dateInput.split('-');
-        if (parts.length === 3) {
-            const [year, month, day] = parts.map(Number);
-            const localDate = new Date(year, month - 1, day, 12); // Use noon to avoid timezone shifts
-            if (isValid(localDate)) return localDate;
-        }
+
+        // Handle 'YYYY-MM-DD' strings by parsing them in the local timezone
+        // Appending 'T00:00:00' makes it explicit that it's local time, not UTC.
+        date = new Date(`${dateInput}T00:00:00`);
+        if (isValid(date)) return date;
     }
-    return null; // Return null if parsing fails
+    
+    return null; // Return null if parsing fails for any reason
 };
 
 
@@ -238,62 +241,65 @@ export default function Home() {
   
   const calculatedCycleData = useMemo<CalculatedCycleData>(() => {
     const today = startOfToday();
+    
+    // 1. Parse all dates safely and sort them descending
     const sortedMetrics = [...dashboardData.dailyMetrics]
       .map(d => ({ ...d, parsedDate: safeParseDate(d.date) }))
       .filter(d => d.parsedDate && isValid(d.parsedDate))
-      .sort((a, b) => b.parsedDate!.getTime() - a.parsedDate!.getTime()); // Sort descending to find recent dates faster
+      .sort((a, b) => b.parsedDate!.getTime() - a.parsedDate!.getTime());
 
     if (sortedMetrics.length === 0) {
       return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
     }
 
-    const todayMetric = sortedMetrics.find(d => format(d.parsedDate!, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd'));
-
-    // Find the most recent day marked as day 1 of the cycle.
-    const lastCycleStartMetric = sortedMetrics.find(d => d.menstrualCycle?.dayOfCycle === 1);
-    
+    // 2. Find the most recent day that could be a cycle start
+    // A cycle start is either marked as dayOfCycle: 1, or is the first day of flow after a gap.
     let lastCycleStartDate: Date | null = null;
-
-    if (lastCycleStartMetric) {
-      lastCycleStartDate = lastCycleStartMetric.parsedDate;
+    
+    // Prioritize `dayOfCycle: 1` if available and recent
+    const explicitStart = sortedMetrics.find(d => d.menstrualCycle?.dayOfCycle === 1);
+    if(explicitStart?.parsedDate) {
+        lastCycleStartDate = explicitStart.parsedDate;
     } else {
-      // Fallback: find the first day of a flow period preceded by a gap.
-      for (let i = 0; i < sortedMetrics.length - 1; i++) {
-        const currentMetric = sortedMetrics[i];
-        const previousMetric = sortedMetrics[i + 1];
+        // Fallback: Find the most recent day with flow that's preceded by at least 5 days without flow.
+        // This avoids counting spotting as a new cycle.
+        const flowDays = sortedMetrics.filter(d => d.menstrualCycle?.flow && d.menstrualCycle.flow !== 'spotting');
+        for (let i = 0; i < flowDays.length; i++) {
+            const currentFlowDay = flowDays[i];
+            const nextFlowDay = i + 1 < flowDays.length ? flowDays[i + 1] : null;
 
-        const hasFlow = currentMetric.menstrualCycle?.flow && currentMetric.menstrualCycle.flow !== 'spotting';
-        const previousHasFlow = previousMetric.menstrualCycle?.flow && previousMetric.menstrualCycle.flow !== 'spotting';
-        const dayDiff = differenceInDays(currentMetric.parsedDate!, previousMetric.parsedDate!);
-
-        if (hasFlow && (!previousHasFlow || dayDiff > 1)) {
-          lastCycleStartDate = currentMetric.parsedDate;
-          break;
+            if (!nextFlowDay) { // If it's the earliest flow day on record
+                lastCycleStartDate = currentFlowDay.parsedDate;
+                break;
+            }
+            
+            const daysBetween = differenceInDays(currentFlowDay.parsedDate!, nextFlowDay.parsedDate!);
+            if (daysBetween > 5) { // A gap of more than 5 days indicates a new cycle
+                lastCycleStartDate = currentFlowDay.parsedDate;
+                break;
+            }
         }
-      }
-      if (!lastCycleStartDate) {
-         const lastDayWithFlow = sortedMetrics.find(d => d.menstrualCycle?.flow && d.menstrualCycle.flow !== 'spotting');
-         if(lastDayWithFlow) lastCycleStartDate = lastDayWithFlow.parsedDate;
-      }
     }
 
     if (!lastCycleStartDate) {
       return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
     }
 
+    // 3. Calculate day of cycle and phase
     const dayOfCycle = differenceInDays(today, lastCycleStartDate) + 1;
     let currentPhase = "No disponible";
 
-    if (dayOfCycle < 1) {
-        // This case can happen if the detected start date is in the future.
-         return { currentDay: 0, currentPhase: "No disponible", symptoms: todayMetric?.menstrualCycle?.symptoms || [] };
+    if (dayOfCycle < 1) { // Start date is in the future, invalid state
+         return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
     }
 
-    // A more realistic phase calculation
     if (dayOfCycle >= 1 && dayOfCycle <= 7) currentPhase = "Menstrual";
     else if (dayOfCycle > 7 && dayOfCycle <= 14) currentPhase = "Folicular";
     else if (dayOfCycle > 14 && dayOfCycle <= 16) currentPhase = "Ovulatoria";
     else if (dayOfCycle > 16) currentPhase = "Lútea";
+
+    // 4. Get symptoms for today
+    const todayMetric = sortedMetrics.find(d => format(d.parsedDate!, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd'));
 
     return {
       currentDay: dayOfCycle,
@@ -531,5 +537,3 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
     </Card>
   );
 }
-
-    
