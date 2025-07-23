@@ -45,9 +45,8 @@ export default function SleepPage() {
                     metric.sueño?.profundo || "-",
                     metric.sueño?.ligero || "-",
                     metric.sueño?.rem || "-",
-                    // Placeholder for efficiency and night HR
-                    "N/A", 
-                    "N/A",
+                    metric.restingHeartRate || "-",
+                    metric.hrv || "-",
                 ],
             }));
     }, [sortedMetrics]);
@@ -70,7 +69,7 @@ export default function SleepPage() {
                         <p>Cargando datos de sueño...</p>
                     ) : (
                         <DataTable
-                            headers={["Fecha", "Total (min)", "Profundo", "Ligero", "REM", "Eficiencia", "FC Nocturna"]}
+                            headers={["Fecha", "Total (min)", "Profundo (min)", "Ligero (min)", "REM (min)", "FC Reposo", "VFC (ms)"]}
                             rows={sleepDataRows}
                             emptyMessage="No hay datos de sueño registrados. Sube un archivo para empezar."
                         />
@@ -80,3 +79,5 @@ export default function SleepPage() {
         </div>
     );
 }
+
+    

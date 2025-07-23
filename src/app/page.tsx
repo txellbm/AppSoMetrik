@@ -39,6 +39,7 @@ import { DataTable } from "@/components/dashboard/data-table";
 import { collection, writeBatch, onSnapshot, doc, getDocs, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { differenceInDays, format, isValid, parseISO, startOfToday } from "date-fns";
+import SleepPage from "./(main)/sleep/page";
 
 const initialDashboardData: DashboardData = {
   workouts: [],
@@ -290,23 +291,6 @@ export default function Home() {
         return [...dashboardData.workouts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [dashboardData.workouts]);
 
-    const sleepDataRows = useMemo(() => {
-        return sortedMetrics
-            .filter(m => m.sueño && m.sueño.total > 0)
-            .map(metric => ({
-                key: metric.date,
-                cells: [
-                    metric.date,
-                    metric.sueño?.total || "-",
-                    metric.sueño?.profundo || "-",
-                    metric.sueño?.ligero || "-",
-                    metric.sueño?.rem || "-",
-                    metric.restingHeartRate || "-",
-                    metric.hrv || "-",
-                ],
-            }));
-    }, [sortedMetrics]);
-
     const workoutDataRows = useMemo(() => {
         return sortedWorkouts.map((workout, i) => ({
                 key: `${workout.date}-${i}`,
@@ -408,15 +392,7 @@ export default function Home() {
         </TabsContent>
         
         <TabsContent value="sleep" className="p-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Moon className="text-primary"/>Historial de Sueño</CardTitle>
-                    <CardDescription>Un registro detallado de tus patrones de sueño a lo largo del tiempo.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <DataTable headers={["Fecha", "Total (min)", "Profundo (min)", "Ligero (min)", "REM (min)", "FC Reposo", "VFC (ms)"]} rows={sleepDataRows} emptyMessage="No hay datos de sueño registrados." />
-                </CardContent>
-            </Card>
+           <SleepPage />
         </TabsContent>
 
         <TabsContent value="workouts" className="p-6">
@@ -520,5 +496,7 @@ function VitalsCard({ hrv, respiration, restingHR }: { hrv: number, respiration:
         </Card>
     )
 }
+
+    
 
     
