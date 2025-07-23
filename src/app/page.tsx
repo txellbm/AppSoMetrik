@@ -63,16 +63,16 @@ export default function Home() {
 
   return (
     <>
-      <Tabs defaultValue="dashboard" className="flex-grow flex flex-col">
+      <Tabs defaultValue="calendar" className="flex-grow flex flex-col">
         <div className="bg-background/95 backdrop-blur-sm sticky top-0 z-10 border-b">
           <TabsList className="grid w-full grid-cols-2 md:grid-cols-7 h-auto p-2">
             <TabsTrigger value="dashboard"><LayoutDashboard className="mr-2 h-4 w-4"/>Panel</TabsTrigger>
-            <TabsTrigger value="sleep"><Moon className="mr-2 h-4 w-4"/>Sueño</TabsTrigger>
-            <TabsTrigger value="workouts"><Dumbbell className="mr-2 h-4 w-4"/>Entrenos</TabsTrigger>
-            <TabsTrigger value="recovery"><HeartPulse className="mr-2 h-4 w-4"/>Recuperación</TabsTrigger>
-            <TabsTrigger value="cycle"><Stethoscope className="mr-2 h-4 w-4"/>Ciclo</TabsTrigger>
-            <TabsTrigger value="supplements"><Pill className="mr-2 h-4 w-4"/>Suplementos</TabsTrigger>
             <TabsTrigger value="calendar"><CalendarDays className="mr-2 h-4 w-4"/>Calendario</TabsTrigger>
+            <TabsTrigger value="cycle"><Stethoscope className="mr-2 h-4 w-4"/>Ciclo</TabsTrigger>
+            <TabsTrigger value="workouts"><Dumbbell className="mr-2 h-4 w-4"/>Entrenos</TabsTrigger>
+            <TabsTrigger value="sleep"><Moon className="mr-2 h-4 w-4"/>Sueño</TabsTrigger>
+            <TabsTrigger value="recovery"><HeartPulse className="mr-2 h-4 w-4"/>Recuperación</TabsTrigger>
+            <TabsTrigger value="supplements"><Pill className="mr-2 h-4 w-4"/>Suplementos</TabsTrigger>
           </TabsList>
         </div>
         
@@ -90,31 +90,31 @@ export default function Home() {
             </div>
           </div>
         </TabsContent>
+
+        <TabsContent value="calendar" className="p-6">
+            <CalendarPage />
+        </TabsContent>
         
-        <TabsContent value="sleep" className="p-6">
-           <SleepPage />
+        <TabsContent value="cycle" className="p-6">
+            <CyclePage />
         </TabsContent>
 
         <TabsContent value="workouts" className="p-6">
             <WorkoutsPage />
         </TabsContent>
 
-        <TabsContent value="recovery" className="p-6">
-            <RecoveryPage />
+        <TabsContent value="sleep" className="p-6">
+           <SleepPage />
         </TabsContent>
 
-        <TabsContent value="cycle" className="p-6">
-            <CyclePage />
+        <TabsContent value="recovery" className="p-6">
+            <RecoveryPage />
         </TabsContent>
 
         <TabsContent value="supplements" className="p-6">
             <SupplementsPage />
         </TabsContent>
         
-        <TabsContent value="calendar" className="p-6">
-            <CalendarPage />
-        </TabsContent>
-
       </Tabs>
     </>
   );
