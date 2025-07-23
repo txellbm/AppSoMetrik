@@ -32,8 +32,6 @@ import { HealthSummaryInput, ProcessHealthDataFileOutput, Workout, DashboardData
 import AIChatWidget from "@/components/dashboard/ai-chat-widget";
 import DataActions from "@/components/dashboard/data-actions";
 import NotificationsWidget from "@/components/dashboard/notifications-widget";
-import SleepChart from "@/components/dashboard/sleep-chart";
-import MenstrualCyclePanel from "@/components/dashboard/menstrual-cycle-panel";
 import { collection, writeBatch, onSnapshot, doc, getDocs, query, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { differenceInDays, format, isValid, parseISO, startOfToday } from "date-fns";
@@ -99,28 +97,42 @@ export default function Home() {
 
 
   const handleDeleteAllData = async () => {
+    if (!window.confirm("¿Estás seguro de que quieres borrar todos tus datos? Esta acción es irreversible.")) return;
+
     const userRef = doc(db, "users", userId);
     const workoutsRef = collection(userRef, "workouts");
     const dailyMetricsRef = collection(userRef, "dailyMetrics");
     const supplementsRef = collection(userRef, "supplements");
+    const calendarRef = collection(userRef, "calendar");
+
 
     try {
         const batch = writeBatch(db);
-        const workoutsSnapshot = await getDocs(workoutsRef);
-        workoutsSnapshot.forEach(doc => batch.delete(doc.ref));
         
-        const dailyMetricsSnapshot = await getDocs(dailyMetricsRef);
-        dailyMetricsSnapshot.forEach(doc => batch.delete(doc.ref));
+        const deleteCollection = async (ref: any) => {
+             const snapshot = await getDocs(ref);
+             snapshot.forEach(doc => batch.delete(doc.ref));
+        }
 
-        const supplementsSnapshot = await getDocs(supplementsRef);
-        supplementsSnapshot.forEach(doc => batch.delete(doc.ref));
-        
+        await deleteCollection(workoutsRef);
+        await deleteCollection(dailyMetricsRef);
+        await deleteCollection(supplementsRef);
+
+        // Calendar has nested collections
+        const calendarSnapshot = await getDocs(calendarRef);
+        for(const dateDoc of calendarSnapshot.docs) {
+            const eventsRef = collection(dateDoc.ref, "events");
+            await deleteCollection(eventsRef);
+            batch.delete(dateDoc.ref);
+        }
+
         await batch.commit();
 
         setDashboardData(initialDashboardData);
         toast({
             title: "Datos eliminados",
             description: "Todas las métricas, entrenamientos y suplementos han sido borrados.",
+            variant: "destructive"
         });
     } catch (error) {
         console.error("Error al borrar los datos:", error);
@@ -246,64 +258,6 @@ export default function Home() {
     });
   }
 
-  const calculateAverage = (items: number[]) => {
-      const validItems = items.filter(item => item !== null && item !== undefined && !isNaN(item) && item > 0);
-      if (validItems.length === 0) return 0;
-      const sum = validItems.reduce((acc, item) => acc + item, 0);
-      return sum / validItems.length;
-  };
-
-  const avgRestingHR = useMemo(() => calculateAverage(dashboardData.dailyMetrics.map(s => s.restingHeartRate || 0)), [dashboardData.dailyMetrics]);
-  const avgHRV = useMemo(() => calculateAverage(dashboardData.dailyMetrics.map(s => s.hrv || 0)), [dashboardData.dailyMetrics]);
-  const avgRespiration = useMemo(() => calculateAverage(dashboardData.dailyMetrics.map(s => s.respiracion || 0)), [dashboardData.dailyMetrics]);
-  
-  const calculatedCycleData = useMemo<CalculatedCycleData>(() => {
-    const today = startOfToday();
-    const sortedMetrics = [...dashboardData.dailyMetrics]
-      .map(d => ({ ...d, parsedDate: safeParseDate(d.date) }))
-      .filter(d => d.parsedDate && isValid(d.parsedDate))
-      .sort((a, b) => b.parsedDate!.getTime() - a.parsedDate!.getTime());
-
-    if (sortedMetrics.length === 0) {
-      return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
-    }
-
-    let lastCycleStartDate: Date | null = null;
-    for (const metric of sortedMetrics) {
-        if (metric.estadoCiclo === 'menstruacion') {
-            const potentialStartDate = metric.parsedDate;
-            if (potentialStartDate) {
-                lastCycleStartDate = potentialStartDate;
-                break;
-            }
-        }
-    }
-
-    if (!lastCycleStartDate) {
-      return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
-    }
-    
-    const dayOfCycle = differenceInDays(today, lastCycleStartDate) + 1;
-    let currentPhase = "No disponible";
-    if (dayOfCycle < 1) {
-         return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
-    }
-    const todayMetric = sortedMetrics.find(d => format(d.parsedDate!, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd'));
-    if (todayMetric?.estadoCiclo === 'menstruacion') {
-        currentPhase = "Menstrual";
-    } else if (dayOfCycle >= 1 && dayOfCycle <= 7) currentPhase = "Menstrual";
-    else if (dayOfCycle > 7 && dayOfCycle <= 14) currentPhase = "Folicular";
-    else if (dayOfCycle > 14 && dayOfCycle <= 16) currentPhase = "Ovulatoria";
-    else if (dayOfCycle > 16) currentPhase = "Lútea";
-
-    return {
-      currentDay: dayOfCycle,
-      currentPhase: currentPhase,
-      symptoms: todayMetric?.sintomas || [],
-    };
-  }, [dashboardData.dailyMetrics]);
-
-
   return (
     <>
       <Tabs defaultValue="dashboard" className="flex-grow flex flex-col">
@@ -325,37 +279,26 @@ export default function Home() {
               <CardHeader>
                 <CardTitle className="text-2xl font-bold text-primary">Bienvenido a SoMetrik</CardTitle>
                 <CardDescription>
-                  Tu asistente personal de bienestar IA. Aquí tienes un resumen de tus métricas clave.
+                  Tu asistente personal de bienestar IA. Sube tus datos para empezar a chatear.
                 </CardDescription>
               </CardHeader>
             </Card>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <SleepChart data={dashboardData.dailyMetrics} />
-                <VitalsCard 
-                    hrv={avgHRV}
-                    respiration={avgRespiration}
-                    restingHR={avgRestingHR}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                    <AIChatWidget />
+                </div>
+              <div className="lg:col-span-1 space-y-6">
+                <NotificationsWidget
+                    dailyMetrics={dashboardData.dailyMetrics}
+                    workoutData={dashboardData.workouts}
                 />
-                <div className="md:col-span-2 lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <MenstrualCyclePanel data={calculatedCycleData} />
-                </div>
-                <div className="md:col-span-2 lg:col-span-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2">
-                        <AIChatWidget />
-                    </div>
-                  <div className="lg:col-span-1 space-y-6">
-                    <NotificationsWidget
-                        dailyMetrics={dashboardData.dailyMetrics}
-                        workoutData={dashboardData.workouts}
-                    />
-                    <DataActions 
-                        onDataProcessed={handleDataProcessed} 
-                        onGenerateReport={handleGenerateReport}
-                        onDeleteAllData={handleDeleteAllData}
-                    />
-                  </div>
-                </div>
+                <DataActions 
+                    onDataProcessed={handleDataProcessed} 
+                    onGenerateReport={handleGenerateReport}
+                    onDeleteAllData={handleDeleteAllData}
+                />
+              </div>
             </div>
           </div>
         </TabsContent>
@@ -421,33 +364,4 @@ export default function Home() {
     </>
   );
 }
-
-function VitalsCard({ hrv, respiration, restingHR }: { hrv: number, respiration: number, restingHR: number }) {
-    return (
-        <Card className="md:col-span-2 lg:col-span-2">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Shield className="text-primary" />
-                    Vitales Clave
-                </CardTitle>
-                <CardDescription>Promedio de tus métricas de salud más importantes.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4 pt-2">
-                 <div className="flex flex-col items-center justify-center p-4 bg-muted rounded-lg text-center space-y-1">
-                    <p className="text-sm text-muted-foreground">VFC (HRV)</p>
-                    <p className="text-2xl font-bold text-primary">{!isNaN(hrv) ? hrv.toFixed(1) : '0'}<span className="text-sm ml-1">ms</span></p>
-                 </div>
-                 <div className="flex flex-col items-center justify-center p-4 bg-muted rounded-lg text-center space-y-1">
-                    <p className="text-sm text-muted-foreground">FC Reposo</p>
-                    <p className="text-2xl font-bold text-primary">{!isNaN(restingHR) ? restingHR.toFixed(0) : '0'}<span className="text-sm ml-1">bpm</span></p>
-                 </div>
-                 <div className="flex flex-col items-center justify-center p-4 bg-muted rounded-lg text-center space-y-1">
-                    <p className="text-sm text-muted-foreground">Respiración</p>
-                    <p className="text-2xl font-bold text-primary">{!isNaN(respiration) ? respiration.toFixed(1) : '0'}<span className="text-sm ml-1">rpm</span></p>
-                 </div>
-            </CardContent>
-        </Card>
-    )
-}
-
-    
+ 
