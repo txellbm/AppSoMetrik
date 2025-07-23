@@ -146,13 +146,15 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
       <CardContent className="space-y-4">
         <div 
             className={cn(
-                "p-4 border-2 border-dashed rounded-lg text-center space-y-2 transition-colors",
+                "p-4 border-2 border-dashed rounded-lg text-center space-y-2 transition-colors cursor-pointer",
+                "flex flex-col items-center justify-center h-32",
                 isDragging ? "border-primary bg-primary/10" : "border-border"
             )}
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
         >
             <input
               type="file"
@@ -162,7 +164,7 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
               accept=".csv,.txt,.json,.zip"
               multiple
             />
-            <div className="flex flex-col items-center justify-center space-y-2 h-24 cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+            <div className="flex flex-col items-center justify-center space-y-2">
               <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">Arrastra y suelta o haz clic para subir</p>
             </div>
