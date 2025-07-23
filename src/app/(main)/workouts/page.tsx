@@ -20,7 +20,7 @@ export default function WorkoutsPage() {
         const qWorkouts = query(collection(userRef, "workouts"), orderBy("date", "desc"));
 
         const unsubscribe = onSnapshot(qWorkouts, (snapshot) => {
-            const workoutData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as WorkoutData[];
+            const workoutData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as (WorkoutData & { id: string })[];
             setWorkouts(workoutData);
             setIsLoading(false);
         }, (error) => {
@@ -32,8 +32,8 @@ export default function WorkoutsPage() {
     }, [userId]);
 
     const workoutDataRows = useMemo(() => {
-        return workouts.map((workout, i) => ({
-                key: `${workout.date}-${i}`,
+        return workouts.map((workout) => ({
+                key: (workout as any).id, // Use the unique Firestore document ID as the key
                 cells: [
                   workout.date,
                   workout.type,
@@ -87,3 +87,4 @@ export default function WorkoutsPage() {
         </div>
     );
 }
+
