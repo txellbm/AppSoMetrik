@@ -3,19 +3,34 @@
 
 import { CalendarEvent } from "@/ai/schemas";
 import { cn } from "@/lib/utils";
-import { format, isSameDay, isSameMonth, isToday, isSameDate } from "date-fns";
+import { format, isSameDay, isSameMonth, isToday } from "date-fns";
 import { DayPicker, DayProps } from "react-day-picker";
 import { es } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 
-const eventTypeColors: Record<string, string> = {
-    entrenamiento: "bg-purple-500 text-white",
-    trabajo: "bg-blue-500 text-white",
-    nota: "bg-yellow-500 text-black",
-    vacaciones: "bg-green-500 text-white",
-    descanso: "bg-teal-500 text-white",
-    default: "bg-gray-500 text-white",
+const getEventColorClass = (event: CalendarEvent): string => {
+    if (event.type === 'entrenamiento') {
+        switch (event.description) {
+            case 'Pilates':
+                return 'bg-pink-500 text-white';
+            case 'Flexibilidad':
+                return 'bg-indigo-500 text-white';
+            case 'Fuerza':
+                return 'bg-red-600 text-white';
+            default:
+                return 'bg-purple-500 text-white';
+        }
+    }
+    const eventTypeColors: Record<string, string> = {
+        trabajo: "bg-blue-500 text-white",
+        nota: "bg-yellow-500 text-black",
+        vacaciones: "bg-green-500 text-white",
+        descanso: "bg-teal-500 text-white",
+        default: "bg-gray-500 text-white",
+    };
+    return eventTypeColors[event.type] || eventTypeColors.default;
 };
+
 
 type MonthlyCalendarViewProps = {
     month: Date;
@@ -36,7 +51,7 @@ export function MonthlyCalendarView({ month, events, selected, onEventClick, onD
     function DayContent(props: DayProps) {
         const dayEvents = getEventsForDay(props.date);
         const dayNumber = format(props.date, 'd');
-        const MAX_EVENTS_VISIBLE = 2;
+        const MAX_EVENTS_VISIBLE = 3;
         const hiddenEventsCount = dayEvents.length - MAX_EVENTS_VISIBLE;
 
         return (
@@ -49,7 +64,7 @@ export function MonthlyCalendarView({ month, events, selected, onEventClick, onD
                 onClick={() => onDayClick(props.date)}
             >
                 <span className={cn(
-                    "self-start text-sm font-medium mb-1", // align left
+                    "self-center text-sm font-medium mb-1",
                     isToday(props.date) && "bg-primary text-primary-foreground rounded-full h-6 w-6 flex items-center justify-center"
                 )}>
                     {dayNumber}
@@ -64,7 +79,7 @@ export function MonthlyCalendarView({ month, events, selected, onEventClick, onD
                             }}
                             className={cn(
                                 "text-xs rounded-sm px-1.5 py-0.5 truncate shadow-sm text-left", 
-                                eventTypeColors[event.type] || eventTypeColors.default
+                                getEventColorClass(event)
                             )}
                         >
                             {event.description}
@@ -103,5 +118,3 @@ export function MonthlyCalendarView({ month, events, selected, onEventClick, onD
         />
     );
 }
-
-    
