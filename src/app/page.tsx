@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Shield, Moon, Dumbbell, HeartPulse, Stethoscope, LayoutDashboard } from "lucide-react";
+import { Shield, Moon, Dumbbell, HeartPulse, Stethoscope, LayoutDashboard, Pill } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -41,6 +41,7 @@ import SleepPage from "./(main)/sleep/page";
 import WorkoutsPage from "./(main)/workouts/page";
 import RecoveryPage from "./(main)/recovery/page";
 import CyclePage from "./(main)/cycle/page";
+import SupplementsPage from "./(main)/supplements/page";
 
 
 const initialDashboardData: DashboardData = {
@@ -100,18 +101,25 @@ export default function Home() {
     const userRef = doc(db, "users", userId);
     const workoutsRef = collection(userRef, "workouts");
     const dailyMetricsRef = collection(userRef, "dailyMetrics");
+    const supplementsRef = collection(userRef, "supplements");
 
     try {
         const batch = writeBatch(db);
         const workoutsSnapshot = await getDocs(workoutsRef);
         workoutsSnapshot.forEach(doc => batch.delete(doc.ref));
+        
         const dailyMetricsSnapshot = await getDocs(dailyMetricsRef);
         dailyMetricsSnapshot.forEach(doc => batch.delete(doc.ref));
+
+        const supplementsSnapshot = await getDocs(supplementsRef);
+        supplementsSnapshot.forEach(doc => batch.delete(doc.ref));
+        
         await batch.commit();
+
         setDashboardData(initialDashboardData);
         toast({
             title: "Datos eliminados",
-            description: "Todas las métricas y entrenamientos han sido borrados de la base de datos.",
+            description: "Todas las métricas, entrenamientos y suplementos han sido borrados.",
         });
     } catch (error) {
         console.error("Error al borrar los datos:", error);
@@ -299,12 +307,13 @@ export default function Home() {
     <>
       <Tabs defaultValue="dashboard" className="flex-grow flex flex-col">
         <div className="bg-background/95 backdrop-blur-sm sticky top-0 z-10 border-b">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto p-2">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 h-auto p-2">
             <TabsTrigger value="dashboard"><LayoutDashboard className="mr-2 h-4 w-4"/>Panel Principal</TabsTrigger>
             <TabsTrigger value="sleep"><Moon className="mr-2 h-4 w-4"/>Sueño</TabsTrigger>
             <TabsTrigger value="workouts"><Dumbbell className="mr-2 h-4 w-4"/>Entrenamientos</TabsTrigger>
             <TabsTrigger value="recovery"><HeartPulse className="mr-2 h-4 w-4"/>Recuperación</TabsTrigger>
             <TabsTrigger value="cycle"><Stethoscope className="mr-2 h-4 w-4"/>Ciclo</TabsTrigger>
+            <TabsTrigger value="supplements"><Pill className="mr-2 h-4 w-4"/>Suplementos</TabsTrigger>
           </TabsList>
         </div>
         
@@ -363,6 +372,10 @@ export default function Home() {
 
         <TabsContent value="cycle" className="p-6">
             <CyclePage />
+        </TabsContent>
+
+        <TabsContent value="supplements" className="p-6">
+            <SupplementsPage />
         </TabsContent>
 
       </Tabs>
@@ -430,3 +443,5 @@ function VitalsCard({ hrv, respiration, restingHR }: { hrv: number, respiration:
         </Card>
     )
 }
+
+    
