@@ -17,7 +17,7 @@ type EditEventDialogProps = {
     isOpen: boolean;
     onClose: () => void;
     onSave: (data: EventFormData) => void;
-    onDelete: (eventId: string) => void;
+    onDelete: () => void;
     event: CalendarEvent | null;
     defaultDate: Date | null;
 };
@@ -63,7 +63,7 @@ export default function EditEventDialog({ isOpen, onClose, onSave, onDelete, eve
     
     const handleDelete = () => {
         if (event?.id) {
-            onDelete(event.id);
+            onDelete();
         }
     }
 
@@ -142,5 +142,3 @@ export default function EditEventDialog({ isOpen, onClose, onSave, onDelete, eve
         </Dialog>
     );
 }
-
-    

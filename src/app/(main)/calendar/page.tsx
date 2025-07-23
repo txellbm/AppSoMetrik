@@ -50,10 +50,10 @@ export default function CalendarPage() {
 
     useEffect(() => {
         // Set initial date on client to avoid hydration errors
-        if (typeof window !== 'undefined') {
+        if (typeof window !== 'undefined' && !date) {
             setDate(new Date());
         }
-    }, []);
+    }, [date]);
 
     useEffect(() => {
         setIsLoading(true);
@@ -92,14 +92,13 @@ export default function CalendarPage() {
     
         if (selectedWorkoutType) {
             const config = workoutTypes[selectedWorkoutType];
-            const endTime = new Date(new Date(`1970-01-01T${config.startTime}`).getTime() + config.duration * 60000);
             
             const newEvent: Omit<CalendarEvent, 'id'> = {
                 description: selectedWorkoutType,
                 type: 'entrenamiento',
                 date: format(day, "yyyy-MM-dd"),
                 startTime: config.startTime,
-                endTime: format(endTime, "HH:mm"),
+                endTime: format(new Date(new Date(`1970-01-01T${config.startTime}`).getTime() + config.duration * 60000), "HH:mm"),
             };
             openDialog(newEvent as CalendarEvent, day);
         }
@@ -322,7 +321,11 @@ export default function CalendarPage() {
                 isOpen={isDialogOpen}
                 onClose={() => setIsDialogOpen(false)}
                 onSave={handleSaveEvent}
-                onDelete={handleDeleteEvent}
+                onDelete={() => {
+                    if (selectedEvent && selectedEvent.id) {
+                        handleDeleteEvent(selectedEvent.id);
+                    }
+                }}
                 event={selectedEvent}
                 defaultDate={dialogDate}
             />
@@ -337,5 +340,3 @@ const InputWithLabel = ({ label, ...props }: { label: string } & React.Component
         <Input {...props} />
     </div>
 );
-
-    
