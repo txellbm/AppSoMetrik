@@ -15,7 +15,6 @@ import EditEventDialog from "@/components/dashboard/event-dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -69,6 +68,8 @@ export default function CalendarPage() {
 
     useEffect(() => {
         setIsLoading(true);
+        if (!userId) return;
+
         const eventsColRef = collection(db, "users", userId, "events");
         const q = query(eventsColRef, 
             where("date", ">=", format(monthStart, "yyyy-MM-dd")),
@@ -221,7 +222,7 @@ export default function CalendarPage() {
     
     const eventsForSelectedDay = useMemo(() => {
         if (!date) return [];
-        return events.filter(e => e.date === format(date, "yyyy-MM-dd"));
+        return events.filter(e => e.date === format(date, "yyyy-MM-dd")).sort((a,b) => (a.startTime || "00:00").localeCompare(b.startTime || "00:00"));
     }, [date, events]);
 
     return (
@@ -266,39 +267,36 @@ export default function CalendarPage() {
                 
                 <aside className="lg:col-span-1 space-y-4">
                     <Card>
-                        <CardHeader>
-                            <CardTitle>Añadir Entrenamientos Rápidos</CardTitle>
+                        <CardHeader className="pb-4">
+                            <CardTitle>Entrenamientos Rápidos</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-4">
+                        <CardContent className="space-y-2">
                             {Object.keys(workoutTypes).map((key) => {
                                 const type = key as WorkoutType;
                                 const config = workoutTypes[type];
                                 return (
-                                    <Card key={type} className={cn("p-4", selectedWorkoutType === type && "ring-2 ring-primary")}>
+                                    <Card key={type} className="p-3">
                                         <div className="flex justify-between items-center mb-2">
-                                            <Button variant="ghost" className="p-0 h-auto text-base font-semibold" onClick={() => setSelectedWorkoutType(st => st === type ? null : type)}>{type}</Button>
-                                            {config.defaultDaysOfWeek.length > 0 && (
-                                                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleScheduleWorkout(type)}>
-                                                    <PlusCircle className="h-5 w-5 text-primary"/>
-                                                </Button>
-                                            )}
+                                            <Button variant="link" className="p-0 h-auto text-base font-semibold" onClick={() => setSelectedWorkoutType(st => st === type ? null : type)}>{type}</Button>
+                                             <div className="flex items-center gap-2">
+                                                <InputWithLabel small label="Hora" type="time" value={config.startTime} onChange={(e) => handleWorkoutConfigChange(type, 'startTime', e.target.value)} />
+                                                <InputWithLabel small label="Min" type="number" value={config.duration} onChange={(e) => handleWorkoutConfigChange(type, 'duration', parseInt(e.target.value))} />
+                                                {config.defaultDaysOfWeek.length > 0 && (
+                                                    <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => handleScheduleWorkout(type)}>
+                                                        <PlusCircle className="h-5 w-5 text-primary"/>
+                                                    </Button>
+                                                )}
+                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-2 mb-2">
-                                            <InputWithLabel label="Hora" type="time" value={config.startTime} onChange={(e) => handleWorkoutConfigChange(type, 'startTime', e.target.value)} />
-                                            <InputWithLabel label="Duración (min)" type="number" value={config.duration} onChange={(e) => handleWorkoutConfigChange(type, 'duration', parseInt(e.target.value))} />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm text-muted-foreground mb-1">Días Fijos</p>
-                                            <div className="flex justify-between gap-1">
-                                                {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((day, i) => {
-                                                    const dayIndex = (i + 1) % 7; // L=1, S=6, D=0
-                                                    return (
-                                                        <Button key={day} size="icon" variant={config.defaultDaysOfWeek.includes(dayIndex) ? 'default' : 'outline'} className="h-8 w-8" onClick={() => handleDayToggle(type, dayIndex)}>
-                                                            {day}
-                                                        </Button>
-                                                    )
-                                                })}
-                                            </div>
+                                        <div className="flex justify-between gap-1">
+                                            {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((day, i) => {
+                                                const dayIndex = (i + 1) % 7; // L=1, S=6, D=0
+                                                return (
+                                                    <Button key={day} size="icon" variant={config.defaultDaysOfWeek.includes(dayIndex) ? 'default' : 'outline'} className="h-7 w-7 text-xs" onClick={() => handleDayToggle(type, dayIndex)}>
+                                                        {day}
+                                                    </Button>
+                                                )
+                                            })}
                                         </div>
                                     </Card>
                                 )
@@ -363,10 +361,10 @@ export default function CalendarPage() {
 }
 
 // Helper for inline label input
-const InputWithLabel = ({ label, ...props }: { label: string } & React.ComponentProps<typeof Input>) => (
+const InputWithLabel = ({ label, small = false, ...props }: { label: string, small?: boolean } & React.ComponentProps<typeof Input>) => (
     <div className="space-y-1">
         <label className="text-xs text-muted-foreground">{label}</label>
-        <Input {...props} />
+        <Input {...props} className={small ? 'h-8 w-20' : ''}/>
     </div>
 );
 
