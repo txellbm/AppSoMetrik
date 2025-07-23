@@ -124,10 +124,6 @@ export default function Home() {
     const workoutsRef = collection(userRef, "workouts");
     const dailyMetricsRef = collection(userRef, "dailyMetrics");
 
-    if (!confirm("¿Estás seguro de que quieres borrar TODOS los datos de entrenamientos y métricas diarias? Esta acción no se puede deshacer.")) {
-        return;
-    }
-
     try {
         const batch = writeBatch(db);
         
