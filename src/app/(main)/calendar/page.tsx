@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { db } from "@/lib/firebase";
 import { doc, collection, onSnapshot, setDoc, deleteDoc, getDoc, updateDoc, query } from "firebase/firestore";
-import { format, parseISO, startOfDay } from 'date-fns';
+import { format, parseISO, startOfDay, addMinutes } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
@@ -19,8 +19,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { cn } from "@/lib/utils";
 
 const workoutTypes = [
-    { id: 'pilates', label: 'Pilates', icon: <Droplets className="h-4 w-4" /> },
-    { id: 'flexibilidad', label: 'Flexibilidad/Contorsión', icon: <Star className="h-4 w-4" /> },
+    { id: 'pilates', label: 'Pilates', icon: <Droplets className="h-4 w-4" />, defaultStartTime: '10:00', defaultDuration: 60 },
+    { id: 'flexibilidad', label: 'Flexibilidad/Contorsión', icon: <Star className="h-4 w-4" />, defaultStartTime: '12:00', defaultDuration: 60 },
     { id: 'fuerza_funcional', label: 'Fuerza Funcional', icon: <Dumbbell className="h-4 w-4" /> }
 ];
 
@@ -70,15 +70,24 @@ export default function CalendarPage() {
     }, [selectedDateStr, userId, toast]);
     
     const handleQuickAddWorkout = async (day: Date) => {
-        if (!selectedWorkoutType) return;
+        const workoutInfo = workoutTypes.find(w => w.id === selectedWorkoutType);
+        if (!workoutInfo) return;
         
-        const workoutLabel = workoutTypes.find(w => w.id === selectedWorkoutType)?.label || selectedWorkoutType;
         const dayStr = format(day, 'yyyy-MM-dd');
 
-        const eventData: Omit<CalendarEvent, 'id' | 'date'> = {
+        const eventData: Partial<Omit<CalendarEvent, 'id' | 'date'>> = {
             type: 'entrenamiento',
-            description: workoutLabel,
+            description: workoutInfo.label,
         };
+
+        if (workoutInfo.defaultStartTime && workoutInfo.defaultDuration) {
+            eventData.startTime = workoutInfo.defaultStartTime;
+            const [hours, minutes] = workoutInfo.defaultStartTime.split(':').map(Number);
+            const startDate = new Date(day);
+            startDate.setHours(hours, minutes);
+            const endDate = addMinutes(startDate, workoutInfo.defaultDuration);
+            eventData.endTime = format(endDate, 'HH:mm');
+        }
 
         const eventId = doc(collection(db, 'users')).id;
         const docRef = doc(db, "users", userId, "calendar", dayStr, "events", eventId);
@@ -90,7 +99,7 @@ export default function CalendarPage() {
             
             toast({
                 title: `Entrenamiento añadido`,
-                description: `${workoutLabel} añadido para el ${dayStr}.`,
+                description: `${workoutInfo.label} añadido para el ${dayStr}.`,
                 duration: 2000
             });
         } catch (error) {
