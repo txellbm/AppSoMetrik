@@ -173,10 +173,13 @@ export default function CalendarPage() {
                         title: "Día incorrecto",
                         description: `El entrenamiento '${workoutInfo?.label}' solo puede ser añadido a los días configurados.`,
                     });
-                    return; 
+                    // Do not return here, allow date selection
+                } else {
+                   handleQuickAddWorkout(day);
                 }
+            } else {
+                 handleQuickAddWorkout(day);
             }
-            handleQuickAddWorkout(day);
         }
         
         // Always update the selected date to view its events.
@@ -213,27 +216,26 @@ export default function CalendarPage() {
 
     const handleDeleteEvent = async (event: CalendarEvent) => {
         if (!window.confirm("¿Estás seguro de que quieres eliminar este evento?")) return;
-        
+    
         const eventDocRef = doc(db, "users", userId, "calendar", event.date, "events", event.id!);
         const dateDocRef = doc(db, "users", userId, "calendar", event.date);
 
         try {
             await runTransaction(db, async (transaction) => {
                 const dateDoc = await transaction.get(dateDocRef);
-                const currentData = dateDoc.exists() ? dateDoc.data() : { count: 0, types: {} };
                 
                 transaction.delete(eventDocRef);
 
-                if (currentData.count > 1) {
-                    transaction.set(dateDocRef, {
+                if (dateDoc.exists() && dateDoc.data().count > 1) {
+                    transaction.update(dateDocRef, {
                         count: increment(-1),
-                        [`types.${event.type}`]: increment(-1)
-                    }, { merge: true });
+                        [`types.${event.type}`]: increment(-1),
+                    });
                 } else {
                     transaction.delete(dateDocRef);
                 }
             });
-            toast({ title: "Evento eliminado", variant: "destructive" });
+            toast({ title: "Evento eliminado", variant: "default" });
         } catch (error) {
             console.error("Error deleting event:", error);
             toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el evento." });
@@ -284,7 +286,7 @@ export default function CalendarPage() {
                 targetDay = addDays(targetDay, dayDifference);
                 
                 if (week === 0 && targetDay < today) {
-                    targetDay = addDays(targetDay, 7);
+                    return; // Don't schedule for past days in the current week
                 }
 
 
@@ -607,5 +609,3 @@ function EditEventDialog({ isOpen, setIsOpen, event, onSave }: EditEventDialogPr
         </Dialog>
     );
 }
-
-    
