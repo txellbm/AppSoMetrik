@@ -32,9 +32,9 @@ const prompt = ai.definePrompt({
 2.  **Mapeo Estricto de Archivo a Métrica:**
 
     -   **Si \`{{{fileName}}}\` contiene 'SleepAnalysis.csv'**:
-        -   Extrae la duración en minutos para cada fase ('deep', 'light', 'rem').
+        -   Extrae la duración en minutos para cada fase ('inBed', 'asleep', 'deep', 'light', 'rem', 'awake').
         -   Suma todas las duraciones por fase para cada día.
-        -   Rellena los campos \`sueño_profundo\`, \`sueño_ligero\`, y \`sueño_rem\` en \`dailyMetrics\`. \`sueño_total\` es la suma de estos tres.
+        -   Rellena los campos \`sueño_profundo\`, \`sueño_ligero\`, \`sueño_rem\` y \`sueño_total\` (asleep) en \`dailyMetrics\`.
 
     -   **Si \`{{{fileName}}}\` contiene 'HeartRateVariability.csv'**:
         -   Extrae el \`value\` (en ms) y guárdalo en \`hrv\` dentro de \`dailyMetrics\`.
@@ -51,8 +51,14 @@ const prompt = ai.definePrompt({
     -   **Si \`{{{fileName}}}\` contiene 'ActiveEnergyBurned.csv'**:
         -   Suma los valores de \`value\` (en kcal) para el día y guárdalo en \`caloriasActivas\` dentro de \`dailyMetrics\`.
 
+    -   **Si \`{{{fileName}}}\` contiene 'BasalEnergyBurned.csv'**:
+        -   Suma los valores de \`value\` (en kcal) para el día y guárdalo en \`caloriasBasales\` dentro de \`dailyMetrics\`.
+
     -   **Si \`{{{fileName}}}\` contiene 'StepCount.csv'**:
         -   Suma los valores de \`value\` para el día y guárdalo en \`pasos\` dentro de \`dailyMetrics\`.
+
+    -   **Si \`{{{fileName}}}\` contiene 'DistanceWalkingRunning.csv'**:
+        -   Suma los valores de \`value\` (en km) para el día y guárdalo en \`distanciaKm\` dentro de \`dailyMetrics\`.
 
     -   **Si \`{{{fileName}}}\` contiene 'AppleExerciseTime.csv'**:
         -   Suma los valores de \`value\` (en minutos) para el día y guárdalo en \`minutosEnMovimiento\` dentro de \`dailyMetrics\`.

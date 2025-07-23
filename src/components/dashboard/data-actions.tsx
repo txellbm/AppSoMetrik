@@ -144,7 +144,9 @@ export default function DataActions({ onDataProcessed, onGenerateReport, onDelet
             const workoutsFound = fileResult.workouts.length;
             
             console.log(`[✅] Archivo procesado: ${zipEntry.name}. Métricas/días encontrados: ${metricsFound}, Entrenamientos: ${workoutsFound}.`);
-            console.log("Datos extraídos:", fileResult);
+            if (metricsFound > 0 || workoutsFound > 0) {
+              console.log("Datos extraídos:", fileResult);
+            }
             
             aggregateResults(combinedResult, fileResult);
         } catch(error) {
@@ -186,7 +188,9 @@ export default function DataActions({ onDataProcessed, onGenerateReport, onDelet
                   const metricsFound = result.dailyMetrics.length;
                   const workoutsFound = result.workouts.length;
                   console.log(`[✅] Archivo procesado: ${file.name}. Métricas/días encontrados: ${metricsFound}, Entrenamientos: ${workoutsFound}.`);
-                  console.log("Datos extraídos:", result);
+                  if (metricsFound > 0 || workoutsFound > 0) {
+                    console.log("Datos extraídos:", result);
+                  }
               }
           }
           if (result) {

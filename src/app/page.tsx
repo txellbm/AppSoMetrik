@@ -25,7 +25,6 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { generateHealthSummary } from "@/ai/flows/ai-health-summary";
@@ -35,8 +34,7 @@ import DataActions from "@/components/dashboard/data-actions";
 import NotificationsWidget from "@/components/dashboard/notifications-widget";
 import SleepChart from "@/components/dashboard/sleep-chart";
 import MenstrualCyclePanel from "@/components/dashboard/menstrual-cycle-panel";
-import { DataTable } from "@/components/dashboard/data-table";
-import { collection, writeBatch, onSnapshot, doc, getDocs, query, setDoc, getDoc } from "firebase/firestore";
+import { collection, writeBatch, onSnapshot, doc, getDocs, query, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { differenceInDays, format, isValid, parseISO, startOfToday } from "date-fns";
 import SleepPage from "./(main)/sleep/page";
@@ -146,16 +144,9 @@ export default function Home() {
           const docRef = doc(userRef, "dailyMetrics", item.date);
           
           try {
-              const docSnap = await getDoc(docRef);
-              if (docSnap.exists()) {
-                  // Merge with existing data
-                  const existingData = docSnap.data() as DailyMetric;
-                  const mergedData = { ...existingData, ...item };
-                  batch.set(docRef, mergedData, { merge: true });
-              } else {
-                  // Set new data
-                  batch.set(docRef, item);
-              }
+              // We use set with merge: true to create or update the document.
+              // This will merge the new data with existing data if the document already exists.
+              batch.set(docRef, item, { merge: true });
               changesCount++;
           } catch (e) {
               console.error(`Error processing metric for date ${item.date}:`, e);
@@ -167,13 +158,13 @@ export default function Home() {
     if (workouts) {
         workouts.forEach(item => {
             if (!item.date || !item.tipo) return;
+            // Create a unique ID for each workout to prevent overwrites on the same day
             const docId = `${item.date}_${item.tipo.replace(/\s+/g, '')}_${Math.random().toString(36).substring(2, 9)}`;
             const docRef = doc(userRef, "workouts", docId);
             batch.set(docRef, item);
             changesCount++;
         });
     }
-
 
     if (changesCount === 0) {
       toast({
