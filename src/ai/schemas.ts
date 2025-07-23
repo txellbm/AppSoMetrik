@@ -79,31 +79,6 @@ export type DashboardData = {
     dailyMetrics: DailyMetric[];
 };
 
-
-// Legacy schemas, can be removed later
-export const SleepEntrySchema = z.object({
-    date: z.string().describe("Fecha de la sesión de sueño (YYYY-MM-DD)."),
-    totalSleep: z.number().describe("Duración total del sueño en horas.").default(0),
-    deepSleep: z.number().describe("Horas de sueño profundo.").default(0),
-    lightSleep: z.number().describe("Horas de sueño ligero.").default(0),
-    remSleep: z.number().describe("Horas de sueño REM.").default(0),
-    awake: z.number().describe("Tiempo despierto en horas.").default(0),
-    quality: z.number().describe("Puntuación de calidad del sueño (%).").default(0),
-    readiness: z.number().describe("Puntuación de preparación/energía (%).").optional().default(0),
-    restingHeartRate: z.number().describe('La frecuencia cardíaca en reposo en lpm.').optional().default(0),
-    hrv: z.number().describe("La variabilidad de la frecuencia cardíaca (VFC) en ms.").optional().default(0),
-    respiration: z.number().describe("La frecuencia respiratoria promedio en rpm.").optional().default(0),
-});
-export type SleepEntry = z.infer<typeof SleepEntrySchema>;
-
-export const MenstrualCycleDataSchema = z.object({
-    date: z.string().describe("La fecha del registro (YYYY-MM-DD)."),
-    flow: z.enum(['light', 'medium', 'heavy', 'spotting']).describe("El nivel de sangrado.").optional(),
-    symptoms: z.array(z.string()).describe("Una lista de síntomas registrados.").default([]),
-});
-export type MenstrualCycleData = z.infer<typeof MenstrualCycleDataSchema>;
-
-
 export const CalculatedCycleDataSchema = z.object({
     currentPhase: z.string().describe("La fase del ciclo menstrual (ej. Folicular, Lútea, Menstruación).").default("No disponible"),
     currentDay: z.number().describe("El día actual dentro del ciclo menstrual.").default(0),

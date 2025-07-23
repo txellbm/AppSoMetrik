@@ -150,7 +150,7 @@ export default function DataActions({ onDataProcessed, onGenerateReport, onDelet
       dailyMetrics: [],
     };
 
-    const csvFiles = Object.values(zip.files).filter(f => !f.dir && f.name.toLowerCase().endsWith('.csv'));
+    const csvFiles = Object.values(zip.files).filter(f => !f.dir && f.name.toLowerCase().endsWith('.csv') && !f.name.startsWith('__MACOSX'));
 
     for (const zipEntry of csvFiles) {
         console.log(`%c[▶️] Procesando archivo del ZIP: ${zipEntry.name}`, 'color: blue; font-weight: bold;');

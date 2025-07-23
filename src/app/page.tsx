@@ -36,10 +36,14 @@ import NotificationsWidget from "@/components/dashboard/notifications-widget";
 import SleepChart from "@/components/dashboard/sleep-chart";
 import MenstrualCyclePanel from "@/components/dashboard/menstrual-cycle-panel";
 import { DataTable } from "@/components/dashboard/data-table";
-import { collection, writeBatch, onSnapshot, doc, getDocs, query } from "firebase/firestore";
+import { collection, writeBatch, onSnapshot, doc, getDocs, query, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { differenceInDays, format, isValid, parseISO, startOfToday } from "date-fns";
 import SleepPage from "./(main)/sleep/page";
+import WorkoutsPage from "./(main)/workouts/page";
+import RecoveryPage from "./(main)/recovery/page";
+import CyclePage from "./(main)/cycle/page";
+
 
 const initialDashboardData: DashboardData = {
   workouts: [],
@@ -145,15 +149,16 @@ export default function Home() {
     }
 
     if (workouts) {
-      workouts.forEach(item => {
-          if (!item.date || !item.tipo) return;
-          // Use a unique ID for each workout to avoid overwrites
-          const docId = `${item.date}_${item.tipo}_${item.duracion}_${Math.random().toString(36).substring(2, 9)}`;
-          const docRef = doc(userRef, "workouts", docId);
-          batch.set(docRef, item);
-          changesCount++;
-      });
+        workouts.forEach(item => {
+            if (!item.date || !item.tipo) return;
+            // Use a unique ID for each workout to avoid overwrites
+            const docId = `${item.date}_${item.tipo}_${item.duracion}_${Math.random().toString(36).substring(2, 9)}`;
+            const docRef = doc(userRef, "workouts", docId);
+            batch.set(docRef, item);
+            changesCount++;
+        });
     }
+
 
     if (changesCount === 0) {
       toast({
@@ -283,59 +288,6 @@ export default function Home() {
     };
   }, [dashboardData.dailyMetrics]);
 
-    const sortedMetrics = useMemo(() => {
-        return [...dashboardData.dailyMetrics].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [dashboardData.dailyMetrics]);
-
-    const sortedWorkouts = useMemo(() => {
-        return [...dashboardData.workouts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [dashboardData.workouts]);
-
-    const workoutDataRows = useMemo(() => {
-        return sortedWorkouts.map((workout, i) => ({
-                key: `${workout.date}-${i}`,
-                cells: [
-                  workout.date,
-                  workout.tipo,
-                  workout.duracion,
-                  workout.calorias,
-                  workout.frecuenciaCardiacaMedia || "-",
-                  "N/A",
-                ],
-              }))
-    }, [sortedWorkouts]);
-
-    const recoveryDataRows = useMemo(() => {
-        return sortedMetrics
-            .map(metric => ({
-                key: metric.date,
-                cells: [
-                  metric.date,
-                  metric.hrv || "-",
-                  metric.restingHeartRate || "-",
-                  metric.respiracion || "-",
-                  "N/A",
-                  "N/A",
-                ],
-            }));
-    }, [sortedMetrics]);
-
-    const cycleDataRows = useMemo(() => {
-        return sortedMetrics
-            .filter(m => m.estadoCiclo || m.sintomas?.length)
-            .map(metric => ({
-                key: metric.date,
-                cells: [
-                    metric.date,
-                    "N/A",
-                    metric.estadoCiclo === "menstruacion" ? "Sí" : "No",
-                    metric.sintomas && metric.sintomas.length > 0
-                        ? <div className="flex flex-wrap gap-1">{metric.sintomas.map((s, i) => <Badge key={i} variant="outline">{s}</Badge>)}</div>
-                        : "Ninguno",
-                    metric.notas || "-",
-                ],
-            }));
-    }, [sortedMetrics]);
 
   return (
     <>
@@ -396,39 +348,15 @@ export default function Home() {
         </TabsContent>
 
         <TabsContent value="workouts" className="p-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Dumbbell className="text-primary"/>Historial de Entrenamientos</CardTitle>
-                    <CardDescription>Todos tus entrenamientos registrados, ordenados por fecha.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <DataTable headers={["Fecha", "Tipo", "Duración (min)", "Calorías", "FC Media", "Intensidad"]} rows={workoutDataRows} emptyMessage="No hay entrenamientos registrados." />
-                </CardContent>
-            </Card>
+            <WorkoutsPage />
         </TabsContent>
 
         <TabsContent value="recovery" className="p-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><HeartPulse className="text-primary"/>Historial de Recuperación</CardTitle>
-                    <CardDescription>Métricas clave de recuperación como VFC, Frecuencia Cardíaca en Reposo y más.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <DataTable headers={["Fecha", "VFC (ms)", "FC Reposo", "Respiración", "Estrés", "Calidad"]} rows={recoveryDataRows} emptyMessage="No hay datos de recuperación registrados." />
-                </CardContent>
-            </Card>
+            <RecoveryPage />
         </TabsContent>
 
         <TabsContent value="cycle" className="p-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Stethoscope className="text-primary"/>Historial del Ciclo Menstrual</CardTitle>
-                    <CardDescription>Un registro detallado de tu ciclo menstrual, síntomas y notas.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <DataTable headers={["Fecha", "Fase", "Menstruación", "Síntomas", "Notas"]} rows={cycleDataRows} emptyMessage="No hay datos del ciclo menstrual registrados." />
-                </CardContent>
-            </Card>
+            <CyclePage />
         </TabsContent>
 
       </Tabs>
@@ -496,7 +424,3 @@ function VitalsCard({ hrv, respiration, restingHR }: { hrv: number, respiration:
         </Card>
     )
 }
-
-    
-
-    

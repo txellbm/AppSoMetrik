@@ -20,13 +20,14 @@ const prompt = ai.definePrompt({
   name: 'processHealthDataFilePrompt',
   input: {schema: ProcessHealthDataFileInputSchema},
   output: {schema: ProcessHealthDataFileOutputSchema},
-  prompt: `Eres un asistente de salud de IA experto en analizar y consolidar datos de salud de un archivo CSV. Tu tarea es analizar el contenido del archivo, identificar el tipo de datos basándote en el nombre del archivo, extraer la información relevante y devolverla en un formato JSON estructurado y válido que se adhiere estrictamente al esquema de salida. El objetivo final es consolidar todas las métricas posibles por día.
+  prompt: `Eres un asistente de salud de IA experto en analizar y consolidar datos de salud de un archivo CSV de Apple Health (exportado por "Simple Health Export"). Tu tarea es analizar el contenido del archivo, identificar el tipo de datos basándote en el nombre del archivo, extraer la información relevante y devolverla en un formato JSON estructurado y válido que se adhiere estrictamente al esquema de salida. El objetivo final es consolidar todas las métricas posibles por día.
 
 **Instrucciones Clave:**
 1.  **Detección del Origen y Mapeo de Datos por Nombre de Archivo**:
     -   El nombre del archivo (\`{{{fileName}}}\`) es la ÚNICA fuente de verdad para determinar qué datos contiene. Ignora las cabeceras si contradicen el nombre del archivo.
     -   **Agregación por Fecha**: Todos los datos deben agruparse por fecha (usa el campo 'startDate' y formatéalo como 'YYYY-MM-DD'). Los datos de un mismo día provenientes de múltiples filas deben sumarse o agregarse lógicamente.
     -   **Valores Numéricos**: Procesa los campos numéricos con parseFloat. Si un valor no está presente, es inválido o es 'NaN', usa el valor por defecto del esquema (ej. 0).
+    -   **Ignorar Archivos Irrelevantes**: Si el nombre del archivo es 'ActivitySummary.csv', 'EnvironmentalAudioExposure.csv', 'HeadphoneAudioExposure.csv', o cualquier otro no listado abajo, devuelve un objeto vacío.
 
 2.  **Mapeo Estricto de Archivo a Métrica:**
 
@@ -42,7 +43,7 @@ const prompt = ai.definePrompt({
         -   Extrae el \`value\` (en rpm) y guárdalo en \`respiracion\` dentro de \`dailyMetrics\`.
 
     -   **Si \`{{{fileName}}}\` contiene 'Hydration.csv' o 'DietaryWater.csv'**:
-        -   Suma los valores de \`value\` (en litros) para el día y guárdalo en \`hidratacion\` dentro de \`dailyMetrics\`.
+        -   Suma los valores de \`value\` (en litros, convierte a ml si es necesario) para el día y guárdalo en \`hidratacion\` dentro de \`dailyMetrics\`.
 
     -   **Si \`{{{fileName}}}\` contiene 'ActiveEnergyBurned.csv'**:
         -   Suma los valores de \`value\` (en kcal) para el día y guárdalo en \`caloriasActivas\` dentro de \`dailyMetrics\`.
@@ -75,8 +76,8 @@ const prompt = ai.definePrompt({
 {{{fileContent}}}
 \`\`\`
 
-Genera el resumen y los datos estructurados.`,
-});
+Genera el resumen y los datos estructurados.
+`});
 
 const processHealthDataFileFlow = ai.defineFlow(
   {
@@ -86,15 +87,6 @@ const processHealthDataFileFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    
-    // Fallback mechanism to ensure the output object has the required structure
-    const validatedOutput: ProcessHealthDataFileOutput = {
-        summary: output?.summary || `Procesado ${input.fileName || 'archivo'}.`,
-        dailyMetrics: output?.dailyMetrics || [],
-        workouts: output?.workouts || [],
-    };
-    
-    return validatedOutput;
+    return output!;
   }
 );
-    

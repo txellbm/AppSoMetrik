@@ -71,14 +71,14 @@ export default function HealthDataViewer({ dailyMetrics, workouts }: HealthDataV
           <TabsContent value="sleep">
             <DataTable
               headers={["Fecha", "Total (min)", "Profundo", "Ligero", "REM"]}
-              rows={sortedMetrics.filter(m => m.sueño).map(metric => ({
+              rows={sortedMetrics.filter(m => m.sueño_total && m.sueño_total > 0).map(metric => ({
                 key: metric.date,
                 cells: [
                   metric.date,
-                  metric.sueño?.total || "-",
-                  metric.sueño?.profundo || "-",
-                  metric.sueño?.ligero || "-",
-                  metric.sueño?.rem || "-",
+                  metric.sueño_total || "-",
+                  metric.sueño_profundo || "-",
+                  metric.sueño_ligero || "-",
+                  metric.sueño_rem || "-",
                 ],
               }))}
               emptyMessage="No hay datos de sueño registrados."
@@ -124,7 +124,7 @@ export default function HealthDataViewer({ dailyMetrics, workouts }: HealthDataV
           <TabsContent value="cycle">
              <DataTable
               headers={["Fecha", "Estado del Ciclo", "Síntomas"]}
-              rows={sortedMetrics.filter(m => m.estadoCiclo || m.sintomas?.length).map(metric => ({
+              rows={sortedMetrics.filter(m => m.estadoCiclo || (m.sintomas && m.sintomas.length > 0)).map(metric => ({
                 key: metric.date,
                 cells: [
                   metric.date,
