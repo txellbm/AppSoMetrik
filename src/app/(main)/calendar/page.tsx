@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { db } from "@/lib/firebase";
 import { doc, collection, onSnapshot, setDoc, deleteDoc, getDoc, updateDoc, query, runTransaction, increment, writeBatch } from "firebase/firestore";
-import { format, parseISO, startOfDay, addMinutes, isSameDay, getDay, addDays, startOfWeek, nextDay } from 'date-fns';
+import { format, parseISO, startOfDay, addMinutes, isSameDay, getDay, addDays, startOfWeek, nextDay, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Calendar, DayProps } from "@/components/ui/calendar";
@@ -269,16 +269,30 @@ export default function CalendarPage() {
         }
 
         const eventsToAdd: Omit<CalendarEvent, 'id'>[] = [];
-        const today = new Date();
+        const today = startOfDay(new Date());
         
         // Schedule for the next 4 weeks
         for (let week = 0; week < 4; week++) {
             workoutInfo.defaultDaysOfWeek.forEach(dayOfWeek => {
-                let targetDay = startOfWeek(addDays(today, week * 7), { weekStartsOn: 1 }); // week starts on Monday
-                targetDay = nextDay(targetDay, dayOfWeek === 0 ? 6 : dayOfWeek -1); // nextDay treats Sunday as 0, etc.
-                 if(getDay(targetDay) !== dayOfWeek) {
-                    targetDay = addDays(targetDay, -7);
-                 }
+                // date-fns: Monday is 1, Sunday is 0. Our weekDays array matches this.
+                const firstDayOfThisWeek = startOfWeek(addDays(today, week * 7), { weekStartsOn: 1 });
+                let targetDay = firstDayOfThisWeek;
+                const currentDayOfWeek = getDay(targetDay); // Sunday is 0, Monday is 1...
+                
+                // Calculate difference to get to the target day
+                let dayDifference = dayOfWeek - currentDayOfWeek;
+                if (dayOfWeek === 0 && currentDayOfWeek !== 0) { // Target is Sunday
+                    dayDifference = 7 - currentDayOfWeek;
+                } else if (dayOfWeek !== 0 && currentDayOfWeek === 0){ // Current is Sunday, target is not
+                    dayDifference = dayOfWeek - 7;
+                }
+                
+                targetDay = addDays(targetDay, dayDifference);
+
+                // Ensure we don't schedule for the past if we're in the first week
+                if(week === 0 && targetDay < today) {
+                    targetDay = addDays(targetDay, 7);
+                }
 
 
                 const dayStr = format(targetDay, 'yyyy-MM-dd');
@@ -600,5 +614,3 @@ function EditEventDialog({ isOpen, setIsOpen, event, onSave }: EditEventDialogPr
         </Dialog>
     );
 }
-
-    
