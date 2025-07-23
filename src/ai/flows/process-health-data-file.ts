@@ -37,7 +37,7 @@ const prompt = ai.definePrompt({
 
     - **Formato Apple Health (Simple Health Export CSV)**:
         - La estructura suele ser \`startDate\`, \`endDate\`, \`value\`, y a veces \`sourceName\`.
-        - **Sueño (\`HKCategoryTypeIdentifierSleepAnalysis.csv\`):** El campo \`value\` contiene la fase ('inBed', 'asleep', 'awake', 'rem', 'deep', 'light'). La duración es la diferencia entre \`endDate\` y \`startDate\` en segundos. Debes **agregar todas las duraciones por cada fase** para la misma fecha y guardarlas en minutos en los campos correspondientes de \`dailyMetrics\`.
+        - **Sueño (\`HKCategoryTypeIdentifierSleepAnalysis.csv\`):** El campo \`value\` contiene la fase ('inBed', 'asleep', 'awake', 'rem', 'deep', 'light'). La duración es la diferencia entre \`endDate\` y \`startDate\` en segundos. Debes **agregar todas las duraciones por cada fase** para la misma fecha y guardarlas en minutos en los campos correspondientes de \`dailyMetrics\`. Asegúrate de sumar correctamente los minutos de sueño profundo, ligero y REM en sus respectivos campos.
         - **Entrenamientos (CRÍTICO: SOLO archivos \`HKWorkout...\`):**
             - Solo procesa archivos cuyo nombre comience con \`HKWorkoutActivityType\`.
             - Ignora cualquier entrenamiento con una duración inferior a 5 minutos.

@@ -211,19 +211,41 @@ export default function Home() {
   const avgRespiration = useMemo(() => dashboardData.dailyMetrics.length > 0 ? dashboardData.dailyMetrics.reduce((acc, s) => acc + (s.respirationRate || 0), 0) / dashboardData.dailyMetrics.filter(s => s.respirationRate).length : 0, [dashboardData.dailyMetrics]);
   
   const calculatedCycleData = useMemo<CalculatedCycleData>(() => {
-    // This logic needs to be adapted to the new dailyMetrics structure
     const today = startOfToday();
-    const todayStr = format(today, 'yyyy-MM-dd');
-    const todayMetric = dashboardData.dailyMetrics.find(d => d.date === todayStr);
+    const sortedMetrics = [...dashboardData.dailyMetrics].sort((a, b) => parseDateAsLocal(a.date).getTime() - parseDateAsLocal(b.date).getTime());
+    
+    const todayMetric = sortedMetrics.find(d => d.date === format(today, 'yyyy-MM-dd'));
 
-    if (!todayMetric || !todayMetric.menstrualCycle) {
+    // Find the last menstrual cycle start date
+    let lastCycleStartDate: Date | null = null;
+    for (let i = sortedMetrics.length - 1; i >= 0; i--) {
+        const metric = sortedMetrics[i];
+        if (metric.menstrualCycle?.flow && metric.menstrualCycle.flow !== 'spotting') {
+             const prevDayIndex = i - 1;
+             // Check if previous day also had flow. If not, this is the start.
+             if (prevDayIndex < 0 || !sortedMetrics[prevDayIndex].menstrualCycle?.flow || sortedMetrics[prevDayIndex].menstrualCycle?.flow === 'spotting') {
+                lastCycleStartDate = parseDateAsLocal(metric.date);
+                break;
+             }
+        }
+    }
+    
+    if (!lastCycleStartDate) {
         return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
     }
     
+    const dayOfCycle = differenceInDays(today, lastCycleStartDate) + 1;
+    let currentPhase = "No disponible";
+
+    if (dayOfCycle >= 1 && dayOfCycle <= 7) currentPhase = "Menstrual";
+    else if (dayOfCycle > 7 && dayOfCycle <= 14) currentPhase = "Folicular";
+    else if (dayOfCycle > 14 && dayOfCycle <= 16) currentPhase = "Ovulatoria";
+    else if (dayOfCycle > 16) currentPhase = "Lútea";
+
     return {
-        currentDay: todayMetric.menstrualCycle.dayOfCycle || 0,
-        currentPhase: todayMetric.menstrualCycle.phase || "No disponible",
-        symptoms: todayMetric.menstrualCycle.symptoms || [],
+        currentDay: dayOfCycle,
+        currentPhase: currentPhase,
+        symptoms: todayMetric?.menstrualCycle?.symptoms || [],
     };
   }, [dashboardData.dailyMetrics]);
 
@@ -371,7 +393,8 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
     .filter(w => {
         try {
             if (!w.date) return false;
-            return isWithinInterval(parseDateAsLocal(w.date), { start: startOfThisWeek, end: endOfThisWeek })
+            const workoutDate = parseDateAsLocal(w.date);
+            return isWithinInterval(workoutDate, { start: startOfThisWeek, end: endOfThisWeek });
         } catch {
             return false;
         }
@@ -382,7 +405,8 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
     .filter(w => {
         try {
             if (!w.date) return false;
-            return isWithinInterval(parseDateAsLocal(w.date), { start: startOfLastWeek, end: endOfLastWeek })
+            const workoutDate = parseDateAsLocal(w.date);
+            return isWithinInterval(workoutDate, { start: startOfLastWeek, end: endOfLastWeek });
         } catch {
             return false;
         }
@@ -394,7 +418,9 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
         try {
             if (!w.date) return false;
             const date = parseDateAsLocal(w.date);
-            return !isWithinInterval(date, { start: startOfThisWeek, end: endOfThisWeek }) && !isWithinInterval(date, { start: startOfLastWeek, end: endOfLastWeek })
+            const isThisWeek = isWithinInterval(date, { start: startOfThisWeek, end: endOfThisWeek });
+            const isLastWeek = isWithinInterval(date, { start: startOfLastWeek, end: endOfLastWeek });
+            return !isThisWeek && !isLastWeek;
         } catch {
             return false;
         }
