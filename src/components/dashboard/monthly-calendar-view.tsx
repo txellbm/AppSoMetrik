@@ -46,12 +46,12 @@ export function MonthlyCalendarView({ month, events, onEventClick, onDayClick }:
                 onClick={() => onDayClick(props.date)}
             >
                 <span className={cn(
-                    "self-start text-xs font-medium mb-1",
-                    isToday(props.date) && "bg-primary text-primary-foreground rounded-full h-5 w-5 flex items-center justify-center"
+                    "self-center text-sm font-medium mb-1", // Center the day number
+                    isToday(props.date) && "bg-primary text-primary-foreground rounded-full h-6 w-6 flex items-center justify-center"
                 )}>
                     {dayNumber}
                 </span>
-                <div className="flex-grow space-y-1 overflow-hidden">
+                <div className="flex-grow space-y-1 overflow-hidden mt-1">
                     {dayEvents.slice(0, MAX_EVENTS_VISIBLE).map(event => (
                         <div 
                             key={event.id}
@@ -60,7 +60,7 @@ export function MonthlyCalendarView({ month, events, onEventClick, onDayClick }:
                                 onEventClick(event, props.date);
                             }}
                             className={cn(
-                                "text-xs rounded-sm px-1 py-0.5 truncate",
+                                "text-xs rounded-sm px-1 py-0.5 truncate shadow-sm", // Event card style
                                 eventTypeColors[event.type] || eventTypeColors.default
                             )}
                         >
@@ -68,7 +68,7 @@ export function MonthlyCalendarView({ month, events, onEventClick, onDayClick }:
                         </div>
                     ))}
                     {hiddenEventsCount > 0 && (
-                        <div className="text-xs text-muted-foreground">+ {hiddenEventsCount} más</div>
+                        <div className="text-xs text-muted-foreground text-center">+ {hiddenEventsCount} más</div>
                     )}
                 </div>
             </div>
