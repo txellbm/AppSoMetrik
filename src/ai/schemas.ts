@@ -10,6 +10,7 @@ import {z} from 'genkit';
 
 // Schemas for: src/ai/flows/ai-health-summary.ts
 export const HealthSummaryInputSchema = z.object({
+  periodo: z.string().describe('El período de tiempo para el informe (ej. Diario, Semanal, Mensual).'),
   sleepData: z.string().describe('Resumen de los datos de sueño.'),
   exerciseData: z.string().describe('Resumen de los datos de ejercicio y actividad.'),
   heartRateData: z.string().describe('Resumen de los datos de frecuencia cardíaca, VFC, recuperación, respiración y nivel de energía.'),
