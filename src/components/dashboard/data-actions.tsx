@@ -4,7 +4,7 @@
 
 import { useState, useRef } from "react";
 import { processHealthDataFile } from "@/ai/flows/process-health-data-file";
-import { ProcessHealthDataFileOutput, Workout, DailyMetric } from "@/ai/schemas";
+import { ProcessHealthDataFileOutput } from "@/ai/schemas";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Upload, FileText, Loader2, BrainCircuit, Trash2, FileArchive } from "lucide-react";
@@ -17,58 +17,29 @@ type DataActionsProps = {
   onDeleteAllData: () => void;
 };
 
-// This constant defines how many rows of a CSV are sent to the AI in one go.
-// A smaller chunk size is more reliable but slower. A larger one is faster but risks hitting token limits.
 const CHUNK_SIZE = 500; 
 
-// Helper function to deeply merge two dailyMetric objects.
-const mergeDailyMetrics = (existingMetric: DailyMetric, newMetric: DailyMetric): DailyMetric => {
-    const merged: DailyMetric = { ...existingMetric };
-
-    for (const key in newMetric) {
-        const aKey = key as keyof DailyMetric;
-        const newValue = newMetric[aKey];
-
-        if (aKey === 'date' || newValue === undefined || newValue === null) continue;
-        
-        // Handle array merging for symptoms
-        if (aKey === 'sintomas' && Array.isArray(newValue) && newValue.length > 0) {
-            merged.sintomas = [...(merged.sintomas || []), ...newValue];
-            continue;
-        }
-
-        // Overwrite only if the new value is not a default/empty one
-        if (newValue !== 0 && newValue !== '' && !Number.isNaN(newValue)) {
-            (merged as any)[aKey] = newValue;
-        }
-    }
-    return merged;
-};
-
-// Helper function to aggregate processed data into a combined result
-const aggregateResults = (combinedResult: ProcessHealthDataFileOutput, fileResult: ProcessHealthDataFileOutput | null) => {
-    if (!fileResult) return;
-
-    if (fileResult.workouts && fileResult.workouts.length > 0) {
-        combinedResult.workouts.push(...fileResult.workouts);
+const aggregateResults = (combined: ProcessHealthDataFileOutput, chunkResult: ProcessHealthDataFileOutput) => {
+    if (chunkResult.summary) {
+        combined.summary = combined.summary ? `${combined.summary} ${chunkResult.summary}` : chunkResult.summary;
     }
 
-    if (fileResult.dailyMetrics && fileResult.dailyMetrics.length > 0) {
-        fileResult.dailyMetrics.forEach(newMetric => {
-            if (!newMetric.date) return; // Skip metrics without a date
-            const existingMetricIndex = combinedResult.dailyMetrics.findIndex(m => m.date === newMetric.date);
-            if (existingMetricIndex > -1) {
-                combinedResult.dailyMetrics[existingMetricIndex] = mergeDailyMetrics(
-                    combinedResult.dailyMetrics[existingMetricIndex],
-                    newMetric
-                );
+    if (chunkResult.workouts) {
+        combined.workouts.push(...chunkResult.workouts);
+    }
+    
+    if (chunkResult.dailyMetrics) {
+        chunkResult.dailyMetrics.forEach(newMetric => {
+            const existingMetricIndex = combined.dailyMetrics.findIndex(m => m.date === newMetric.date);
+            if (existingMetricIndex !== -1) {
+                // Deep merge the new metric into the existing one
+                const existingMetric = combined.dailyMetrics[existingMetricIndex];
+                combined.dailyMetrics[existingMetricIndex] = { ...existingMetric, ...newMetric };
             } else {
-                combinedResult.dailyMetrics.push(newMetric);
+                combined.dailyMetrics.push(newMetric);
             }
         });
     }
-    
-    combinedResult.summary += (fileResult.summary || "") + " ";
 };
 
 
@@ -132,9 +103,16 @@ export default function DataActions({ onDataProcessed, onGenerateReport, onDelet
           
           try {
             const chunkResult = await processHealthDataFile({ fileContent: chunkContent, fileName });
-            aggregateResults(aggregatedResult, chunkResult);
+            if (chunkResult) {
+                aggregateResults(aggregatedResult, chunkResult);
+            }
           } catch(e) {
              console.error(`[❌] Error al procesar un trozo del archivo ${fileName}:`, e);
+             toast({
+                variant: "destructive",
+                title: `Error en chunk de ${fileName}`,
+                description: "Se omitió una parte de este archivo."
+             });
           }
       }
       return aggregatedResult;
@@ -211,7 +189,9 @@ export default function DataActions({ onDataProcessed, onGenerateReport, onDelet
                   console.log("Datos extraídos:", result);
               }
           }
-          aggregateResults(allProcessedData, result);
+          if (result) {
+            aggregateResults(allProcessedData, result);
+          }
       }
       
       console.log("%c[📊] Datos finales agregados para guardar en Firestore:", 'color: green; font-weight: bold;', allProcessedData);

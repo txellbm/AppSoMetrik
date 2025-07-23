@@ -41,16 +41,16 @@ export const DailyMetricSchema = z.object({
     sueño_profundo: z.number().optional().describe("Minutos de sueño profundo.").default(0),
     sueño_ligero: z.number().optional().describe("Minutos de sueño ligero.").default(0),
     sueño_rem: z.number().optional().describe("Minutos de sueño REM.").default(0),
-    hrv: z.number().optional().default(0),
-    respiracion: z.number().optional().default(0),
-    hidratacion: z.number().optional().default(0),
-    pasos: z.number().optional().default(0),
-    caloriasActivas: z.number().optional().default(0),
-    minutosEnMovimiento: z.number().optional().default(0),
-    estadoCiclo: z.string().optional(),
-    sintomas: z.array(z.string()).optional(),
-    notas: z.string().optional(),
-    restingHeartRate: z.number().optional(),
+    hrv: z.number().optional().describe("HRV (SDNN) en ms.").default(0),
+    respiracion: z.number().optional().describe("Tasa de respiración promedio en RPM.").default(0),
+    hidratacion: z.number().optional().describe("Ingesta de agua en ml.").default(0),
+    pasos: z.number().optional().describe("Número total de pasos.").default(0),
+    caloriasActivas: z.number().optional().describe("Calorías activas quemadas.").default(0),
+    minutosEnMovimiento: z.number().optional().describe("Minutos totales de ejercicio.").default(0),
+    estadoCiclo: z.string().optional().describe("Estado del ciclo menstrual (ej. menstruacion)."),
+    sintomas: z.array(z.string()).optional().describe("Lista de síntomas registrados."),
+    notas: z.string().optional().describe("Notas manuales del usuario."),
+    restingHeartRate: z.number().optional().describe("Frecuencia cardíaca en reposo (BPM)."),
 });
 export type DailyMetric = z.infer<typeof DailyMetricSchema>;
 
@@ -59,7 +59,7 @@ export const WorkoutEntrySchema = z.object({
     tipo: z.string().describe("El tipo de entrenamiento (ej. Pilates, Fuerza)."),
     duracion: z.number().describe("La duración del entrenamiento en minutos.").default(0),
     calorias: z.number().describe("Las calorías quemadas durante el entrenamiento.").default(0),
-    frecuenciaCardiacaMedia: z.number().optional().describe("Frecuencia cardíaca promedio.").default(0),
+    frecuenciaCardiacaMedia: z.number().optional().describe("Frecuencia cardíaca promedio (BPM).").default(0),
 });
 export type Workout = z.infer<typeof WorkoutEntrySchema>;
 

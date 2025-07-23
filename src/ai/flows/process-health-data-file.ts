@@ -39,10 +39,13 @@ const prompt = ai.definePrompt({
     -   **Si \`{{{fileName}}}\` contiene 'HeartRateVariability.csv'**:
         -   Extrae el \`value\` (en ms) y guárdalo en \`hrv\` dentro de \`dailyMetrics\`.
 
+    -   **Si \`{{{fileName}}}\` contiene 'RestingHeartRate.csv'**:
+        -   Extrae el \`value\` (en lpm) y guárdalo en \`restingHeartRate\` dentro de \`dailyMetrics\`.
+
     -   **Si \`{{{fileName}}}\` contiene 'RespiratoryRate.csv'**:
         -   Extrae el \`value\` (en rpm) y guárdalo en \`respiracion\` dentro de \`dailyMetrics\`.
 
-    -   **Si \`{{{fileName}}}\` contiene 'Hydration.csv' o 'DietaryWater.csv'**:
+    -   **Si \`{{{fileName}}}\` contiene 'Water.csv' o 'DietaryWater.csv'**:
         -   Suma los valores de \`value\` (en litros, convierte a ml si es necesario) para el día y guárdalo en \`hidratacion\` dentro de \`dailyMetrics\`.
 
     -   **Si \`{{{fileName}}}\` contiene 'ActiveEnergyBurned.csv'**:

@@ -36,7 +36,7 @@ import NotificationsWidget from "@/components/dashboard/notifications-widget";
 import SleepChart from "@/components/dashboard/sleep-chart";
 import MenstrualCyclePanel from "@/components/dashboard/menstrual-cycle-panel";
 import { DataTable } from "@/components/dashboard/data-table";
-import { collection, writeBatch, onSnapshot, doc, getDocs, query, setDoc } from "firebase/firestore";
+import { collection, writeBatch, onSnapshot, doc, getDocs, query, setDoc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { differenceInDays, format, isValid, parseISO, startOfToday } from "date-fns";
 import SleepPage from "./(main)/sleep/page";
@@ -139,20 +139,35 @@ export default function Home() {
     const userRef = doc(db, "users", userId);
     let changesCount = 0;
 
+    // Process daily metrics with merging for existing data
     if (dailyMetrics) {
-      dailyMetrics.forEach(item => {
-          if (!item.date) return;
+      for (const item of dailyMetrics) {
+          if (!item.date) continue;
           const docRef = doc(userRef, "dailyMetrics", item.date);
-          batch.set(docRef, item, { merge: true });
-          changesCount++;
-      });
+          
+          try {
+              const docSnap = await getDoc(docRef);
+              if (docSnap.exists()) {
+                  // Merge with existing data
+                  const existingData = docSnap.data() as DailyMetric;
+                  const mergedData = { ...existingData, ...item };
+                  batch.set(docRef, mergedData, { merge: true });
+              } else {
+                  // Set new data
+                  batch.set(docRef, item);
+              }
+              changesCount++;
+          } catch (e) {
+              console.error(`Error processing metric for date ${item.date}:`, e);
+          }
+      }
     }
 
+    // Process workouts by adding them to a subcollection
     if (workouts) {
         workouts.forEach(item => {
             if (!item.date || !item.tipo) return;
-            // Use a unique ID for each workout to avoid overwrites
-            const docId = `${item.date}_${item.tipo}_${item.duracion}_${Math.random().toString(36).substring(2, 9)}`;
+            const docId = `${item.date}_${item.tipo.replace(/\s+/g, '')}_${Math.random().toString(36).substring(2, 9)}`;
             const docRef = doc(userRef, "workouts", docId);
             batch.set(docRef, item);
             changesCount++;
