@@ -51,7 +51,7 @@ export function MonthlyCalendarView({ month, events, selected, onEventClick, onD
     function DayContent(props: DayProps) {
         const dayEvents = getEventsForDay(props.date);
         const dayNumber = format(props.date, 'd');
-        const MAX_EVENTS_VISIBLE = 3;
+        const MAX_EVENTS_VISIBLE = 2;
         const hiddenEventsCount = dayEvents.length - MAX_EVENTS_VISIBLE;
 
         return (
@@ -104,6 +104,10 @@ export function MonthlyCalendarView({ month, events, selected, onEventClick, onD
             components={{
                 Day: DayContent,
             }}
+            captionLayout="dropdown-buttons"
+            fromYear={2020}
+            toYear={2030}
+            styles={{ caption: { display: 'none' } }}
             className="h-full w-full"
             classNames={{
                 months: 'h-full',
