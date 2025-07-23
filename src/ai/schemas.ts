@@ -87,3 +87,16 @@ export const CalculatedCycleDataSchema = z.object({
     symptoms: z.array(z.string()).describe("Una lista de síntomas registrados.").default([]),
 });
 export type CalculatedCycleData = z.infer<typeof CalculatedCycleDataSchema>;
+
+// Schema for calendar events
+export const CalendarEventSchema = z.object({
+    id: z.string().optional(),
+    date: z.string().describe("Fecha del evento (YYYY-MM-DD)."),
+    type: z.enum(["trabajo", "entrenamiento", "nota", "vacaciones", "descanso"]).describe("Tipo de evento."),
+    description: z.string().describe("Descripción o detalle del evento."),
+    startTime: z.string().optional().describe("Hora de inicio (HH:mm)."),
+    endTime: z.string().optional().describe("Hora de fin (HH:mm)."),
+});
+export type CalendarEvent = z.infer<typeof CalendarEventSchema>;
+
+    

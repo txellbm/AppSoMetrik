@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Shield, Moon, Dumbbell, HeartPulse, Stethoscope, LayoutDashboard, Pill } from "lucide-react";
+import { Shield, Moon, Dumbbell, HeartPulse, Stethoscope, LayoutDashboard, Pill, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -42,6 +42,7 @@ import WorkoutsPage from "./(main)/workouts/page";
 import RecoveryPage from "./(main)/recovery/page";
 import CyclePage from "./(main)/cycle/page";
 import SupplementsPage from "./(main)/supplements/page";
+import CalendarPage from "./(main)/calendar/page";
 
 
 const initialDashboardData: DashboardData = {
@@ -307,13 +308,14 @@ export default function Home() {
     <>
       <Tabs defaultValue="dashboard" className="flex-grow flex flex-col">
         <div className="bg-background/95 backdrop-blur-sm sticky top-0 z-10 border-b">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 h-auto p-2">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-7 h-auto p-2">
             <TabsTrigger value="dashboard"><LayoutDashboard className="mr-2 h-4 w-4"/>Panel Principal</TabsTrigger>
             <TabsTrigger value="sleep"><Moon className="mr-2 h-4 w-4"/>Sueño</TabsTrigger>
             <TabsTrigger value="workouts"><Dumbbell className="mr-2 h-4 w-4"/>Entrenamientos</TabsTrigger>
             <TabsTrigger value="recovery"><HeartPulse className="mr-2 h-4 w-4"/>Recuperación</TabsTrigger>
             <TabsTrigger value="cycle"><Stethoscope className="mr-2 h-4 w-4"/>Ciclo</TabsTrigger>
             <TabsTrigger value="supplements"><Pill className="mr-2 h-4 w-4"/>Suplementos</TabsTrigger>
+            <TabsTrigger value="calendar"><CalendarDays className="mr-2 h-4 w-4"/>Calendario</TabsTrigger>
           </TabsList>
         </div>
         
@@ -376,6 +378,10 @@ export default function Home() {
 
         <TabsContent value="supplements" className="p-6">
             <SupplementsPage />
+        </TabsContent>
+        
+        <TabsContent value="calendar" className="p-6">
+            <CalendarPage />
         </TabsContent>
 
       </Tabs>
