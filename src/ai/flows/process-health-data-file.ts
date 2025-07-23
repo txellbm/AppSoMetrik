@@ -20,7 +20,7 @@ const prompt = ai.definePrompt({
   name: 'processHealthDataFilePrompt',
   input: {schema: ProcessHealthDataFileInputSchema},
   output: {schema: ProcessHealthDataFileOutputSchema},
-  prompt: `Eres un asistente de salud de IA experto en analizar y consolidar datos de salud de varios archivos CSV. Tu tarea es analizar el contenido del archivo, identificar el tipo de datos y su origen, extraer la información relevante y devolverla en un formato JSON estructurado y válido que se adhiere estrictamente al esquema de salida. El objetivo final es consolidar todas las métricas posibles por día.
+  prompt: `Eres un asistente de salud de IA experto en analizar y consolidar datos de salud de un archivo CSV. Tu tarea es analizar el contenido del archivo, identificar el tipo de datos y su origen, extraer la información relevante y devolverla en un formato JSON estructurado y válido que se adhiere estrictamente al esquema de salida. El objetivo final es consolidar todas las métricas posibles por día.
 
 **Instrucciones Clave:**
 1.  **Detección del Origen y Tipo de Archivo**:
@@ -41,7 +41,7 @@ const prompt = ai.definePrompt({
         - **Entrenamientos (CRÍTICO: SOLO archivos \`HKWorkout...\`):**
             - **Solo procesa archivos cuyo nombre comience con \`HKWorkoutActivityType\`**.
             - **Ignora cualquier entrenamiento con una duración inferior a 5 minutos.**
-            - Extrae \`duration\` (minutos) y \`activeEnergyBurned\` (kcal). El tipo de entrenamiento se extrae del nombre del archivo (ej. de 'HKWorkoutActivityTypePilates.csv' extraer 'Pilates').
+            - Extrae \`date\` (del campo \`startDate\`), \`duration\` (en minutos) y \`activeEnergyBurned\` (kcal). El tipo de entrenamiento se extrae del nombre del archivo (ej. de 'HKWorkoutActivityTypePilates.csv' extraer 'Pilates').
             - **IMPORTANTE: Ignora por completo cualquier archivo que NO empiece por \`HKWorkout\` al rellenar el array 'workouts'. Archivos como \`HKQuantityTypeIdentifierAppleExerciseTime.csv\`, \`HKQuantityTypeIdentifierFlightsClimbed.csv\`, \`HKQuantityTypeIdentifierActiveEnergyBurned.csv\`, \`HKQuantityTypeIdentifierDistanceWalkingRunning.csv\` y similares NO SON entrenamientos y no deben ser procesados como tal.**
         - **Métricas Diarias (agregar a \`dailyMetrics\` para el día correspondiente):**
             - **HRV (\`HKQuantityTypeIdentifierHeartRateVariabilitySDNN.csv\`):** Extrae \`value\` (en ms) y guárdalo en \`hrv\`.
@@ -52,9 +52,9 @@ const prompt = ai.definePrompt({
             - **Distancia (\`HKQuantityTypeIdentifierDistanceWalkingRunning.csv\`):** Suma los valores de \`value\` (en km) para el día y guárdalo en \`distance\`.
             - **Calorías Activas (\`HKQuantityTypeIdentifierActiveEnergyBurned.csv\`):** Suma los valores de \`value\` (en kcal) para el día y guárdalo en \`activeCalories\`.
         - **Ciclo Menstrual (\`HKCategoryTypeIdentifierMenstrualFlow.csv\`):**
-            - La fecha correcta es la que indica \`startDate\`, no la modifiques.
+            - La fecha correcta es la que indica \`startDate\`, no la modifiques. Extrae el día y mes de startDate para construir la fecha.
             - Extrae el \`value\` para el campo \`flow\` y agrégalo al objeto \`menstrualCycle\` dentro de \`dailyMetrics\` para el día correspondiente.
-            - Si encuentras un \`HKMenstrualCycleStart\`, marca ese día como el inicio del ciclo.
+            - Si encuentras un \`HKMenstrualCycleStart\` en el valor para un día, marca ese día como el inicio del ciclo (\`dayOfCycle: 1\`).
 
 4.  **Generación de Respuesta**:
     -   Crea un resumen de 1-2 frases sobre el contenido del archivo procesado.

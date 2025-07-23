@@ -3,7 +3,7 @@
 
 import { useState, useRef } from "react";
 import { processHealthDataFile } from "@/ai/flows/process-health-data-file";
-import { ProcessHealthDataFileOutput } from "@/ai/schemas";
+import { ProcessHealthDataFileOutput, Workout, DailyMetric } from "@/ai/schemas";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Upload, FileText, Loader2, BrainCircuit, Trash2, FileArchive } from "lucide-react";
@@ -19,12 +19,23 @@ type DataActionsProps = {
 // A smaller chunk size is more reliable but slower. A larger one is faster but risks hitting token limits.
 const CHUNK_SIZE = 500; 
 
-// Helper function to merge two dailyMetric objects
-const mergeDailyMetrics = (existingMetric: any, newMetric: any) => {
-    const merged = { ...existingMetric };
+// Helper function to deeply merge two dailyMetric objects, ensuring nested objects like `menstrualCycle` are merged.
+const mergeDailyMetrics = (existingMetric: DailyMetric, newMetric: DailyMetric): DailyMetric => {
+    const merged: DailyMetric = { ...existingMetric };
+
     for (const key in newMetric) {
-        if (key !== 'date' && newMetric[key] !== undefined && newMetric[key] !== null && newMetric[key] !== 0 && newMetric[key] !== '') {
-            merged[key] = newMetric[key];
+        const aKey = key as keyof DailyMetric;
+        const newValue = newMetric[aKey];
+
+        if (aKey === 'date' || newValue === undefined || newValue === null) continue;
+
+        if (aKey === 'menstrualCycle') {
+            merged.menstrualCycle = {
+                ...merged.menstrualCycle,
+                ...((newValue || {}) as object),
+            };
+        } else if (newValue !== 0 && newValue !== '') {
+            (merged as any)[aKey] = newValue;
         }
     }
     return merged;
@@ -34,25 +45,27 @@ const mergeDailyMetrics = (existingMetric: any, newMetric: any) => {
 const aggregateResults = (combinedResult: ProcessHealthDataFileOutput, fileResult: ProcessHealthDataFileOutput | null) => {
     if (!fileResult) return;
 
-    if (fileResult.workouts) {
+    if (fileResult.workouts && fileResult.workouts.length > 0) {
         combinedResult.workouts.push(...fileResult.workouts);
     }
 
-    if (fileResult.dailyMetrics) {
+    if (fileResult.dailyMetrics && fileResult.dailyMetrics.length > 0) {
         fileResult.dailyMetrics.forEach(newMetric => {
+            if (!newMetric.date) return; // Skip metrics without a date
             const existingMetricIndex = combinedResult.dailyMetrics.findIndex(m => m.date === newMetric.date);
             if (existingMetricIndex > -1) {
-                combinedResult.dailyMetrics[existingMetricIndex] = mergeDailyMetrics(combinedResult.dailyMetrics[existingMetricIndex], newMetric);
+                combinedResult.dailyMetrics[existingMetricIndex] = mergeDailyMetrics(
+                    combinedResult.dailyMetrics[existingMetricIndex],
+                    newMetric
+                );
             } else {
                 combinedResult.dailyMetrics.push(newMetric);
             }
         });
     }
     
-    if (fileResult.summary) {
-        // We can just take the last summary, or concatenate them if needed.
-        combinedResult.summary = fileResult.summary;
-    }
+    // The summary isn't critical for aggregation, but we can keep the last one.
+    combinedResult.summary = fileResult.summary || combinedResult.summary;
 };
 
 
@@ -105,7 +118,9 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
           dailyMetrics: [],
       };
       
+      // If the file is empty or just has a header
       if (dataRows.length === 0 || (dataRows.length === 1 && dataRows[0].trim() === '')) {
+          console.log(`Skipping empty or header-only file: ${fileName}`);
           return aggregatedResult;
       }
       
@@ -113,18 +128,8 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
           const chunkRows = dataRows.slice(i, i + CHUNK_SIZE);
           const chunkContent = [header, ...chunkRows].join('\n');
           
-          try {
-              const chunkResult = await processHealthDataFile({ fileContent: chunkContent, fileName });
-              aggregateResults(aggregatedResult, chunkResult);
-          } catch (error) {
-              console.error(`Error processing chunk for ${fileName}:`, error);
-              // Don't stop processing, just log the error for this chunk
-              toast({
-                  variant: "destructive",
-                  title: `Error en ${fileName}`,
-                  description: "Una parte del archivo no se pudo procesar."
-              });
-          }
+          const chunkResult = await processHealthDataFile({ fileContent: chunkContent, fileName });
+          aggregateResults(aggregatedResult, chunkResult);
       }
       return aggregatedResult;
   }
@@ -143,12 +148,27 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
     const csvFiles = Object.values(zip.files).filter(f => !f.dir && f.name.toLowerCase().endsWith('.csv'));
 
     for (const zipEntry of csvFiles) {
-        const content = await zipEntry.async('string');
-        if (!content) continue;
+        console.log(`[+] Processing file from ZIP: ${zipEntry.name}`);
+        try {
+            const content = await zipEntry.async('string');
+            if (!content) {
+                 console.log(`[!] Skipping empty file: ${zipEntry.name}`);
+                 continue;
+            }
 
-        const fileResult = await processFileInChunks(content, zipEntry.name);
-        aggregateResults(combinedResult, fileResult);
-        filesProcessed++;
+            const fileResult = await processFileInChunks(content, zipEntry.name);
+            console.log(`[✅] Generated metrics for ${zipEntry.name}:`, fileResult);
+
+            aggregateResults(combinedResult, fileResult);
+            filesProcessed++;
+        } catch(error) {
+            console.error(`[❌] Error processing file ${zipEntry.name}:`, error);
+            toast({
+                variant: "destructive",
+                title: `Error en ${zipEntry.name}`,
+                description: `Este archivo no se pudo procesar y fue omitido. El resto continuará.`
+            });
+        }
     }
     
     combinedResult.summary = `Procesados ${filesProcessed} archivos del ZIP.`;
@@ -174,14 +194,17 @@ export default function DataActions({ onDataProcessed, onGenerateReport }: DataA
           if (file.name.toLowerCase().endsWith('.zip')) {
               result = await processZipFile(file);
           } else if (file.name.toLowerCase().endsWith('.csv')) {
+              console.log(`[+] Processing single file: ${file.name}`);
               const content = await file.text();
               if (content) {
                   result = await processFileInChunks(content, file.name);
+                  console.log(`[✅] Generated metrics for ${file.name}:`, result);
               }
           }
           aggregateResults(allProcessedData, result);
       }
       
+      console.log("[📊] Final aggregated data to be saved:", allProcessedData);
       onDataProcessed(allProcessedData);
 
       toast({
