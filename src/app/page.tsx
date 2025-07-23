@@ -239,66 +239,66 @@ export default function Home() {
   const calculatedCycleData = useMemo<CalculatedCycleData>(() => {
     const today = startOfToday();
     const sortedMetrics = [...dashboardData.dailyMetrics]
-        .map(d => ({ ...d, parsedDate: safeParseDate(d.date) }))
-        .filter(d => d.parsedDate && isValid(d.parsedDate))
-        .sort((a, b) => a.parsedDate!.getTime() - b.parsedDate!.getTime());
-    
+      .map(d => ({ ...d, parsedDate: safeParseDate(d.date) }))
+      .filter(d => d.parsedDate && isValid(d.parsedDate))
+      .sort((a, b) => b.parsedDate!.getTime() - a.parsedDate!.getTime()); // Sort descending to find recent dates faster
+
     if (sortedMetrics.length === 0) {
-        return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
+      return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
     }
 
     const todayMetric = sortedMetrics.find(d => format(d.parsedDate!, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd'));
 
-    // Find the last menstrual cycle start date by looking for the first day of flow
+    // Find the most recent day marked as day 1 of the cycle.
+    const lastCycleStartMetric = sortedMetrics.find(d => d.menstrualCycle?.dayOfCycle === 1);
+    
     let lastCycleStartDate: Date | null = null;
-    let lastFlowDay: Date | null = null;
-    let consecutiveFlowDays = 0;
 
-    for (let i = sortedMetrics.length - 1; i >= 0; i--) {
-        const metric = sortedMetrics[i];
-        if (metric.menstrualCycle?.flow && metric.menstrualCycle.flow !== 'spotting') {
-            const currentDate = metric.parsedDate!;
-            if (lastFlowDay === null) { // First day of flow found (from backwards)
-                lastFlowDay = currentDate;
-                consecutiveFlowDays = 1;
-            } else {
-                const dayDiff = differenceInDays(lastFlowDay, currentDate);
-                if (dayDiff === 1) { // It's a consecutive day
-                    consecutiveFlowDays++;
-                    lastFlowDay = currentDate;
-                } else { // Gap in flow, so the last flow was the start of a new cycle
-                    lastCycleStartDate = lastFlowDay;
-                    break;
-                }
-            }
-        } else if (lastFlowDay !== null) { // We found the end of the flow period
-            lastCycleStartDate = lastFlowDay;
-            break;
+    if (lastCycleStartMetric) {
+      lastCycleStartDate = lastCycleStartMetric.parsedDate;
+    } else {
+      // Fallback: find the first day of a flow period preceded by a gap.
+      for (let i = 0; i < sortedMetrics.length - 1; i++) {
+        const currentMetric = sortedMetrics[i];
+        const previousMetric = sortedMetrics[i + 1];
+
+        const hasFlow = currentMetric.menstrualCycle?.flow && currentMetric.menstrualCycle.flow !== 'spotting';
+        const previousHasFlow = previousMetric.menstrualCycle?.flow && previousMetric.menstrualCycle.flow !== 'spotting';
+        const dayDiff = differenceInDays(currentMetric.parsedDate!, previousMetric.parsedDate!);
+
+        if (hasFlow && (!previousHasFlow || dayDiff > 1)) {
+          lastCycleStartDate = currentMetric.parsedDate;
+          break;
         }
+      }
+      if (!lastCycleStartDate) {
+         const lastDayWithFlow = sortedMetrics.find(d => d.menstrualCycle?.flow && d.menstrualCycle.flow !== 'spotting');
+         if(lastDayWithFlow) lastCycleStartDate = lastDayWithFlow.parsedDate;
+      }
     }
-    // If loop finishes and we have a flow period, set the start date
-    if (lastCycleStartDate === null && lastFlowDay !== null) {
-        lastCycleStartDate = lastFlowDay;
-    }
-    
+
     if (!lastCycleStartDate) {
-        return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
+      return { currentDay: 0, currentPhase: "No disponible", symptoms: [] };
     }
-    
+
     const dayOfCycle = differenceInDays(today, lastCycleStartDate) + 1;
     let currentPhase = "No disponible";
+
+    if (dayOfCycle < 1) {
+        // This case can happen if the detected start date is in the future.
+         return { currentDay: 0, currentPhase: "No disponible", symptoms: todayMetric?.menstrualCycle?.symptoms || [] };
+    }
 
     // A more realistic phase calculation
     if (dayOfCycle >= 1 && dayOfCycle <= 7) currentPhase = "Menstrual";
     else if (dayOfCycle > 7 && dayOfCycle <= 14) currentPhase = "Folicular";
     else if (dayOfCycle > 14 && dayOfCycle <= 16) currentPhase = "Ovulatoria";
-    else if (dayOfCycle > 16 && dayOfCycle <= 28) currentPhase = "Lútea";
-    else currentPhase = "Lútea"; // Default to Luteal for longer cycles
+    else if (dayOfCycle > 16) currentPhase = "Lútea";
 
     return {
-        currentDay: dayOfCycle > 0 ? dayOfCycle : 0,
-        currentPhase: currentPhase,
-        symptoms: todayMetric?.menstrualCycle?.symptoms || [],
+      currentDay: dayOfCycle,
+      currentPhase: currentPhase,
+      symptoms: todayMetric?.menstrualCycle?.symptoms || [],
     };
   }, [dashboardData.dailyMetrics]);
 
@@ -531,3 +531,5 @@ function WorkoutSummaryCard({ workouts }: { workouts: Workout[] }) {
     </Card>
   );
 }
+
+    
