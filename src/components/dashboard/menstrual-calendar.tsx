@@ -19,8 +19,11 @@ const flowColors: { [key: string]: string } = {
 
 // Helper function to treat date string as local time, not UTC
 const parseDateAsLocal = (dateStr: string): Date => {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return new Date(year, month - 1, day, 12); // Use noon to avoid timezone shifts
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        return new Date(NaN); // Return invalid date if format is wrong
+    }
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day, 12); // Use noon to avoid timezone shifts
 };
 
 
@@ -109,4 +112,3 @@ export default function MenstrualCalendar({ data }: { data: DailyMetric[] }) {
     </Card>
   );
 }
-
