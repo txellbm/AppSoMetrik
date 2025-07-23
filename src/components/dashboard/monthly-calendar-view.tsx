@@ -34,13 +34,14 @@ const getEventColorClass = (event: CalendarEvent): string => {
 
 type MonthlyCalendarViewProps = {
     month: Date;
+    onMonthChange: (date: Date) => void;
     events: CalendarEvent[];
     selected: Date | undefined;
     onEventClick: (event: CalendarEvent) => void;
     onDayClick: (date: Date) => void;
 };
 
-export function MonthlyCalendarView({ month, events, selected, onEventClick, onDayClick }: MonthlyCalendarViewProps) {
+export function MonthlyCalendarView({ month, onMonthChange, events, selected, onEventClick, onDayClick }: MonthlyCalendarViewProps) {
     
     const getEventsForDay = (day: Date) => {
         return events
@@ -97,10 +98,10 @@ export function MonthlyCalendarView({ month, events, selected, onEventClick, onD
         <DayPicker
             locale={es}
             month={month}
+            onMonthChange={onMonthChange}
             selected={selected}
             onDayClick={onDayClick}
             modifiers={{ today: new Date() }}
-            onMonthChange={() => {}} // Controlled from parent
             components={{
                 Day: DayContent,
             }}

@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, query, where, writeBatch, doc, deleteDoc, runTransaction } from "firebase/firestore";
+import { collection, onSnapshot, query, where, writeBatch, doc, deleteDoc, runTransaction, getDocs } from "firebase/firestore";
 import { CalendarEvent } from "@/ai/schemas";
 import { useToast } from "@/hooks/use-toast";
 import { addMonths, endOfMonth, format, startOfMonth, subMonths, getDay, addWeeks, startOfWeek, isSameDay, differenceInMinutes, parse } from "date-fns";
@@ -40,7 +40,7 @@ type QuickEventTypes = Record<QuickEventType, QuickEventTypeInfo>;
 
 export default function CalendarPage() {
     const [currentMonth, setCurrentMonth] = useState(new Date());
-    const [date, setDate] = useState<Date | undefined>(undefined);
+    const [date, setDate] = useState<Date | undefined>(new Date());
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { toast } = useToast();
@@ -64,7 +64,6 @@ export default function CalendarPage() {
     const monthEnd = useMemo(() => endOfMonth(currentMonth), [currentMonth]);
 
     useEffect(() => {
-        // Set initial date on client to avoid hydration errors
         if (typeof window !== 'undefined' && !date) {
             setDate(new Date());
         }
@@ -135,6 +134,26 @@ export default function CalendarPage() {
             await runTransaction(db, async (transaction) => {
                 const userEventsRef = collection(db, "users", userId, "events");
                 const docRef = selectedEvent?.id ? doc(userEventsRef, selectedEvent.id) : doc(userEventsRef);
+                
+                // Check for conflict before writing
+                const q = query(userEventsRef, where("date", "==", data.date));
+                const existingEventsSnap = await getDocs(q);
+                const existingEvents = existingEventsSnap.docs.map(d => d.data());
+
+                const newEventStart = parse(`${data.date} ${data.startTime}`, 'yyyy-MM-dd HH:mm', new Date());
+                const newEventEnd = parse(`${data.date} ${data.endTime}`, 'yyyy-MM-dd HH:mm', new Date());
+
+                for (const existing of existingEvents) {
+                    if (selectedEvent?.id && existing.id === selectedEvent.id) continue;
+
+                    const existingStart = parse(`${existing.date} ${existing.startTime}`, 'yyyy-MM-dd HH:mm', new Date());
+                    const existingEnd = parse(`${existing.date} ${existing.endTime}`, 'yyyy-MM-dd HH:mm', new Date());
+                    
+                    if (newEventStart < existingEnd && newEventEnd > existingStart) {
+                        throw new Error(`Conflicto de horario con el evento: ${existing.description}`);
+                    }
+                }
+
                 const eventData: CalendarEvent = { ...data, id: docRef.id };
                 transaction.set(docRef, eventData, { merge: true });
             });
@@ -142,15 +161,15 @@ export default function CalendarPage() {
             setIsDialogOpen(false);
             setSelectedEvent(null);
             setSelectedQuickEventType(null);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error saving event:", error);
-            toast({ variant: "destructive", title: "Error", description: "No se pudo guardar el evento." });
+            toast({ variant: "destructive", title: "Error", description: error.message || "No se pudo guardar el evento." });
         }
     };
 
     const confirmDelete = (eventId: string) => {
-        setIsDialogOpen(false); // Close the edit dialog
-        setEventToDelete(eventId);
+        setIsDialogOpen(false); // Close the edit dialog if it's open
+        setTimeout(() => setEventToDelete(eventId), 100); // Allow dialog to close first
     }
 
     const handleDeleteEvent = async () => {
@@ -159,8 +178,8 @@ export default function CalendarPage() {
         try {
             await deleteDoc(doc(db, "users", userId, "events", eventToDelete));
             toast({ title: "Evento eliminado" });
-            setEventToDelete(null);
-            setSelectedEvent(null);
+            setEventToDelete(null); // This will close the alert dialog
+            setSelectedEvent(null); // Unselect if it was selected
         } catch (error) {
             console.error("Error deleting event:", error);
             toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el evento." });
@@ -190,8 +209,7 @@ export default function CalendarPage() {
         }
 
         const eventsToAdd: Omit<CalendarEvent, 'id'>[] = [];
-        const today = new Date();
-        const weekStartsOn = 1;
+        const today = startOfWeek(new Date(), { weekStartsOn: 1 });
 
         let endTime: string;
         if(config.endTime) {
@@ -199,17 +217,15 @@ export default function CalendarPage() {
         } else if (config.duration) {
             endTime = format(new Date(new Date(`1970-01-01T${config.startTime}`).getTime() + config.duration * 60000), "HH:mm");
         } else {
-            endTime = config.startTime; // Fallback
+            endTime = config.startTime;
         }
 
         for (let week = 0; week < 4; week++) {
-            const weekStart = startOfWeek(addWeeks(today, week), { weekStartsOn });
+            const weekStart = addWeeks(today, week);
             for (const dayOfWeek of config.defaultDaysOfWeek) {
                 const targetDay = new Date(weekStart);
-                targetDay.setDate(weekStart.getDate() + (dayOfWeek - weekStartsOn + 7) % 7);
+                targetDay.setDate(weekStart.getDate() + (dayOfWeek - 1 + 7) % 7);
                 
-                if (targetDay < today && !isSameDay(targetDay, today)) continue;
-
                 eventsToAdd.push({
                     description: type,
                     type: config.type,
@@ -221,7 +237,7 @@ export default function CalendarPage() {
         }
 
         if (eventsToAdd.length === 0) {
-            toast({ title: "Nada que añadir", description: "No hay fechas futuras para programar en las próximas 4 semanas." });
+            toast({ title: "Nada que añadir", description: "No hay fechas futuras para programar." });
             return;
         }
         
@@ -243,7 +259,7 @@ export default function CalendarPage() {
     
     const eventsForSelectedDay = useMemo(() => {
         if (!date) return [];
-        return events.filter(e => e.date === format(date, "yyyy-MM-dd")).sort((a,b) => (a.startTime || "00:00").localeCompare(b.startTime || "00:00"));
+        return events.filter(e => isSameDay(new Date(e.date + 'T00:00:00'), date)).sort((a,b) => (a.startTime || "00:00").localeCompare(b.startTime || "00:00"));
     }, [date, events]);
 
     return (
@@ -278,6 +294,7 @@ export default function CalendarPage() {
                     ) : (
                         <MonthlyCalendarView
                             month={currentMonth}
+                            onMonthChange={setCurrentMonth}
                             events={events}
                             selected={date}
                             onEventClick={(event) => openDialog(event)}
@@ -295,20 +312,21 @@ export default function CalendarPage() {
                             {Object.keys(quickEventTypes).map((key) => {
                                 const type = key as QuickEventType;
                                 const config = quickEventTypes[type];
+                                const isSelected = selectedQuickEventType === type;
                                 return (
-                                    <Card key={type} className="p-2">
+                                    <Card key={type} className={cn("p-2", isSelected && "ring-2 ring-primary")}>
                                         <div className="flex justify-between items-center mb-1.5">
                                             <Button variant="link" className="p-0 h-auto text-sm font-semibold" onClick={() => setSelectedQuickEventType(st => st === type ? null : type)}>{type}</Button>
                                              <div className="flex items-center gap-2">
                                                 {config.type === 'trabajo' ? (
                                                     <>
                                                         <InputWithLabel small label="Inicio" type="time" value={config.startTime} onChange={(e) => handleQuickEventConfigChange(type, 'startTime', e.target.value)} />
-                                                        <InputWithLabel small label="Fin" type="time" value={config.endTime} onChange={(e) => handleQuickEventConfigChange(type, 'endTime', e.target.value)} />
+                                                        <InputWithLabel small label="Fin" type="time" value={config.endTime || ''} onChange={(e) => handleQuickEventConfigChange(type, 'endTime', e.target.value)} />
                                                     </>
                                                 ) : (
                                                     <>
                                                         <InputWithLabel small label="Hora" type="time" value={config.startTime} onChange={(e) => handleQuickEventConfigChange(type, 'startTime', e.target.value)} />
-                                                        <InputWithLabel small label="Min" type="number" value={config.duration} onChange={(e) => handleQuickEventConfigChange(type, 'duration', parseInt(e.target.value))} />
+                                                        <InputWithLabel small label="Min" type="number" value={config.duration || 0} onChange={(e) => handleQuickEventConfigChange(type, 'duration', parseInt(e.target.value))} />
                                                     </>
                                                 )}
                                                 {config.defaultDaysOfWeek.length > 0 && (
@@ -320,7 +338,7 @@ export default function CalendarPage() {
                                         </div>
                                         <div className="flex justify-between gap-1">
                                             {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((day, i) => {
-                                                const dayIndex = (i + 1) % 7; // L=1, S=6, D=0
+                                                const dayIndex = (i + 1); // L=1, M=2, ..., S=6, D=7
                                                 return (
                                                     <Button key={day} size="icon" variant={config.defaultDaysOfWeek.includes(dayIndex) ? 'default' : 'outline'} className="h-6 w-6 text-xs" onClick={() => handleDayToggle(type, dayIndex)}>
                                                         {day}
@@ -371,7 +389,7 @@ export default function CalendarPage() {
                 defaultDate={dialogDate}
             />
 
-            <AlertDialog open={!!eventToDelete} onOpenChange={() => setEventToDelete(null)}>
+            <AlertDialog open={!!eventToDelete} onOpenChange={setEventToDelete}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                     <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
@@ -381,7 +399,7 @@ export default function CalendarPage() {
                     </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => setEventToDelete(null)}>Cancelar</AlertDialogCancel>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
                     <AlertDialogAction onClick={handleDeleteEvent}>Continuar</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -394,8 +412,6 @@ export default function CalendarPage() {
 const InputWithLabel = ({ label, small = false, ...props }: { label: string, small?: boolean } & React.ComponentProps<typeof Input>) => (
     <div className="space-y-0.5">
         <label className="text-xs text-muted-foreground">{label}</label>
-        <Input {...props} className={small ? 'h-7 w-16 text-xs' : ''}/>
+        <Input {...props} className={cn(small ? 'h-7 w-16 text-xs' : '')}/>
     </div>
 );
-
-    
