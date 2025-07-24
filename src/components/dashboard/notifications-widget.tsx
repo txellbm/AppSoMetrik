@@ -55,22 +55,20 @@ export default function NotificationsWidget() {
                 const userRef = doc(db, "users", userId);
                 
                 const dailyMetricsQuery = query(collection(userRef, "dailyMetrics"), orderBy("date", "desc"));
-                const sleepQuery = query(collection(userRef, "sleep"), where("date", "==", todayStr));
-                const workoutsQuery = query(collection(userRef, "workouts"), where("date", "==", todayStr));
+                const sleepQuery = query(collection(userRef, "sleep_manual"), orderBy("date", "desc"), limit(1));
                 const eventsQuery = query(collection(userRef, "events"), where("date", "==", todayStr));
 
-                const [dailyMetricsSnap, sleepSnap, workoutsSnap, eventsSnap] = await Promise.all([
+                const [dailyMetricsSnap, sleepSnap, eventsSnap] = await Promise.all([
                     getDocs(dailyMetricsQuery),
                     getDocs(sleepQuery),
-                    getDocs(workoutsQuery),
                     getDocs(eventsQuery),
                 ]);
 
                 // 2. Process data
                 const dailyMetrics = dailyMetricsSnap.docs.map(d => ({...d.data(), date: d.id})) as DailyMetric[];
                 const lastSleep = sleepSnap.docs.length > 0 ? sleepSnap.docs[0].data() as SleepData : null;
-                const todayWorkouts = workoutsSnap.docs.map(d => d.data()) as WorkoutData[];
                 const todayEvents = eventsSnap.docs.map(d => d.data()) as CalendarEvent[];
+                const todayWorkouts = todayEvents.filter(e => e.type === 'entrenamiento');
 
                 // --- Cycle Calculation ---
                 const sortedMenstruationDays = dailyMetrics
@@ -91,24 +89,26 @@ export default function NotificationsWidget() {
                 // --- End Cycle Calculation ---
 
                 // 3. Build summary for the AI
-                let summary = "Datos de hoy: ";
+                let summaryLines : string[] = [];
                 if(currentPhase !== "N/A" && dayOfCycle) {
-                    summary += `Día ${dayOfCycle} del ciclo, fase ${currentPhase}. `;
+                    summaryLines.push(`Ciclo: Día ${dayOfCycle}, fase ${currentPhase}.`);
                 } else {
-                    summary += "No hay datos del ciclo menstrual. ";
+                    summaryLines.push("Ciclo: No hay datos del ciclo menstrual.");
                 }
                 if (lastSleep) {
-                    summary += `Anoche durmió ${lastSleep.sleepTime} minutos con una calidad del ${lastSleep.quality}. `;
+                    summaryLines.push(`Sueño de anoche: Duración de ${lastSleep.sleepTime} minutos con una eficiencia del ${lastSleep.efficiency}%.`);
                 } else {
-                    summary += "No hay datos de sueño de anoche. ";
+                    summaryLines.push("Sueño: No hay datos de sueño de anoche.");
                 }
                 if (todayWorkouts.length > 0) {
-                    summary += `Entrenamientos planeados para hoy: ${todayWorkouts.map(w => w.type).join(', ')}. `;
+                    summaryLines.push(`Entrenamientos planeados para hoy: ${todayWorkouts.map(w => w.description).join(', ')}.`);
                 }
-                if (todayEvents.length > 0) {
-                     summary += `Agenda de hoy: ${todayEvents.map(e => `${e.description} de ${e.startTime} a ${e.endTime}`).join(', ')}. `;
+                 if (todayEvents.length > 0) {
+                     summaryLines.push(`Agenda de hoy: ${todayEvents.map(e => `${e.description} de ${e.startTime} a ${e.endTime}`).join('; ')}.`);
                 }
-                 if(summary === "Datos de hoy: ") {
+                 
+                let summary = summaryLines.join(' ');
+                if(summary.trim() === "") {
                     summary = "La usuaria no tiene datos registrados recientemente. Anímala a registrar su sueño, ciclo o entrenamientos.";
                 }
 
@@ -120,7 +120,7 @@ export default function NotificationsWidget() {
                     icon: getIconForNotification(n),
                 }));
 
-                setNotifications(formattedNotifications.length > 0 ? formattedNotifications : [{ text: "Sube tus datos para recibir ideas personalizadas.", icon: iconMap.default }]);
+                setNotifications(formattedNotifications.length > 0 ? formattedNotifications : [{ text: "Registra tus datos para recibir ideas personalizadas.", icon: iconMap.default }]);
 
             } catch (error) {
                 console.error("No se pudieron obtener las notificaciones:", error);
@@ -166,3 +166,5 @@ export default function NotificationsWidget() {
         </Card>
     );
 }
+
+    

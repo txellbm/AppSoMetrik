@@ -273,43 +273,34 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         
-        const cleanupUndefined = (obj: any): any => {
-            if (obj === null || typeof obj !== 'object') {
-                return obj;
-            }
-            const newObj = { ...obj };
-            for (const key in newObj) {
-                if (newObj[key] === undefined || newObj[key] === null || newObj[key] === '' || (typeof newObj[key] === 'number' && isNaN(newObj[key]))) {
-                    delete newObj[key];
-                } else if (typeof newObj[key] === 'object') {
-                    newObj[key] = cleanupUndefined(newObj[key]);
-                     if (Object.keys(newObj[key]).length === 0) {
-                        delete newObj[key];
-                    }
-                }
-            }
-            return newObj;
-        };
+        const numberOrUndefined = (val: any) => {
+            const num = Number(val);
+            return isNaN(num) || val === null || val === '' ? undefined : num;
+        }
 
-        const dataToSave = cleanupUndefined({
+        const dataToSave = {
             id: formData.id,
             date: formData.date,
             type: formData.type,
             bedtime: formData.bedtime,
             wakeUpTime: formData.wakeUpTime,
             sleepTime: formData.sleepTime,
-            timeToFallAsleep: formData.timeToFallAsleep,
-            timeAwake: formData.timeAwake,
-            efficiency: formData.efficiency,
-            avgHeartRate: formData.avgHeartRate,
-            minHeartRate: formData.minHeartRate,
-            maxHeartRate: formData.maxHeartRate,
-            lpmAlDespertar: formData.lpmAlDespertar,
-            vfcAlDormir: formData.vfcAlDormir,
-            vfcAlDespertar: formData.vfcAlDespertar,
-            phases: formData.phases,
+            timeToFallAsleep: numberOrUndefined(formData.timeToFallAsleep),
+            timeAwake: numberOrUndefined(formData.timeAwake),
+            efficiency: numberOrUndefined(formData.efficiency),
+            avgHeartRate: numberOrUndefined(formData.avgHeartRate),
+            minHeartRate: numberOrUndefined(formData.minHeartRate),
+            maxHeartRate: numberOrUndefined(formData.maxHeartRate),
+            lpmAlDespertar: numberOrUndefined(formData.lpmAlDespertar),
+            vfcAlDormir: numberOrUndefined(formData.vfcAlDormir),
+            vfcAlDespertar: numberOrUndefined(formData.vfcAlDespertar),
+            phases: {
+                rem: numberOrUndefined(formData.phases?.rem),
+                light: numberOrUndefined(formData.phases?.light),
+                deep: numberOrUndefined(formData.phases?.deep),
+            },
             notes: formData.notes
-        });
+        };
 
         onSave(dataToSave);
     };
@@ -372,7 +363,7 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                          <div>
                             <Label htmlFor="sleepTime">Duración total</Label>
-                            <Input id="sleepTime" type="text" placeholder="hh:mm" value={formatMinutesToHHMMInput(formData.sleepTime)} disabled />
+                            <Input id="sleepTime" type="text" placeholder="hh:mm" value={formatMinutesToHHMM(formData.sleepTime)} disabled />
                         </div>
                          <div>
                            <Label htmlFor="efficiency">Eficiencia (%)</Label>
@@ -451,6 +442,5 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
         </Dialog>
     );
 }
-
 
     

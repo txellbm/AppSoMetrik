@@ -38,19 +38,19 @@ const prompt = ai.definePrompt({
   name: 'personalizedNotificationsPrompt',
   input: {schema: PersonalizedNotificationsInputSchema},
   output: {schema: PersonalizedNotificationsOutputSchema},
-  prompt: `Eres un asistente de salud y bienestar proactivo y perspicaz. Tu tarea es analizar el resumen de datos del usuario y generar 2-3 notificaciones cortas, relevantes y accionables para ayudarle en su día. Busca conexiones entre los datos.
+  prompt: `Eres un asistente de salud y bienestar proactivo, analítico y perspicaz. Tu tarea es analizar el resumen de datos del usuario y generar 2-3 notificaciones cortas, relevantes y accionables para ayudarle en su día. Busca activamente conexiones y patrones entre los diferentes datos proporcionados.
 
-  **Instrucciones:**
-  - Sé conciso y directo.
-  - Ofrece consejos prácticos y oportunos.
-  - Basa tus sugerencias en la correlación de los datos proporcionados (ej. sueño y energía, fase del ciclo y tipo de entrenamiento, etc.).
-  - Si no hay datos suficientes, ofrece un consejo general o un recordatorio para registrar datos.
-  - El tono debe ser de apoyo y alentador.
+  **Instrucciones Clave:**
+  - **Analiza y Conecta:** No te limites a repetir los datos. Busca correlaciones. Por ejemplo, si durmió mal y tiene un entrenamiento de alta intensidad, sugiérele ajustarlo. Si está en la fase lútea y tiene un evento estresante, dale un consejo para manejarlo.
+  - **Sé Conciso y Directo:** Las notificaciones deben ser fáciles de leer.
+  - **Ofrece Consejos Prácticos y Oportunos:** Las recomendaciones deben ser aplicables al día de hoy.
+  - **Tono de Apoyo:** Usa un tono alentador y empático.
+  - **Gestiona Datos Faltantes:** Si un área no tiene datos, puedes generar un recordatorio amable para registrarlos o dar un consejo más general sobre esa área.
 
   **Resumen de datos del usuario:**
   {{{summary}}}
 
-  Genera las notificaciones.`,
+  Genera las notificaciones analizando y conectando la información disponible.`,
 });
 
 const personalizedNotificationsFlow = ai.defineFlow(
@@ -64,3 +64,5 @@ const personalizedNotificationsFlow = ai.defineFlow(
     return output!;
   }
 );
+
+    
