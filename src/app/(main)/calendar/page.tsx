@@ -6,10 +6,10 @@ import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query, where, writeBatch, doc, deleteDoc, runTransaction, getDocs } from "firebase/firestore";
 import { CalendarEvent } from "@/ai/schemas";
 import { useToast } from "@/hooks/use-toast";
-import { addMonths, endOfMonth, format, startOfMonth, subMonths, getDay, addWeeks, startOfWeek, isSameDay, differenceInMinutes, parse } from "date-fns";
+import { addMonths, endOfMonth, format, startOfMonth, subMonths, getDay, addWeeks, startOfWeek, isSameDay, parse } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, PlusCircle, Trash2, Edit } from "lucide-react";
+import { ChevronLeft, ChevronRight, PlusCircle, Trash2, Edit, Settings } from "lucide-react";
 import { MonthlyCalendarView } from "@/components/dashboard/monthly-calendar-view";
 import EditEventDialog from "@/components/dashboard/event-dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,18 +24,22 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 
-type QuickEventType = "Pilates" | "Flexibilidad" | "Fuerza" | "Trabajo";
+type QuickEventType = string;
 type QuickEventTypeInfo = {
-    startTime: string; // HH:mm
-    endTime?: string; // HH:mm, for work
-    duration?: number; // in minutes, for workouts
-    defaultDaysOfWeek: number[]; // 0 for Sunday, 1 for Monday, etc.
+    name: string;
+    startTime: string; 
+    endTime?: string; 
+    duration?: number; 
+    defaultDaysOfWeek: number[]; 
     type: CalendarEvent['type'];
 };
+
 type QuickEventTypes = Record<QuickEventType, QuickEventTypeInfo>;
 
 
@@ -53,11 +57,12 @@ export default function CalendarPage() {
     
     const [selectedQuickEventType, setSelectedQuickEventType] = useState<QuickEventType | null>(null);
     const [quickEventTypes, setQuickEventTypes] = useState<QuickEventTypes>({
-        "Trabajo": { startTime: "09:00", endTime: "17:00", defaultDaysOfWeek: [], type: "trabajo" },
-        "Pilates": { duration: 60, startTime: "09:00", defaultDaysOfWeek: [], type: "entrenamiento" },
-        "Flexibilidad": { duration: 45, startTime: "18:00", defaultDaysOfWeek: [], type: "entrenamiento" },
-        "Fuerza": { duration: 75, startTime: "19:00", defaultDaysOfWeek: [], type: "entrenamiento" },
+        "Trabajo": { name: "Trabajo", startTime: "09:00", endTime: "17:00", defaultDaysOfWeek: [], type: "trabajo" },
+        "Pilates": { name: "Pilates", duration: 60, startTime: "09:00", defaultDaysOfWeek: [], type: "entrenamiento" },
+        "Flexibilidad": { name: "Flexibilidad", duration: 45, startTime: "18:00", defaultDaysOfWeek: [], type: "entrenamiento" },
+        "Fuerza": { name: "Fuerza", duration: 75, startTime: "19:00", defaultDaysOfWeek: [], type: "entrenamiento" },
     });
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     const [eventToDelete, setEventToDelete] = useState<string | null>(null);
 
@@ -134,7 +139,6 @@ export default function CalendarPage() {
                 const userEventsRef = collection(db, "users", userId, "events");
                 const docRef = selectedEvent?.id ? doc(userEventsRef, selectedEvent.id) : doc(userEventsRef);
                 
-                // Check for conflict before writing
                 const q = query(userEventsRef, where("date", "==", data.date));
                 const existingEventsSnap = await getDocs(q);
                 const existingEvents = existingEventsSnap.docs.map(d => ({ ...d.data(), id: d.id }));
@@ -191,6 +195,39 @@ export default function CalendarPage() {
             [type]: { ...prev[type], [field]: value }
         }));
     };
+    
+    const handleQuickEventNameChange = (oldName: QuickEventType, newName: string) => {
+        if (!newName.trim() || newName === oldName) return;
+
+        setQuickEventTypes(prev => {
+            const newQuickEvents: QuickEventTypes = {};
+            for (const key in prev) {
+                if(key === oldName) {
+                    newQuickEvents[newName] = { ...prev[oldName], name: newName };
+                } else {
+                    newQuickEvents[key] = prev[key];
+                }
+            }
+            return newQuickEvents;
+        });
+    }
+
+    const handleAddNewWorkout = () => {
+        const newName = `Entreno #${Object.keys(quickEventTypes).length}`;
+        setQuickEventTypes(prev => ({
+            ...prev,
+            [newName]: { name: newName, duration: 60, startTime: "12:00", defaultDaysOfWeek: [], type: 'entrenamiento' }
+        }));
+    }
+
+    const handleDeleteQuickEvent = (name: QuickEventType) => {
+        setQuickEventTypes(prev => {
+            const newQuickEvents = {...prev};
+            delete newQuickEvents[name];
+            return newQuickEvents;
+        });
+    }
+
 
     const handleDayToggle = (type: QuickEventType, day: number) => {
         const currentDays = quickEventTypes[type].defaultDaysOfWeek;
@@ -296,11 +333,6 @@ export default function CalendarPage() {
 
             <main className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 p-4 overflow-auto">
                 <div className="lg:col-span-2">
-                    {isLoading ? (
-                        <div className="flex items-center justify-center h-full">
-                            <p>Cargando eventos...</p>
-                        </div>
-                    ) : (
                         <MonthlyCalendarView
                             month={currentMonth}
                             onMonthChange={setCurrentMonth}
@@ -309,20 +341,25 @@ export default function CalendarPage() {
                             onEventClick={(event) => openDialog(event)}
                             onDayClick={handleDateSelect}
                         />
-                    )}
                 </div>
                 
                 <aside className="lg:col-span-1 space-y-4">
                     <Card>
-                        <CardHeader className="pb-4">
-                            <CardTitle className="text-base">Eventos Rápidos</CardTitle>
-                            <CardDescription className="text-xs">Selecciona un tipo y haz clic en el calendario para añadirlo.</CardDescription>
+                        <CardHeader className="pb-4 flex flex-row items-center justify-between">
+                           <div>
+                             <CardTitle className="text-base">Eventos Rápidos</CardTitle>
+                             <CardDescription className="text-xs">Selecciona un tipo y haz clic en el calendario para añadirlo.</CardDescription>
+                           </div>
+                           <Button variant="ghost" size="icon" onClick={() => setIsSettingsOpen(true)}>
+                                <Settings className="h-4 w-4" />
+                           </Button>
                         </CardHeader>
                         <CardContent className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <h4 className="font-semibold text-sm mb-2">Entrenos</h4>
                                 {workouts.map((type) => {
                                     const config = quickEventTypes[type];
+                                    if (!config) return null;
                                     const isSelected = selectedQuickEventType === type;
                                     return (
                                         <QuickEventCard 
@@ -342,6 +379,7 @@ export default function CalendarPage() {
                                  <h4 className="font-semibold text-sm mb-2">Trabajo</h4>
                                  {work.map((type) => {
                                     const config = quickEventTypes[type];
+                                     if (!config) return null;
                                     const isSelected = selectedQuickEventType === type;
                                     return (
                                         <QuickEventCard 
@@ -412,6 +450,36 @@ export default function CalendarPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+            
+             <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Configurar Eventos Rápidos</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+                        {Object.keys(quickEventTypes).map(key => (
+                           <div key={key} className="flex items-center gap-2">
+                               <Input 
+                                   defaultValue={key}
+                                   onBlur={(e) => handleQuickEventNameChange(key, e.target.value)}
+                                   className="h-9"
+                                   disabled={quickEventTypes[key].type === 'trabajo'}
+                               />
+                               {quickEventTypes[key].type !== 'trabajo' && (
+                                   <Button variant="ghost" size="icon" onClick={() => handleDeleteQuickEvent(key)}>
+                                       <Trash2 className="h-4 w-4 text-destructive" />
+                                   </Button>
+                               )}
+                           </div>
+                        ))}
+                    </div>
+                    <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between">
+                         <Button variant="outline" onClick={handleAddNewWorkout}>Añadir nuevo entreno</Button>
+                        <Button onClick={() => setIsSettingsOpen(false)}>Cerrar</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
         </div>
     );
 }
