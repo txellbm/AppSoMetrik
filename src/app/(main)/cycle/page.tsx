@@ -198,6 +198,7 @@ export default function CyclePage() {
                     key: metric.date,
                     cells: [
                         formatDateForTable(metric.date),
+                        dayOfCycle || "-",
                         getCyclePhase(dayOfCycle),
                         metric.estadoCiclo === "menstruacion" ? <Badge variant="destructive">Sí</Badge> : "No",
                         metric.sintomas && metric.sintomas.length > 0
@@ -217,8 +218,9 @@ export default function CyclePage() {
             report += "No hay datos del ciclo menstrual registrados.";
         } else {
             cycleDataRows.forEach(row => {
-                const [date, phase, bleeding, symptoms, notes] = row.cells;
+                const [date, day, phase, bleeding, symptoms, notes] = row.cells;
                 report += `Fecha: ${date}\n`;
+                report += `Día del Ciclo: ${day}\n`;
                 report += `Fase: ${phase}\n`;
                 report += `Sangrado: ${(bleeding as React.ReactElement)?.props.children === 'Sí' ? 'Sí' : 'No'}\n`;
                 
@@ -363,7 +365,7 @@ export default function CyclePage() {
                             <p>Cargando datos del ciclo...</p>
                         ) : (
                             <DataTable
-                                headers={["Fecha", "Fase", "Sangrado", "Síntomas", "Notas"]}
+                                headers={["Fecha", "Día del Ciclo", "Fase", "Sangrado", "Síntomas", "Notas"]}
                                 rows={cycleDataRows}
                                 emptyMessage="No hay datos del ciclo menstrual registrados. Usa el calendario de arriba para empezar."
                             />
