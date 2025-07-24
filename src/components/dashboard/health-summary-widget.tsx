@@ -105,6 +105,10 @@ export default function HealthSummaryWidget() {
             ]);
 
             // --- Process and Format Data for AI ---
+             const formatForAI = (title: string, data: any[]) => {
+                if(data.length === 0) return `No hay datos de ${title} para este período.`;
+                return `${title}:\n${data.map(d => `- ${JSON.stringify(d)}`).join('\n')}\n`;
+            }
 
             // 1. Cycle Data
             const allMenstruationDays = allDailyMetrics
@@ -158,11 +162,7 @@ export default function HealthSummaryWidget() {
             const otherEvents = allCalendarEvents.filter(e => e.type !== 'entrenamiento');
 
             // 4. Format all data for AI
-            const formatForAI = (title: string, data: any[]) => {
-                if(data.length === 0) return `No hay datos de ${title} para este período.`;
-                return `${title}:\n${data.map(d => `- ${JSON.stringify(d)}`).join('\n')}\n`;
-            }
-
+           
             const aiInput: HealthSummaryInput = {
                 periodo: period,
                 sleepData: formatForAI('Sueño', sleepData as SleepData[]),
