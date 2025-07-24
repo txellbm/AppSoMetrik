@@ -16,7 +16,7 @@ const RecoverySuggestionsInputSchema = z.object({
   currentTime: z.string().optional().describe('La hora actual en formato HH:mm para contextualizar las sugerencias.'),
   lastSleep: z.string().optional().describe('Un resumen de los datos de la última sesión de sueño.'),
   cycleStatus: z.string().optional().describe('El estado actual del ciclo menstrual del usuario (fase y día).'),
-  todayEvents: z.string().optional().describe('Los eventos programados para hoy en el calendario del usuario.'),
+  todayEvents: z.string().optional().describe('Los eventos programados para hoy (trabajo, entrenamientos, etc.). Esta es información clave para adaptar las sugerencias.'),
 });
 export type RecoverySuggestionsInput = z.infer<typeof RecoverySuggestionsInputSchema>;
 
@@ -48,18 +48,18 @@ const prompt = ai.definePrompt({
 
   **Instrucciones Clave:**
   - **Usa la Hora Actual:** La hora actual es {{{currentTime}}}. Usa este dato para dar consejos oportunos. Si un evento ya ha pasado, habla de él en pasado. Si está por venir, anticípalo.
-  - **Conecta los Datos:** No te limites a la puntuación de recuperación. Cruza la información con el sueño, el ciclo menstrual y la agenda del día.
+  - **Conecta los Datos (Prioriza la Agenda):** No te limites a la puntuación de recuperación. Cruza la información con el sueño, el ciclo menstrual y, muy importante, la agenda del día. Si hay un entrenamiento de alta intensidad, adapta la sugerencia de "Entrenamiento" a eso. Si es un día de trabajo, la sugerencia de "Mindfulness" podría centrarse en el estrés. Si es un día de descanso, todas las sugerencias deben orientarse a maximizarlo.
   - **Sé Específico y Accionable:** Las sugerencias deben ser concretas. En lugar de "descansa bien", sugiere "considera una siesta de 20 minutos por la tarde si tu agenda lo permite".
   - **Tono de Coach:** Usa un tono de apoyo, informativo y motivador.
 
   **Datos del Usuario para Hoy:**
   - **Puntuación de Recuperación:** {{{recoveryScore}}}/100
   - **Hora Actual:** {{{currentTime}}}
+  - **Agenda de Hoy (CLAVE):** {{{todayEvents}}}
   - **Datos del Último Sueño:** {{{lastSleep}}}
   - **Estado del Ciclo Menstrual:** {{{cycleStatus}}}
-  - **Agenda de Hoy:** {{{todayEvents}}}
 
-  Analiza todos estos datos y genera 3 sugerencias, asegurándote de que cada una corresponda a una categoría diferente (Entrenamiento, Descanso, Mindfulness/Nutrición). Prioriza las conexiones más relevantes. Por ejemplo, si la recuperación es baja y hay un entreno de alta intensidad, enfócate en eso. Si el sueño fue malo, da consejos para el descanso. Si el ciclo está en fase lútea, adapta la nutrición.`,
+  Analiza todos estos datos y genera 3 sugerencias, asegurándote de que cada una corresponda a una categoría diferente (Entrenamiento, Descanso, Mindfulness/Nutrición). Prioriza las conexiones más relevantes y adapta tus consejos a la agenda del día.`,
 });
 
 const recoverySuggestionsFlow = ai.defineFlow(
