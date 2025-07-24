@@ -9,11 +9,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Bot, Clipboard, Loader2 } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, doc, getDoc, documentId } from "firebase/firestore";
-import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays } from 'date-fns';
+import { collection, query, where, getDocs, doc, documentId, orderBy, startAt } from "firebase/firestore";
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, parseISO, differenceInDays } from 'date-fns';
 import { ActivityData, CalendarEvent, DailyMetric, SleepData } from "@/ai/schemas";
 
 type Period = 'Diario' | 'Semanal' | 'Mensual';
+
+const getCyclePhase = (dayOfCycle: number | null): string => {
+    if (dayOfCycle === null || dayOfCycle < 1) return "No disponible";
+    if (dayOfCycle <= 5) return "Menstrual";
+    if (dayOfCycle <= 14) return "Folicular";
+    return "Lútea";
+};
+
 
 export default function HealthSummaryWidget() {
     const [period, setPeriod] = useState<Period>('Diario');
@@ -52,7 +60,7 @@ export default function HealthSummaryWidget() {
             // Fetch data
             const userRef = doc(db, "users", userId);
             
-            const fetchData = async (colName: string) => {
+            const fetchDataInPeriod = async (colName: string) => {
                  const q = query(collection(userRef, colName), where('date', '>=', startDateStr), where('date', '<=', endDateStr));
                  return (await getDocs(q)).docs.map(d => ({id: d.id, ...d.data()}));
             }
@@ -66,13 +74,32 @@ export default function HealthSummaryWidget() {
                 const q = query(collection(userRef, 'supplements'), where(documentId(), 'in', dates));
                 return (await getDocs(q)).docs.map(d => ({id: d.id, ...d.data()}));
             }
+            
+            // We need all historical menstruation data to calculate current cycle day/phase
+            const allMenstruationMetricsQuery = query(collection(userRef, "dailyMetrics"), where("estadoCiclo", "==", "menstruacion"), orderBy("date", "desc"));
+            const allMenstruationMetricsSnap = await getDocs(allMenstruationMetricsQuery);
+            const allMenstruationDays = allMenstruationMetricsSnap.docs.map(d => startOfDay(parseISO(d.id))).sort((a,b) => b.getTime() - a.getTime());
 
-            const [sleepData, exerciseData, cycleData, supplementData, activityData] = await Promise.all([
-                fetchData('sleep_manual'),
-                fetchData('events'), // Also includes workouts
-                fetchData('dailyMetrics'),
+            let cycleStartDay: Date | null = null;
+            if (allMenstruationDays.length > 0) {
+                cycleStartDay = allMenstruationDays[0];
+                for (let i = 1; i < allMenstruationDays.length; i++) {
+                    if (differenceInDays(allMenstruationDays[i-1], allMenstruationDays[i]) > 1) {
+                        break;
+                    }
+                    cycleStartDay = allMenstruationDays[i];
+                }
+            }
+            
+            const dayOfCycle = cycleStartDay ? differenceInDays(startOfDay(now), cycleStartDay) + 1 : null;
+            const currentPhase = getCyclePhase(dayOfCycle);
+
+            const [sleepData, exerciseData, cycleDataInPeriod, supplementData, activityData] = await Promise.all([
+                fetchDataInPeriod('sleep_manual'),
+                fetchDataInPeriod('events'), // Also includes workouts
+                fetchDataInPeriod('dailyMetrics'),
                 fetchSupplements(),
-                fetchData('activity'),
+                fetchDataInPeriod('activity'),
             ]);
             
             // Format data for AI
@@ -81,6 +108,9 @@ export default function HealthSummaryWidget() {
                 return `${title}:\n${data.map(d => `- ${JSON.stringify(d)}`).join('\n')}\n`;
             }
             
+            const menstruationSummary = `Fase actual: ${currentPhase}, Día del ciclo: ${dayOfCycle || 'N/A'}. Síntomas y notas del período: \n${formatForAI('Datos del ciclo', cycleDataInPeriod as DailyMetric[])}`;
+
+
             const allCalendarEvents = (exerciseData as CalendarEvent[]).sort((a,b) => a.date.localeCompare(b.date));
             const workouts = allCalendarEvents.filter(e => e.type === 'entrenamiento');
 
@@ -89,7 +119,7 @@ export default function HealthSummaryWidget() {
                 sleepData: formatForAI('Sueño', sleepData as SleepData[]),
                 exerciseData: formatForAI('Entrenamientos y Actividad', [...workouts, ...(activityData as ActivityData[])]),
                 heartRateData: "Faltan datos de Frecuencia Cardíaca y VFC. El usuario aún no los registra.",
-                menstruationData: formatForAI('Ciclo Menstrual', cycleData as DailyMetric[]),
+                menstruationData: menstruationSummary,
                 supplementData: formatForAI('Suplementos', supplementData),
                 foodIntakeData: "Faltan datos de Alimentación. El usuario aún no los registra.",
                 calendarData: formatForAI('Eventos del Calendario', allCalendarEvents),
