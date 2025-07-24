@@ -76,40 +76,45 @@ export default function SleepPage() {
         try {
             const collectionRef = collection(db, "users", userId, "sleep_manual");
             
-            const numberOrUndefined = (val: any) => {
-                const num = Number(val);
-                return isNaN(num) || val === null || val === '' ? undefined : num;
-            }
-
-            const dataToSave = {
+             const dataToSave = {
+                id: data.id,
                 date: data.date,
                 type: data.type,
                 bedtime: data.bedtime,
                 wakeUpTime: data.wakeUpTime,
                 sleepTime: data.sleepTime,
-                timeToFallAsleep: numberOrUndefined(data.timeToFallAsleep),
-                timeAwake: numberOrUndefined(data.timeAwake),
-                efficiency: numberOrUndefined(data.efficiency),
-                avgHeartRate: numberOrUndefined(data.avgHeartRate),
-                minHeartRate: numberOrUndefined(data.minHeartRate),
-                maxHeartRate: numberOrUndefined(data.maxHeartRate),
-                lpmAlDespertar: numberOrUndefined(data.lpmAlDespertar),
-                vfcAlDormir: numberOrUndefined(data.vfcAlDormir),
-                vfcAlDespertar: numberOrUndefined(data.vfcAlDespertar),
+                timeToFallAsleep: data.timeToFallAsleep,
+                timeAwake: data.timeAwake,
+                efficiency: data.efficiency,
+                avgHeartRate: data.avgHeartRate,
+                minHeartRate: data.minHeartRate,
+                maxHeartRate: data.maxHeartRate,
+                lpmAlDespertar: data.lpmAlDespertar,
+                vfcAlDormir: data.vfcAlDormir,
+                vfcAlDespertar: data.vfcAlDespertar,
                 phases: {
-                    rem: numberOrUndefined(data.phases?.rem),
-                    light: numberOrUndefined(data.phases?.light),
-                    deep: numberOrUndefined(data.phases?.deep),
+                    rem: data.phases?.rem,
+                    light: data.phases?.light,
+                    deep: data.phases?.deep,
                 },
                 notes: data.notes
             };
 
+            const finalData: { [key: string]: any } = {};
+            for (const key in dataToSave) {
+                const value = (dataToSave as any)[key];
+                if (value !== undefined) {
+                    finalData[key] = value;
+                }
+            }
+
+
             if (data.id) {
                 const docRef = doc(collectionRef, data.id);
-                await setDoc(docRef, dataToSave, { merge: true });
+                await setDoc(docRef, finalData, { merge: true });
                 toast({ title: "Sesión de sueño actualizada" });
             } else {
-                const docRef = await addDoc(collectionRef, dataToSave);
+                const docRef = await addDoc(collectionRef, finalData);
                 await updateDoc(docRef, { id: docRef.id });
                 toast({ title: "Sesión de sueño registrada" });
             }
@@ -151,11 +156,12 @@ export default function SleepPage() {
             }
     
             const wakeUpTime = parse(session.wakeUpTime, 'HH:mm', new Date());
+            const endDate = addDays(startDate, 1);
             
-            // Si la hora de despertarse es antes que la de dormir, abarca la medianoche.
-            if (wakeUpTime < bedtime) {
-                const endDate = addDays(startDate, 1);
-                return `${format(startDate, 'eeee d', {locale: es})} al ${format(endDate, 'eeee d \'de\' LLLL', {locale: es})}`;
+            // Si la hora de despertarse es antes que la de dormir (abarca medianoche)
+            // O si la hora de dormir es de madrugada (ya se ajustó startDate)
+            if (wakeUpTime < bedtime || bedtime.getHours() < 4) {
+                 return `${format(startDate, 'eeee d', {locale: es})} al ${format(endDate, 'eeee d \'de\' LLLL', {locale: es})}`;
             }
         }
         
