@@ -77,7 +77,7 @@ export default function SleepPage() {
                                 </TableHeader>
                                 <TableBody>
                                 {sleepData.map(metric => (
-                                    <AccordionItem value={metric.date} key={metric.date} asChild>
+                                    <AccordionItem value={metric.date} key={metric.date}>
                                       <React.Fragment>
                                         <TableRow>
                                             <TableCell>
