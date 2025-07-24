@@ -31,7 +31,7 @@ export default function SleepPage() {
     useEffect(() => {
         setIsLoading(true);
         const userRef = doc(db, "users", userId);
-        const qSleep = query(collection(userRef, "sleep"), orderBy("date", "desc"));
+        const qSleep = query(collection(userRef, "sleep_manual"), orderBy("date", "desc"));
 
         const unsubscribe = onSnapshot(qSleep, (snapshot) => {
             let data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as SleepData[];
@@ -54,7 +54,7 @@ export default function SleepPage() {
 
     const handleSaveSleep = async (data: Omit<SleepData, 'id'>) => {
         try {
-            const collectionRef = collection(db, "users", userId, "sleep");
+            const collectionRef = collection(db, "users", userId, "sleep_manual");
             if (editingSleep?.id) {
                 const docRef = doc(collectionRef, editingSleep.id);
                 await updateDoc(docRef, data);
@@ -73,7 +73,7 @@ export default function SleepPage() {
     
     const handleDeleteSleep = async (id: string) => {
         try {
-            await deleteDoc(doc(db, "users", userId, "sleep", id));
+            await deleteDoc(doc(db, "users", userId, "sleep_manual", id));
             toast({ title: "Sesión de sueño eliminada", variant: "destructive" });
         } catch (error) {
             console.error("Error deleting sleep session:", error);
@@ -310,3 +310,5 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
         </Dialog>
     );
 }
+
+    
