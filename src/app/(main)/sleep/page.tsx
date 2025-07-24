@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState } from "react";
 import { collection, onSnapshot, query, doc, orderBy, addDoc, updateDoc, deleteDoc } from "firebase/firestore";
-import { format, parseISO, differenceInMinutes, intervalToDuration } from "date-fns";
+import { format, parse, parseISO, differenceInMinutes, intervalToDuration } from "date-fns";
 import { es } from 'date-fns/locale';
 import { db } from "@/lib/firebase";
 import { SleepData } from "@/ai/schemas";
@@ -109,7 +109,7 @@ export default function SleepPage() {
                         Registro de Sueño
                     </CardTitle>
                     <CardDescription>
-                        Registra manualmente tus sesiones de sueño para analizar tus patrones de descanso.
+                        Registra manually tus sesiones de sueño para analizar tus patrones de descanso.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -198,6 +198,27 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
         }
     }, [sleep, isOpen]);
 
+    useEffect(() => {
+        if (formData.bedtime && formData.wakeUpTime && formData.date) {
+            try {
+                const start = parse(`${formData.date}T${formData.bedtime}`, 'yyyy-MM-dd HH:mm', new Date());
+                let end = parse(`${formData.date}T${formData.wakeUpTime}`, 'yyyy-MM-dd HH:mm', new Date());
+
+                if (end < start) {
+                    end = new Date(end.getTime() + 24 * 60 * 60 * 1000); // Add a day if wake up is next day
+                }
+
+                if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+                    const sleepTime = differenceInMinutes(end, start);
+                    setFormData(prev => ({...prev, sleepTime}));
+                }
+            } catch (error) {
+                // Ignore parsing errors while user is typing
+            }
+        }
+    }, [formData.date, formData.bedtime, formData.wakeUpTime]);
+
+
     const handleChange = (field: keyof SleepData, value: string | number) => {
         const numValue = (value === '') ? undefined : (typeof value === 'string' ? Number(value) : value);
         if (['date', 'type', 'bedtime', 'wakeUpTime', 'notes'].includes(field)) {
@@ -221,22 +242,12 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         
-        let sleepTime: number | undefined = formData.sleepTime;
-        if(!sleepTime && formData.bedtime && formData.wakeUpTime && formData.date){
-            const start = parseISO(`${formData.date}T${formData.bedtime}`);
-            let end = parseISO(`${formData.date}T${formData.wakeUpTime}`);
-            if (end < start) {
-                end = new Date(end.getTime() + 24 * 60 * 60 * 1000); // Add a day if wake up is next day
-            }
-            sleepTime = differenceInMinutes(end, start);
-        }
-
         const dataToSave: Omit<SleepData, 'id'> = {
             date: formData.date!,
             type: formData.type!,
             bedtime: formData.bedtime!,
             wakeUpTime: formData.wakeUpTime!,
-            sleepTime: sleepTime,
+            sleepTime: formData.sleepTime,
             timeToFallAsleep: formData.timeToFallAsleep,
             timeAwake: formData.timeAwake,
             efficiency: formData.efficiency,
@@ -251,13 +262,13 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
     };
     
     const formatMinutesToHHMM = (minutes: number | undefined) => {
-        if (minutes === undefined) return '';
+        if (minutes === undefined || minutes === null) return '';
         const h = Math.floor(minutes / 60).toString().padStart(2,'0');
         const m = (minutes % 60).toString().padStart(2,'0');
         return `${h}:${m}`;
     }
 
-    const handleDurationChange = (field: 'sleepTime' | 'timeAwake' | 'phases.deep' | 'phases.light' | 'phases.rem', value: string) => {
+    const handleDurationChange = (field: 'timeAwake' | 'phases.deep' | 'phases.light' | 'phases.rem', value: string) => {
         const [hours, minutes] = value.split(':').map(Number);
         const totalMinutes = (hours || 0) * 60 + (minutes || 0);
 
@@ -306,7 +317,7 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
                             <Label htmlFor="sleepTime">Duración total</Label>
-                            <Input id="sleepTime" type="time" placeholder="hh:mm" value={formatMinutesToHHMM(formData.sleepTime)} onChange={(e) => handleDurationChange('sleepTime', e.target.value)} />
+                            <Input id="sleepTime" type="time" placeholder="hh:mm" value={formatMinutesToHHMM(formData.sleepTime)} disabled />
                         </div>
                         <div>
                            <Label htmlFor="timeToFallAsleep">Me dormí en (min)</Label>
@@ -350,5 +361,7 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
         </Dialog>
     );
 }
+
+    
 
     
