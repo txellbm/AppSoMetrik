@@ -23,9 +23,16 @@ const getCyclePhase = (dayOfCycle: number | null): string => {
     return "Lútea";
 };
 
+const formatMinutesToHHMM = (minutes: number | undefined | null) => {
+    if (minutes === undefined || minutes === null) return "-";
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}h ${mins}m`;
+};
+
 
 export default function HealthSummaryWidget() {
-    const [period, setPeriod] = useState<Period>('Diario');
+    const [period, setPeriod] = useState<Period>('Semanal');
     const [summary, setSummary] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
@@ -62,22 +69,21 @@ export default function HealthSummaryWidget() {
              return snapshot.docs.map(d => ({id: d.id, ...d.data()}));
         }
         
-        const fetchCollectionByDocId = async (colName: string) => {
-            const dates: string[] = [];
+        const fetchSupplementsInPeriod = async () => {
+             const dates: string[] = [];
             for (let d = new Date(startDate); d <= endDate; d = addDays(d, 1)) {
                 dates.push(format(d, 'yyyy-MM-dd'));
             }
-            
             const results: any[] = [];
             for (const date of dates) {
                 try {
-                    const docRef = doc(userRef, colName, date);
+                    const docRef = doc(userRef, 'supplements', date);
                     const docSnap = await getDoc(docRef);
                     if (docSnap.exists()) {
                         results.push({ id: docSnap.id, ...docSnap.data() });
                     }
                 } catch (e) {
-                    console.error(`Error fetching doc ${colName}/${date}`, e);
+                    console.error(`Error fetching doc supplements/${date}`, e);
                 }
             }
             return results;
@@ -95,8 +101,8 @@ export default function HealthSummaryWidget() {
             fetchDataInPeriodByDate('sleep_manual'),
             fetchDataInPeriodByDate('events'),
             fetchDataInPeriodByDate('activity'),
-            fetchCollectionByDocId('supplements'),
-            fetchCollectionByDocId('food_intake'),
+            fetchSupplementsInPeriod(),
+            fetchDataInPeriodByDate('food_intake'),
         ]);
 
         return { allDailyMetrics, sleepData, eventData, activityData, supplementData, foodData, startDate, endDate, now };
@@ -193,7 +199,7 @@ export default function HealthSummaryWidget() {
         setSummary('');
 
         try {
-            const { sleepData, eventData, activityData, allDailyMetrics, supplementData, foodData, startDate, endDate } = await fetchAllDataForPeriod(period);
+            const { sleepData, eventData, activityData, allDailyMetrics, supplementData, foodData, startDate, endDate, now } = await fetchAllDataForPeriod(period);
             
             let report = `INFORME DE DATOS - Período: ${format(startDate, 'P', {locale: es})} - ${format(endDate, 'P', {locale: es})}\n`;
             report += "========================================\n\n";
@@ -202,7 +208,10 @@ export default function HealthSummaryWidget() {
             report += "### Sueño\n";
             if (sleepData.length > 0) {
                 (sleepData as SleepData[]).forEach(s => {
-                    report += `- Fecha: ${s.date}, Tipo: ${s.type}, Horario: ${s.bedtime}-${s.wakeUpTime}, Duración: ${s.sleepTime}min, Eficiencia: ${s.efficiency}%, FC Media: ${s.avgHeartRate} lpm, VFC Despertar: ${s.vfcAlDespertar}ms, Frec. Resp: ${s.respiratoryRate}rpm\n`;
+                    report += `- Fecha: ${s.date}, Tipo: ${s.type}, Horario: ${s.bedtime}-${s.wakeUpTime}\n`;
+                    report += `  - Métricas: Duración ${formatMinutesToHHMM(s.sleepTime)}, Eficiencia ${s.efficiency || '-'}%, conciliación ${s.timeToFallAsleep || '-'}min, despierta ${formatMinutesToHHMM(s.timeAwake)}\n`;
+                    report += `  - Fases: Profundo ${formatMinutesToHHMM(s.phases?.deep)}, Ligero ${formatMinutesToHHMM(s.phases?.light)}, REM ${formatMinutesToHHMM(s.phases?.rem)}\n`;
+                    report += `  - Fisio: FC media ${s.avgHeartRate || '-'} lpm, FC al despertar ${s.lpmAlDespertar || '-'} lpm, VFC dormir ${s.vfcAlDormir || '-'}ms, VFC despertar ${s.vfcAlDespertar || '-'}ms, Frec. Resp ${s.respiratoryRate || '-'}rpm\n`;
                 });
             } else {
                 report += "No hay datos de sueño registrados para este período.\n";
@@ -214,18 +223,30 @@ export default function HealthSummaryWidget() {
             report += "### Entrenamientos\n";
             if (workouts.length > 0) {
                 workouts.forEach(w => {
-                    report += `- Fecha: ${w.date}, Desc: ${w.description}, Plan: ${w.startTime}-${w.endTime}, Duración Real: ${w.workoutDetails?.realDuration || '-'}, Cal Activas: ${w.workoutDetails?.activeCalories || '-'}\n`;
+                    const details = w.workoutDetails;
+                    report += `- Fecha: ${w.date}, Desc: ${w.description}, Plan: ${w.startTime}-${w.endTime}\n`;
+                    if (details) {
+                        report += `  - Real: ${details.realStartTime || '-'}-${details.realEndTime || '-'}, Duración: ${details.realDuration || '-'}\n`;
+                        report += `  - Fisio: Cal Activas ${details.activeCalories || '-'}kcal, Cal Totales ${details.totalCalories || '-'}kcal, FC media ${details.avgHeartRate || '-'} (${details.minHeartRate || '·'}/${details.maxHeartRate || '·'}), Pasos ${details.steps || '-'}, Distancia ${(details.distance || 0 / 1000).toFixed(2)}km\n`;
+                        if (details.zones && Object.values(details.zones).some(z => z)) {
+                            const zonesStr = Object.entries(details.zones).filter(([, v]) => v).map(([z, v]) => `${z}: ${v}m`).join(', ');
+                            report += `  - Zonas FC: ${zonesStr}\n`;
+                        }
+                        if (details.notes) report += `  - Notas: "${details.notes}"\n`;
+                        if (details.videoUrl) report += `  - Video: ${details.videoUrl}\n`;
+                    }
                 });
             } else {
                 report += "No hay entrenamientos registrados para este período.\n";
             }
             report += "\n";
             
-             // Activity Data
+            // Activity Data
             report += "### Actividad Diaria\n";
             if (activityData.length > 0) {
                 (activityData as ActivityData[]).forEach(a => {
-                    report += `- Fecha: ${a.date}, Pasos: ${a.steps}, Calorías: ${a.totalCalories}, Distancia: ${a.distance}km, FC Reposo: ${a.restingHeartRate}lpm\n`;
+                    report += `- Fecha: ${a.date}, Pasos: ${a.steps}, Calorías: ${a.totalCalories}, Distancia: ${a.distance || '-'}km, Tiempo Activo: ${a.activeTime || '-'}min, Horas de pie: ${a.standHours || '-'}h\n`;
+                    report += `  - Fisio: FC media diaria ${a.avgDayHeartRate || '-'} lpm, FC en reposo ${a.restingHeartRate || '-'} lpm\n`;
                 });
             } else {
                 report += "No hay datos de actividad diaria para este período.\n";
@@ -233,16 +254,30 @@ export default function HealthSummaryWidget() {
             report += "\n";
 
             // Cycle Data
+            const allMenstruationDays = allDailyMetrics.filter(m => m.estadoCiclo === 'menstruacion').map(m => startOfDay(parseISO(m.date))).sort((a, b) => b.getTime() - a.getTime());
+            let cycleStartDay: Date | null = null;
+            if (allMenstruationDays.length > 0) {
+                cycleStartDay = allMenstruationDays[0];
+                for (let i = 1; i < allMenstruationDays.length; i++) {
+                    if (differenceInDays(allMenstruationDays[i - 1], allMenstruationDays[i]) > 1) break;
+                    cycleStartDay = allMenstruationDays[i];
+                }
+            }
             const cycleDataInPeriod = allDailyMetrics.filter(m => {
                  try {
                     const metricDate = parseISO(m.date);
                     return metricDate >= startDate && metricDate <= endDate;
                 } catch { return false; }
             });
+
             report += "### Ciclo Menstrual\n";
             if (cycleDataInPeriod.length > 0) {
                 cycleDataInPeriod.forEach(m => {
-                    report += `- Fecha: ${m.date}, Estado: ${m.estadoCiclo || '-'}, Síntomas: ${(m.sintomas || []).join(', ')}, Notas: ${m.notas || '-'}\n`;
+                    const dayOfCycle = cycleStartDay ? differenceInDays(parseISO(m.date), cycleStartDay) + 1 : null;
+                    const phase = getCyclePhase(dayOfCycle);
+                    report += `- Fecha: ${m.date}, Día del ciclo: ${dayOfCycle || '-'}, Fase: ${phase}, Sangrado: ${m.estadoCiclo === 'menstruacion' ? 'Sí' : 'No'}\n`;
+                    if ((m.sintomas || []).length > 0) report += `  - Síntomas: ${(m.sintomas || []).join(', ')}\n`;
+                    if (m.notas) report += `  - Notas: ${m.notas}\n`;
                 });
             } else {
                 report += "No hay datos del ciclo registrados para este período.\n";
@@ -255,7 +290,7 @@ export default function HealthSummaryWidget() {
                  supplementData.forEach(day => {
                     report += `- ${day.id}:\n`;
                     Object.entries(day).forEach(([key, value]) => {
-                        if (key !== 'id' && Array.isArray(value)) {
+                        if (key !== 'id' && Array.isArray(value) && value.length > 0) {
                             report += `  - ${key}: ${value.map(sup => `${sup.name} (${sup.dose})`).join(', ')}\n`;
                         }
                     });
@@ -269,8 +304,10 @@ export default function HealthSummaryWidget() {
             report += "### Dieta y Nutrición\n";
             if (foodData.length > 0) {
                 (foodData as FoodIntakeData[]).forEach(f => {
-                    report += `- Fecha: ${f.date}, Agua: ${f.waterIntake}ml, Otras Bebidas: ${f.otherDrinks || '-'}\n`;
-                    report += `  - Comidas: Desayuno: ${f.breakfast || '-'}; Comida: ${f.lunch || '-'}; Cena: ${f.dinner || '-'}; Snacks: ${f.snacks || '-'}\n`;
+                    report += `- Fecha: ${f.date}\n`;
+                    report += `  - Hidratación: Agua ${f.waterIntake || 0}ml, Otras Bebidas: ${f.otherDrinks || 'ninguna'}\n`;
+                    report += `  - Comidas: Desayuno: ${f.breakfast || 'ninguno'}; Comida: ${f.lunch || 'ninguna'}; Cena: ${f.dinner || 'ninguna'}; Snacks: ${f.snacks || 'ninguno'}\n`;
+                    if (f.notes) report += `  - Notas: ${f.notes}\n`;
                 });
             } else {
                 report += "No hay datos de dieta registrados para este período.\n";
