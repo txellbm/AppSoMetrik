@@ -205,7 +205,7 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
                 const start = parse(`${formData.date}T${formData.bedtime}`, 'yyyy-MM-dd HH:mm', new Date());
                 let end = parse(`${formData.date}T${formData.wakeUpTime}`, 'yyyy-MM-dd HH:mm', new Date());
 
-                if (end < start) {
+                if (end <= start) {
                     end = new Date(end.getTime() + 24 * 60 * 60 * 1000); // Add a day if wake up is next day
                 }
 
@@ -243,7 +243,7 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
             }
             const newObj = { ...obj };
             for (const key in newObj) {
-                if (newObj[key] === undefined || newObj[key] === null || (typeof newObj[key] === 'number' && isNaN(newObj[key]))) {
+                if (newObj[key] === undefined || newObj[key] === null || newObj[key] === '' || (typeof newObj[key] === 'number' && isNaN(newObj[key]))) {
                     delete newObj[key];
                 } else if (typeof newObj[key] === 'object') {
                     newObj[key] = cleanupUndefined(newObj[key]);
@@ -287,7 +287,7 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
     const handleDurationChange = (field: 'timeAwake' | 'phases.deep' | 'phases.light' | 'phases.rem', value: string) => {
         const [hours, minutes] = value.split(':').map(Number);
         const totalMinutes = (isNaN(hours) ? 0 : hours) * 60 + (isNaN(minutes) ? 0 : minutes);
-        const finalValue = totalMinutes > 0 || value === '00:00' ? totalMinutes : undefined;
+        const finalValue = totalMinutes >= 0 ? totalMinutes : undefined;
 
         if (field.startsWith('phases.')) {
             const phase = field.split('.')[1] as 'deep' | 'light' | 'rem';
