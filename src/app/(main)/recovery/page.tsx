@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
-import { RecoveryData, SleepData } from "@/ai/schemas";
+import { useEffect, useState, useMemo } from "react";
+import { RecoveryData, SleepData, DailyMetric, CalendarEvent } from "@/ai/schemas";
 import { collection, onSnapshot, query, doc, setDoc, getDocs, orderBy, limit, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { HeartPulse, Wind, Moon, Dumbbell, Plus, Edit } from "lucide-react";
+import { HeartPulse, Wind, Moon, Dumbbell, Plus, Edit, Brain, Utensils } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -14,7 +14,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
-import { format } from "date-fns";
+import { format, startOfDay, differenceInDays, parseISO } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
+import { generateRecoverySuggestions } from "@/ai/flows/recovery-suggestions";
+
+const getCyclePhase = (dayOfCycle: number | null): string => {
+    if (dayOfCycle === null || dayOfCycle < 1) return "N/A";
+    if (dayOfCycle <= 5) return "Menstrual";
+    if (dayOfCycle <= 14) return "Folicular";
+    return "Lútea";
+};
+
 
 export default function RecoveryPage() {
     const [recoveryData, setRecoveryData] = useState<RecoveryData | null>(null);
@@ -162,48 +172,7 @@ export default function RecoveryPage() {
                 recovery={recoveryData}
             />
 
-             <Card className="w-full max-w-2xl">
-                <CardHeader>
-                    <CardTitle>Sugerencias del Día</CardTitle>
-                </CardHeader>
-                 <CardContent className="space-y-4">
-                    <div className="flex items-start gap-4">
-                        <Dumbbell className="h-6 w-6 text-orange-500 mt-1"/>
-                        <div>
-                            <h4 className="font-semibold">Entrenamiento</h4>
-                            <p className="text-muted-foreground text-sm">
-                                { recoveryScore > 60 
-                                ? "Tu cuerpo está preparado. Es un buen día para un entrenamiento de alta intensidad o para intentar una nueva marca personal."
-                                : "Tu recuperación es baja. Considera un entrenamiento ligero, una sesión de movilidad o un día de descanso activo."}
-                            </p>
-                        </div>
-                    </div>
-                     <div className="flex items-start gap-4">
-                        <Moon className="h-6 w-6 text-blue-500 mt-1"/>
-                        <div>
-                            <h4 className="font-semibold">Descanso</h4>
-                            <p className="text-muted-foreground text-sm">
-                               { recoveryScore > 60
-                                ? "Has descansado bien. Mantén una buena higiene del sueño esta noche para consolidar tu recuperación."
-                                : "Prioriza el descanso hoy. Una siesta corta podría ayudarte. Asegúrate de tener una rutina relajante antes de dormir."
-                               }
-                            </p>
-                        </div>
-                    </div>
-                      <div className="flex items-start gap-4">
-                        <Wind className="h-6 w-6 text-green-500 mt-1"/>
-                        <div>
-                            <h4 className="font-semibold">Mindfulness</h4>
-                            <p className="text-muted-foreground text-sm">
-                                { recoveryScore > 60
-                                ? "Aprovecha tu estado de alta recuperación para una sesión de meditación o mindfulness y empezar el día con claridad mental."
-                                : "Una sesión de respiración o meditación guiada puede ayudar a tu sistema nervioso a recuperarse más eficazmente."
-                                }
-                            </p>
-                        </div>
-                    </div>
-                </CardContent>
-             </Card>
+            <SuggestionsCard recoveryScore={recoveryScore} userId={userId} today={today} />
         </div>
     );
 }
@@ -293,4 +262,108 @@ function RecoveryDialog({ isOpen, onClose, onSave, recovery }: RecoveryDialogPro
     )
 }
 
-    
+type Suggestion = {
+    category: "Entrenamiento" | "Descanso" | "Mindfulness" | "Nutrición";
+    suggestion: string;
+};
+
+const iconMap: { [key in Suggestion['category']]: React.ReactNode } = {
+    Entrenamiento: <Dumbbell className="h-6 w-6 text-orange-500 mt-1"/>,
+    Descanso: <Moon className="h-6 w-6 text-blue-500 mt-1"/>,
+    Mindfulness: <Brain className="h-6 w-6 text-purple-500 mt-1"/>,
+    Nutrición: <Utensils className="h-6 w-6 text-green-500 mt-1"/>
+};
+
+function SuggestionsCard({ recoveryScore, userId, today }: { recoveryScore: number, userId: string, today: string }) {
+    const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        const fetchAndGenerate = async () => {
+            setIsLoading(true);
+            try {
+                const userRef = doc(db, "users", userId);
+
+                const sleepQuery = query(collection(userRef, "sleep_manual"), where("date", "==", today));
+                const dailyMetricsQuery = query(collection(userRef, "dailyMetrics"), orderBy("date", "desc"));
+                const eventsQuery = query(collection(userRef, "events"), where("date", "==", today));
+                
+                const [sleepSnap, dailyMetricsSnap, eventsSnap] = await Promise.all([
+                    getDocs(sleepQuery),
+                    getDocs(dailyMetricsQuery),
+                    getDocs(eventsSnap),
+                ]);
+
+                const lastSleep = !sleepSnap.empty ? sleepSnap.docs[0].data() as SleepData : null;
+                const dailyMetrics = dailyMetricsSnap.docs.map(d => ({...d.data(), id: d.id})) as DailyMetric[];
+                const todayEvents = eventsSnap.docs.map(d => d.data()) as CalendarEvent[];
+
+                const sortedMenstruationDays = dailyMetrics
+                    .filter(m => m.estadoCiclo === 'menstruacion')
+                    .map(m => startOfDay(parseISO(m.date)))
+                    .sort((a, b) => b.getTime() - a.getTime());
+
+                let cycleStartDay = null;
+                if (sortedMenstruationDays.length > 0) {
+                    cycleStartDay = sortedMenstruationDays[0];
+                    for (let i = 1; i < sortedMenstruationDays.length; i++) {
+                        if (differenceInDays(sortedMenstruationDays[i - 1], sortedMenstruationDays[i]) > 1) break;
+                        cycleStartDay = sortedMenstruationDays[i];
+                    }
+                }
+                const dayOfCycle = cycleStartDay ? differenceInDays(startOfDay(new Date()), cycleStartDay) + 1 : null;
+                const currentPhase = getCyclePhase(dayOfCycle);
+
+                const input = {
+                    recoveryScore,
+                    lastSleep: lastSleep ? `Duración: ${lastSleep.sleepTime} min, Eficiencia: ${lastSleep.efficiency}%, VFC al despertar: ${lastSleep.vfcAlDespertar} ms` : 'No hay datos de sueño.',
+                    cycleStatus: `Fase: ${currentPhase}, Día: ${dayOfCycle || 'N/A'}.`,
+                    todayEvents: todayEvents.length > 0 ? todayEvents.map(e => `${e.description} de ${e.startTime} a ${e.endTime}`).join('; ') : 'No hay eventos programados.'
+                };
+
+                const result = await generateRecoverySuggestions(input);
+                setSuggestions(result.suggestions);
+
+            } catch (err) {
+                console.error("Error generating suggestions:", err);
+                toast({ variant: "destructive", title: "Error", description: "No se pudieron generar las sugerencias." });
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchAndGenerate();
+    }, [recoveryScore, userId, today, toast]);
+
+    return (
+        <Card className="w-full max-w-2xl">
+            <CardHeader>
+                <CardTitle>Sugerencias del Día</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {isLoading ? (
+                    Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="flex items-start gap-4">
+                            <Skeleton className="h-8 w-8 rounded-full" />
+                            <div className="w-full space-y-2">
+                                <Skeleton className="h-4 w-1/4" />
+                                <Skeleton className="h-4 w-full" />
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    suggestions.map((item, index) => (
+                        <div key={index} className="flex items-start gap-4">
+                            {iconMap[item.category] || <Dumbbell className="h-6 w-6 text-orange-500 mt-1"/>}
+                            <div>
+                                <h4 className="font-semibold">{item.category}</h4>
+                                <p className="text-muted-foreground text-sm">{item.suggestion}</p>
+                            </div>
+                        </div>
+                    ))
+                )}
+            </CardContent>
+        </Card>
+    );
+}
