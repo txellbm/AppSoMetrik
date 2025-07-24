@@ -6,11 +6,13 @@ import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query, where, writeBatch, doc, deleteDoc, runTransaction, getDocs } from "firebase/firestore";
 import { CalendarEvent } from "@/ai/schemas";
 import { useToast } from "@/hooks/use-toast";
-import { addMonths, endOfMonth, format, startOfMonth, subMonths, getDay, addWeeks, startOfWeek, isSameDay, parse } from "date-fns";
+import { addDays, addMonths, endOfMonth, format, startOfMonth, subDays, subMonths, getDay, addWeeks, startOfWeek, isSameDay, parse, endOfWeek } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, PlusCircle, Trash2, Edit, Settings } from "lucide-react";
 import { MonthlyCalendarView } from "@/components/dashboard/monthly-calendar-view";
+import { WeeklyCalendarView } from "@/components/dashboard/weekly-calendar-view";
+import { DailyCalendarView } from "@/components/dashboard/daily-calendar-view";
 import EditEventDialog from "@/components/dashboard/event-dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -30,6 +32,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 
+type View = "day" | "week" | "month";
 type QuickEventType = string;
 type QuickEventTypeInfo = {
     name: string;
@@ -44,8 +47,9 @@ type QuickEventTypes = Record<QuickEventType, QuickEventTypeInfo>;
 
 
 export default function CalendarPage() {
-    const [currentMonth, setCurrentMonth] = useState(new Date());
-    const [date, setDate] = useState<Date | undefined>(new Date());
+    const [currentDate, setCurrentDate] = useState(new Date());
+    const [view, setView] = useState<View>("month");
+    
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { toast } = useToast();
@@ -66,8 +70,17 @@ export default function CalendarPage() {
 
     const [eventToDelete, setEventToDelete] = useState<string | null>(null);
 
-    const monthStart = useMemo(() => startOfMonth(currentMonth), [currentMonth]);
-    const monthEnd = useMemo(() => endOfMonth(currentMonth), [currentMonth]);
+    const { viewStart, viewEnd } = useMemo(() => {
+        switch (view) {
+            case "month":
+                return { viewStart: startOfMonth(currentDate), viewEnd: endOfMonth(currentDate) };
+            case "week":
+                 const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+                return { viewStart: weekStart, viewEnd: endOfWeek(currentDate, { weekStartsOn: 1 }) };
+            case "day":
+                return { viewStart: currentDate, viewEnd: currentDate };
+        }
+    }, [currentDate, view]);
 
     useEffect(() => {
         setIsLoading(true);
@@ -75,8 +88,8 @@ export default function CalendarPage() {
 
         const eventsColRef = collection(db, "users", userId, "events");
         const q = query(eventsColRef, 
-            where("date", ">=", format(monthStart, "yyyy-MM-dd")),
-            where("date", "<=", format(monthEnd, "yyyy-MM-dd"))
+            where("date", ">=", format(viewStart, "yyyy-MM-dd")),
+            where("date", "<=", format(viewEnd, "yyyy-MM-dd"))
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -90,15 +103,39 @@ export default function CalendarPage() {
         });
 
         return () => unsubscribe();
-    }, [monthStart, monthEnd, userId, toast]);
+    }, [viewStart, viewEnd, userId, toast]);
 
-    const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
-    const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
-    const handleToday = () => {
-        const today = new Date();
-        setCurrentMonth(today);
-        setDate(today);
+    const handlePrev = () => {
+        switch (view) {
+            case "month": setCurrentDate(subMonths(currentDate, 1)); break;
+            case "week": setCurrentDate(subDays(currentDate, 7)); break;
+            case "day": setCurrentDate(subDays(currentDate, 1)); break;
+        }
     };
+    
+    const handleNext = () => {
+        switch (view) {
+            case "month": setCurrentDate(addMonths(currentDate, 1)); break;
+            case "week": setCurrentDate(addDays(currentDate, 7)); break;
+            case "day": setCurrentDate(addDays(currentDate, 1)); break;
+        }
+    };
+
+    const handleToday = () => {
+        setCurrentDate(new Date());
+    };
+    
+     const viewTitle = useMemo(() => {
+        switch (view) {
+            case "month": return format(currentDate, "LLLL yyyy", { locale: es });
+            case "week": 
+                const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+                const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
+                return `${format(weekStart, 'd LLL', { locale: es })} - ${format(weekEnd, 'd LLL yyyy', { locale: es })}`;
+            case "day": return format(currentDate, "PPPP", { locale: es });
+        }
+    }, [currentDate, view]);
+
 
     const openDialog = useCallback((event?: CalendarEvent, date?: Date) => {
         setSelectedEvent(event || null);
@@ -108,7 +145,7 @@ export default function CalendarPage() {
     }, []);
     
     const handleDateSelect = async (day: Date) => {
-        setDate(day);
+        setCurrentDate(day);
     
         if (selectedQuickEventType) {
             const config = quickEventTypes[selectedQuickEventType];
@@ -130,6 +167,11 @@ export default function CalendarPage() {
                 endTime: endTime,
             };
             openDialog(newEvent as CalendarEvent, day);
+        } else {
+            // If not quick-adding, clicking a day in month/week view should switch to day view
+            if(view !== 'day') {
+                setView('day');
+            }
         }
     };
 
@@ -294,9 +336,9 @@ export default function CalendarPage() {
     };
     
     const eventsForSelectedDay = useMemo(() => {
-        if (!date) return [];
-        return events.filter(e => isSameDay(new Date(e.date + 'T00:00:00'), date)).sort((a,b) => (a.startTime || "00:00").localeCompare(b.startTime || "00:00"));
-    }, [date, events]);
+        if (!currentDate) return [];
+        return events.filter(e => isSameDay(new Date(e.date + 'T00:00:00'), currentDate)).sort((a,b) => (a.startTime || "00:00").localeCompare(b.startTime || "00:00"));
+    }, [currentDate, events]);
     
     const { workouts, work } = useMemo(() => {
         const workouts: QuickEventType[] = [];
@@ -318,29 +360,51 @@ export default function CalendarPage() {
                 <div className="flex items-center gap-4">
                     <Button onClick={handleToday} variant="outline">Hoy</Button>
                     <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" onClick={handlePrevMonth}>
+                        <Button variant="ghost" size="icon" onClick={handlePrev}>
                             <ChevronLeft className="h-5 w-5" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={handleNextMonth}>
+                        <Button variant="ghost" size="icon" onClick={handleNext}>
                             <ChevronRight className="h-5 w-5" />
                         </Button>
                     </div>
-                    <h2 className="text-xl font-semibold capitalize">
-                        {format(currentMonth, "LLLL yyyy", { locale: es })}
+                    <h2 className="text-xl font-semibold capitalize min-w-[280px]">
+                        {viewTitle}
                     </h2>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button variant={view === 'month' ? 'default' : 'outline'} onClick={() => setView('month')}>Mes</Button>
+                    <Button variant={view === 'week' ? 'default' : 'outline'} onClick={() => setView('week')}>Semana</Button>
+                    <Button variant={view === 'day' ? 'default' : 'outline'} onClick={() => setView('day')}>Día</Button>
                 </div>
             </header>
 
             <main className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 p-4 overflow-auto">
                 <div className="lg:col-span-2">
-                        <MonthlyCalendarView
-                            month={currentMonth}
-                            onMonthChange={setCurrentMonth}
-                            events={events}
-                            selected={date}
-                            onEventClick={(event) => openDialog(event)}
-                            onDayClick={handleDateSelect}
-                        />
+                       {view === 'month' && (
+                            <MonthlyCalendarView
+                                month={currentDate}
+                                onMonthChange={setCurrentDate}
+                                events={events}
+                                selected={currentDate}
+                                onEventClick={(event) => openDialog(event)}
+                                onDayClick={handleDateSelect}
+                            />
+                       )}
+                       {view === 'week' && (
+                           <WeeklyCalendarView
+                                week={currentDate}
+                                events={events}
+                                onEventClick={(event) => openDialog(event)}
+                                onDayClick={handleDateSelect}
+                           />
+                       )}
+                       {view === 'day' && (
+                            <DailyCalendarView
+                                day={currentDate}
+                                events={events}
+                                onEventClick={(event) => openDialog(event)}
+                            />
+                       )}
                 </div>
                 
                 <aside className="lg:col-span-1 space-y-4">
@@ -400,7 +464,7 @@ export default function CalendarPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Eventos del día</CardTitle>
-                            <CardDescription>{date ? format(date, "PPP", { locale: es }) : 'Selecciona un día'}</CardDescription>
+                            <CardDescription>{currentDate ? format(currentDate, "PPP", { locale: es }) : 'Selecciona un día'}</CardDescription>
                         </CardHeader>
                         <CardContent>
                             {eventsForSelectedDay.length > 0 ? (
@@ -539,5 +603,3 @@ const QuickEventCard = ({ type, config, isSelected, onSelect, onConfigChange, on
         </div>
     </Card>
 );
-
-    

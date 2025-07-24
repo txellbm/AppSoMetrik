@@ -58,14 +58,14 @@ export function MonthlyCalendarView({ month, onMonthChange, events, selected, on
         return (
             <div 
                 className={cn(
-                    "relative h-full w-full flex flex-col p-1 cursor-pointer border-t border-r",
+                    "relative h-full w-full flex flex-col p-1 cursor-pointer",
                     !isSameMonth(props.date, month) && "opacity-50 bg-muted/50",
                     isSameDay(props.date, selected || new Date()) && "bg-accent",
                 )}
                 onClick={() => onDayClick(props.date)}
             >
                 <span className={cn(
-                    "self-center text-sm font-medium mb-1",
+                    "self-end text-sm font-medium mb-1",
                     isToday(props.date) && "bg-primary text-primary-foreground rounded-full h-6 w-6 flex items-center justify-center"
                 )}>
                     {dayNumber}
@@ -111,15 +111,17 @@ export function MonthlyCalendarView({ month, onMonthChange, events, selected, on
             styles={{ caption: { display: 'none' } }}
             className="h-full w-full"
             classNames={{
+                root: 'h-full flex flex-col',
                 months: 'h-full',
                 month: 'h-full flex flex-col',
                 table: 'w-full h-full border-collapse',
                 head_row: 'flex',
-                head_cell: 'w-[14.28%] text-muted-foreground font-normal text-sm pb-2 border-b border-l text-center',
-                tbody: 'h-full',
-                row: 'flex w-full h-[19%]', // Adjusted for more space
-                cell: 'w-[14.28%] flex',
+                head_cell: 'w-[14.28%] text-muted-foreground font-normal text-sm pb-2 text-center',
+                tbody: 'h-full flex flex-col',
+                row: 'flex w-full flex-grow', 
+                cell: 'w-[14.28%] flex flex-col border',
             }}
         />
     );
 }
+
