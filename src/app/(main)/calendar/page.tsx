@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { addDays, addMonths, endOfMonth, format, startOfMonth, subDays, subMonths, getDay, addWeeks, startOfWeek, isSameDay, parse, endOfWeek } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, PlusCircle, Trash2, Edit, Settings, FileText } from "lucide-react";
+import { ChevronLeft, ChevronRight, PlusCircle, Trash2, Edit, Settings, FileText, Copy } from "lucide-react";
 import { MonthlyCalendarView } from "@/components/dashboard/monthly-calendar-view";
 import { WeeklyCalendarView } from "@/components/dashboard/weekly-calendar-view";
 import { DailyCalendarView } from "@/components/dashboard/daily-calendar-view";
@@ -456,6 +456,16 @@ export default function CalendarPage() {
         setIsReportOpen(true);
     };
 
+    const handleCopyToClipboard = () => {
+        if (!reportContent) return;
+        navigator.clipboard.writeText(reportContent).then(() => {
+            toast({ title: "¡Copiado!", description: "El informe ha sido copiado a tu portapapeles." });
+        }, (err) => {
+            console.error('Could not copy text: ', err);
+            toast({ variant: "destructive", title: "Error", description: "No se pudo copiar el informe." });
+        });
+    };
+
 
     return (
         <div className="flex flex-col h-full">
@@ -666,7 +676,10 @@ export default function CalendarPage() {
                             className="h-64 text-sm font-mono"
                         />
                     </div>
-                    <DialogFooter>
+                    <DialogFooter className="sm:justify-between">
+                        <Button variant="outline" onClick={handleCopyToClipboard}>
+                           <Copy className="mr-2 h-4 w-4"/> Copiar
+                        </Button>
                         <Button onClick={() => setIsReportOpen(false)}>Cerrar</Button>
                     </DialogFooter>
                 </DialogContent>
@@ -697,5 +710,3 @@ const QuickEventCard = ({ type, config, isSelected, onSelect }: QuickEventCardPr
         <Label className="font-semibold text-sm cursor-pointer">{type}</Label>
     </Badge>
 );
-
-    
