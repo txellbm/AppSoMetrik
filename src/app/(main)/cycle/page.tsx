@@ -1,18 +1,20 @@
 
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { DailyMetric } from "@/ai/schemas";
-import { collection, onSnapshot, query, doc, setDoc, getDoc, orderBy, deleteField, updateDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, doc, setDoc, getDoc, orderBy, deleteField, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { format, startOfDay, differenceInDays, parseISO } from 'date-fns';
+import { format, startOfDay, differenceInDays, parseISO, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/dashboard/data-table";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
-import { Stethoscope, Calendar as CalendarIcon, Droplet } from "lucide-react";
+import { Stethoscope, Calendar as CalendarIcon, Droplet, Plus, X, BrainCircuit, Activity } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const getCyclePhase = (dayOfCycle: number | null): string => {
@@ -31,6 +33,9 @@ export default function CyclePage() {
     const { toast } = useToast();
     
     const [isMarkingMode, setIsMarkingMode] = useState(false);
+    const newSymptomRef = useRef<HTMLInputElement>(null);
+    const notesRef = useRef<HTMLTextAreaElement>(null);
+    const notesTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         setIsLoading(true);
@@ -41,10 +46,10 @@ export default function CyclePage() {
         const unsubscribe = onSnapshot(qDailyMetrics, (snapshot) => {
             const metrics = snapshot.docs.map(doc => ({ ...doc.data(), date: doc.id })) as DailyMetric[];
             setDailyMetrics(metrics);
-setIsLoading(false);
+            setIsLoading(false);
         }, (error) => {
             console.error("Error loading daily metrics:", error);
-setIsLoading(false);
+            setIsLoading(false);
         });
 
         return () => unsubscribe();
@@ -77,6 +82,12 @@ setIsLoading(false);
     }, [dailyMetrics, selectedDate]);
     
     const currentPhase = getCyclePhase(currentDayOfCycle);
+    
+    const selectedDayMetric = useMemo(() => {
+        if (!selectedDate) return null;
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        return dailyMetrics.find(m => m.date === dateStr) || { date: dateStr, sintomas: [], notas: '' };
+    }, [selectedDate, dailyMetrics]);
     
     const menstruationDays = useMemo(() => {
         return dailyMetrics
@@ -115,6 +126,43 @@ setIsLoading(false);
             toast({ variant: "destructive", title: "Error", description: "No se pudo actualizar el día." });
         }
     };
+    
+    const handleSymptomAction = async (action: 'add' | 'remove', symptom: string) => {
+        if (!selectedDate || !symptom.trim()) return;
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        const docRef = doc(db, "users", userId, "dailyMetrics", dateStr);
+        
+        try {
+            await setDoc(docRef, { 
+                date: dateStr, 
+                sintomas: action === 'add' ? arrayUnion(symptom) : arrayRemove(symptom) 
+            }, { merge: true });
+
+            if(action === 'add' && newSymptomRef.current) {
+                newSymptomRef.current.value = "";
+            }
+
+        } catch (error) {
+             toast({ variant: "destructive", title: "Error", description: "No se pudo actualizar el síntoma." });
+        }
+    };
+
+    const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        if(notesTimerRef.current) clearTimeout(notesTimerRef.current);
+
+        notesTimerRef.current = setTimeout(async () => {
+            if (!selectedDate) return;
+            const dateStr = format(selectedDate, 'yyyy-MM-dd');
+            const docRef = doc(db, "users", userId, "dailyMetrics", dateStr);
+            try {
+                await setDoc(docRef, { date: dateStr, notas: e.target.value }, { merge: true });
+                toast({ title: "Nota guardada", description: `Tus notas para el ${dateStr} han sido guardadas.`});
+            } catch (error) {
+                toast({ variant: "destructive", title: "Error", description: "No se pudo guardar la nota." });
+            }
+        }, 1000); // Save after 1 second of inactivity
+    };
+
 
     const cycleDataRows = useMemo(() => {
         const formatDateForTable = (dateString: string) => {
@@ -131,10 +179,14 @@ setIsLoading(false);
 
         return allRelevantMetrics.map(metric => {
                 let dayOfCycle: number | null = null;
-                const metricDate = parseISO(metric.date);
-                if (cycleStartDay) {
-                    const diff = differenceInDays(metricDate, cycleStartDay) + 1;
-                    if (diff > 0) dayOfCycle = diff;
+                if(cycleStartDay){
+                    try {
+                        const metricDate = startOfDay(parseISO(metric.date));
+                        const diff = differenceInDays(metricDate, cycleStartDay) + 1;
+                        if (diff > 0) dayOfCycle = diff;
+                    } catch(e) {
+                        dayOfCycle = null;
+                    }
                 }
 
                 return {
@@ -160,10 +212,10 @@ setIsLoading(false);
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                            <CalendarIcon className="text-primary"/> 
-                           Registro del Ciclo
+                           Calendario del Ciclo
                         </CardTitle>
                         <CardDescription>
-                           Usa el botón para activar el modo de marcado y haz clic en los días del calendario.
+                           Activa el modo sangrado para marcar los días en el calendario.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col items-center gap-4">
@@ -191,30 +243,68 @@ setIsLoading(false);
                 </Card>
             </div>
             <div className="lg:col-span-2 space-y-6">
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Estado Actual</CardTitle>
-                        <CardDescription>Tu fase actual basada en los datos registrados.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex justify-around items-center p-4 bg-muted rounded-lg text-center">
-                            <div>
-                                <p className="text-sm text-muted-foreground">Fase Actual</p>
-                                <p className="text-xl font-bold text-primary">{currentPhase}</p>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Estado Actual</CardTitle>
+                             <CardDescription>{selectedDate ? format(selectedDate, "PPP", { locale: es }) : 'Selecciona un día'}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex justify-around items-center p-4 bg-muted rounded-lg text-center">
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Fase Actual</p>
+                                    <p className="text-xl font-bold text-primary">{currentPhase}</p>
+                                </div>
+                                <div className="border-l h-10"></div>
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Día del Ciclo</p>
+                                    <p className="text-xl font-bold text-primary">{currentDayOfCycle || '-'}</p>
+                                </div>
                             </div>
-                            <div className="border-l h-10"></div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Síntomas y Notas</CardTitle>
+                            <CardDescription>Añade detalles sobre el día seleccionado.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
                             <div>
-                                <p className="text-sm text-muted-foreground">Día del Ciclo</p>
-                                <p className="text-xl font-bold text-primary">{currentDayOfCycle || '-'}</p>
+                                <label className="text-sm font-medium">Síntomas</label>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <Input ref={newSymptomRef} placeholder="Ej. Dolor de cabeza" onKeyDown={(e) => e.key === 'Enter' && newSymptomRef.current && handleSymptomAction('add', newSymptomRef.current.value)}/>
+                                    <Button size="icon" onClick={() => newSymptomRef.current && handleSymptomAction('add', newSymptomRef.current.value)}><Plus className="h-4 w-4"/></Button>
+                                </div>
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                    {selectedDayMetric?.sintomas?.map(symptom => (
+                                        <Badge key={symptom} variant="secondary">
+                                            {symptom}
+                                            <button onClick={() => handleSymptomAction('remove', symptom)} className="ml-1 rounded-full hover:bg-destructive/20 p-0.5">
+                                                <X className="h-3 w-3"/>
+                                            </button>
+                                        </Badge>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    </CardContent>
-                 </Card>
+                             <div>
+                                <label className="text-sm font-medium">Notas</label>
+                                <Textarea 
+                                    ref={notesRef}
+                                    key={selectedDayMetric?.date} // Re-render textarea on day change
+                                    defaultValue={selectedDayMetric?.notas || ''}
+                                    onChange={handleNotesChange}
+                                    placeholder="¿Cómo te sientes hoy?" 
+                                    className="mt-1"
+                                />
+                             </div>
+                        </CardContent>
+                    </Card>
+                 </div>
                  <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Stethoscope className="text-primary"/>
-                            Historial del Ciclo Menstrual
+                            Historial del Ciclo
                         </CardTitle>
                         <CardDescription>
                             Un registro detallado de tu ciclo menstrual, síntomas y notas.
