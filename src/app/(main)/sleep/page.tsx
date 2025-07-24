@@ -75,12 +75,14 @@ export default function SleepPage() {
     const handleSaveSleep = async (data: Omit<SleepData, 'id'> & { id?: string }) => {
         try {
             const collectionRef = collection(db, "users", userId, "sleep_manual");
-            if (editingSleep?.id) {
-                const docRef = doc(collectionRef, editingSleep.id);
-                await setDoc(docRef, data, { merge: true });
+            if (data.id) {
+                const docRef = doc(collectionRef, data.id);
+                const { id, ...dataToSave } = data;
+                await setDoc(docRef, dataToSave, { merge: true });
                 toast({ title: "Sesión de sueño actualizada" });
             } else {
-                const docRef = await addDoc(collectionRef, data);
+                const { id, ...dataToSave } = data;
+                const docRef = await addDoc(collectionRef, dataToSave);
                 await updateDoc(docRef, { id: docRef.id });
                 toast({ title: "Sesión de sueño registrada" });
             }
@@ -291,10 +293,10 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
 
         const dataToSave = cleanupUndefined({
             id: formData.id,
-            date: formData.date!,
-            type: formData.type!,
-            bedtime: formData.bedtime!,
-            wakeUpTime: formData.wakeUpTime!,
+            date: formData.date,
+            type: formData.type,
+            bedtime: formData.bedtime,
+            wakeUpTime: formData.wakeUpTime,
             sleepTime: formData.sleepTime,
             timeToFallAsleep: formData.timeToFallAsleep,
             timeAwake: formData.timeAwake,
@@ -449,3 +451,6 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
         </Dialog>
     );
 }
+
+
+    
