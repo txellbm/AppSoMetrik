@@ -13,10 +13,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Salad, GlassWater, Coffee, Sun, Soup, Utensils, Apple, ChevronLeft, ChevronRight } from "lucide-react";
+import { Salad, GlassWater, Coffee, Sun, Soup, Utensils, Apple, ChevronLeft, ChevronRight, FileText, Copy } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { debounce } from "lodash";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function DietPage() {
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -24,6 +25,9 @@ export default function DietPage() {
     const [isLoading, setIsLoading] = useState(true);
     const userId = "user_test_id";
     const { toast } = useToast();
+
+    const [isReportOpen, setIsReportOpen] = useState(false);
+    const [reportContent, setReportContent] = useState('');
 
     const formattedDate = format(selectedDate, "yyyy-MM-dd");
 
@@ -72,6 +76,41 @@ export default function DietPage() {
             setSelectedDate(date);
         }
     };
+
+    const generateReport = () => {
+        let report = `Informe de Dieta y Nutrición - ${format(selectedDate, 'PPP', { locale: es })}\n`;
+        report += "===============================================\n\n";
+
+        if (Object.keys(foodData).length <= 1) { // Only contains date
+            report += "No hay datos de alimentación registrados para este día.";
+        } else {
+            report += `**Hidratación**\n`;
+            report += `- Agua: ${foodData.waterIntake || 'No registrado'} ml\n`;
+            report += `- Otras bebidas: ${foodData.otherDrinks || 'No registrado'}\n\n`;
+            
+            report += `**Comidas**\n`;
+            report += `- Desayuno: ${foodData.breakfast || 'No registrado'} ml\n`;
+            report += `- Comida: ${foodData.lunch || 'No registrado'}\n`;
+            report += `- Cena: ${foodData.dinner || 'No registrado'}\n`;
+            report += `- Snacks: ${foodData.snacks || 'No registrado'}\n\n`;
+
+            report += `**Notas Generales**\n`;
+            report += `${foodData.notes || 'No se han añadido notas.'}\n`;
+        }
+
+        setReportContent(report);
+        setIsReportOpen(true);
+    };
+
+    const handleCopyToClipboard = () => {
+        if (!reportContent) return;
+        navigator.clipboard.writeText(reportContent).then(() => {
+            toast({ title: "¡Copiado!", description: "El informe ha sido copiado a tu portapapeles." });
+        }, (err) => {
+            console.error('Could not copy text: ', err);
+            toast({ variant: "destructive", title: "Error", description: "No se pudo copiar el informe." });
+        });
+    };
     
     return (
         <div className="flex flex-col gap-6">
@@ -95,6 +134,7 @@ export default function DietPage() {
                             <Button variant="outline" size="icon" onClick={() => handleDateChange(addDays(selectedDate, 1))} disabled={selectedDate > new Date()}>
                                 <ChevronRight className="h-4 w-4" />
                             </Button>
+                             <Button variant="outline" onClick={generateReport}><FileText className="mr-2 h-4 w-4"/>Exportar</Button>
                         </div>
                     </div>
                 </CardHeader>
@@ -171,6 +211,30 @@ export default function DietPage() {
                     </div>
                 </CardContent>
             </Card>
+            
+            <Dialog open={isReportOpen} onOpenChange={setIsReportOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Informe de Dieta y Nutrición</DialogTitle>
+                        <DialogDescription>
+                          Copia este informe para analizarlo con una IA o guardarlo en tus notas.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Textarea
+                            readOnly
+                            value={reportContent}
+                            className="h-64 text-sm font-mono"
+                        />
+                    </div>
+                    <DialogFooter className="sm:justify-between">
+                        <Button variant="outline" onClick={handleCopyToClipboard}>
+                           <Copy className="mr-2 h-4 w-4"/> Copiar
+                        </Button>
+                        <Button onClick={() => setIsReportOpen(false)}>Cerrar</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
@@ -226,3 +290,5 @@ function DietSkeleton() {
         </div>
     )
 }
+
+    
