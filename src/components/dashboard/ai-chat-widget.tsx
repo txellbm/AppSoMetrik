@@ -57,7 +57,7 @@ export default function AIChatWidget() {
         </CardTitle>
       </CardHeader>
       <CardContent className="flex-grow flex flex-col gap-4">
-        <ScrollArea className="flex-grow pr-4 h-[20rem]" ref={scrollAreaRef}>
+        <ScrollArea className="flex-grow pr-4 h-[15rem]" ref={scrollAreaRef}>
           <div className="space-y-4">
             <div className="flex items-start gap-3">
               <Avatar className="w-8 h-8 border-2 border-primary">
@@ -112,12 +112,16 @@ function ChatForm({ onNewMessage }: { onNewMessage: (message: Message) => void }
     const dailyMetricsQuery = query(collection(userRef, "dailyMetrics"), orderBy("date", "desc"));
     const sleepQuery = query(collection(userRef, "sleep_manual"), orderBy("date", "desc"), limit(1));
     const eventsQuery = query(collection(userRef, "events"), where("date", "==", todayStr));
-    const recentWorkoutsQuery = query(collection(userRef, "events"), where("type", "==", "entrenamiento"));
+    const recentWorkoutsQuery = query(
+      collection(userRef, "events"), 
+      where("type", "==", "entrenamiento")
+    );
+
 
     const [dailyMetricsSnap, sleepSnap, eventsSnap, recentWorkoutsSnap] = await Promise.all([
         getDocs(dailyMetricsQuery),
         getDocs(sleepQuery),
-        getDocs(eventsQuery),
+        getDocs(eventsSnap),
         getDocs(recentWorkoutsQuery),
     ]);
 

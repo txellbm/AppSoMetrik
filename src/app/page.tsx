@@ -19,6 +19,7 @@ import CyclePage from "./(main)/cycle/page";
 import SupplementsPage from "./(main)/supplements/page";
 import CalendarPage from "./(main)/calendar/page";
 import ActivityPage from "./(main)/activity/page";
+import CycleStatusWidget from "@/components/dashboard/cycle-status-widget";
 
 
 export default function Home() {
@@ -40,17 +41,12 @@ export default function Home() {
         </div>
         
         <TabsContent value="dashboard" className="flex-grow p-6">
-          <div className="flex flex-col gap-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-6">
-                    <AIChatWidget />
-                    <HealthSummaryWidget />
-                </div>
-              <div className="lg:col-span-1 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <AIChatWidget />
                 <NotificationsWidget />
-              </div>
+                <HealthSummaryWidget />
+                <CycleStatusWidget />
             </div>
-          </div>
         </TabsContent>
 
         <TabsContent value="calendar" className="p-6">
