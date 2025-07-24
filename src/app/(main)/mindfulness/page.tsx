@@ -16,6 +16,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { DataTable } from "@/components/dashboard/data-table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { es } from "date-fns/locale";
 
 const moodOptions = ["😊 Contenta", "🙂 Normal", "🥱 Cansada", "😠 Irritable", "😥 Triste"];
 
@@ -83,16 +84,17 @@ export default function MindfulnessPage() {
     };
 
     const historyRows = useMemo(() => {
+        if (isLoading) return [];
         return history.map(item => ({
             key: item.id || item.date,
             cells: [
                 format(parseISO(item.date), 'dd/MM/yyyy'),
                 item.mood || '-',
-                <Badge variant={item.stressLevel && item.stressLevel > 7 ? 'destructive' : 'secondary'}>{item.stressLevel || '-'}/10</Badge>,
+                <Badge key={`${item.id}-stress`} variant={item.stressLevel && item.stressLevel > 7 ? 'destructive' : 'secondary'}>{item.stressLevel || '-'}/10</Badge>,
                 item.notes || '-'
             ]
         }));
-    }, [history]);
+    }, [history, isLoading]);
     
     const generateReport = () => {
         let report = `Informe de Bienestar Mental\n`;
@@ -147,7 +149,7 @@ export default function MindfulnessPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                            <Smile className="text-primary" />
-                           Registro del Día: {formattedDate && format(parseISO(formattedDate), 'PPP', { locale: 'es' })}
+                           Registro del Día: {formattedDate && format(parseISO(formattedDate), 'PPP', { locale: es })}
                         </CardTitle>
                         <CardDescription>
                             ¿Cómo te sientes hoy? Tus respuestas se guardan al cambiar.
