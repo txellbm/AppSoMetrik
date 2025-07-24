@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { collection, onSnapshot, query, doc, orderBy, addDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, doc, orderBy, addDoc, updateDoc, deleteDoc, setDoc } from "firebase/firestore";
 import { format, parse, parseISO, differenceInMinutes, intervalToDuration } from "date-fns";
 import { es } from 'date-fns/locale';
 import { db } from "@/lib/firebase";
@@ -53,12 +53,12 @@ export default function SleepPage() {
         return () => unsubscribe();
     }, [userId]);
 
-    const handleSaveSleep = async (data: Omit<SleepData, 'id'>) => {
+    const handleSaveSleep = async (data: Omit<SleepData, 'id'> & { id?: string }) => {
         try {
             const collectionRef = collection(db, "users", userId, "sleep_manual");
             if (editingSleep?.id) {
                 const docRef = doc(collectionRef, editingSleep.id);
-                await updateDoc(docRef, data);
+                await setDoc(docRef, data, { merge: true });
                 toast({ title: "Sesión de sueño actualizada" });
             } else {
                 await addDoc(collectionRef, data);
@@ -179,7 +179,7 @@ export default function SleepPage() {
 type SleepDialogProps = {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (data: Omit<SleepData, 'id'>) => void;
+    onSave: (data: Omit<SleepData, 'id'> & { id?: string }) => void;
     sleep: SleepData | null;
 };
 
@@ -237,7 +237,25 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         
-        const dataToSave: Omit<SleepData, 'id'> = {
+        const cleanupUndefined = (obj: any): any => {
+            if (obj === null || typeof obj !== 'object') {
+                return obj;
+            }
+            const newObj = { ...obj };
+            for (const key in newObj) {
+                if (newObj[key] === undefined || newObj[key] === null || (typeof newObj[key] === 'number' && isNaN(newObj[key]))) {
+                    delete newObj[key];
+                } else if (typeof newObj[key] === 'object') {
+                    newObj[key] = cleanupUndefined(newObj[key]);
+                     if (Object.keys(newObj[key]).length === 0) {
+                        delete newObj[key];
+                    }
+                }
+            }
+            return newObj;
+        };
+
+        const dataToSave = cleanupUndefined({
             date: formData.date!,
             type: formData.type!,
             bedtime: formData.bedtime!,
@@ -254,7 +272,7 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
             vfcAlDespertar: formData.vfcAlDespertar,
             phases: formData.phases,
             notes: formData.notes
-        };
+        });
 
         onSave(dataToSave);
     };
@@ -397,5 +415,7 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
     );
 }
 
+
+    
 
     
