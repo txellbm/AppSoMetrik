@@ -23,11 +23,13 @@ import { Separator } from "@/components/ui/separator";
 const formatMinutesToHHMM = (minutes: number | undefined | null) => {
     if (minutes === undefined || minutes === null) return "-";
     const duration = intervalToDuration({ start: 0, end: minutes * 60 * 1000 });
-    return `${String(duration.hours).padStart(2, '0')}h ${String(duration.minutes).padStart(2, '0')}m`;
+    const hours = duration.hours || 0;
+    const mins = duration.minutes || 0;
+    return `${String(hours).padStart(2, '0')}h ${String(mins).padStart(2, '0')}m`;
 }
 
 const InfoPill = ({ icon, label, value }: { icon: React.ReactNode, label: string, value: string | number | undefined | null }) => (
-    value !== undefined && value !== null && value !== '' &&
+    value !== undefined && value !== null && value !== '' && value !== '-' &&
     <div className="flex flex-col items-center justify-center p-2 bg-muted rounded-lg text-center">
         <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
             {icon}
