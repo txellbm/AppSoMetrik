@@ -9,8 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Bot, Clipboard, Loader2 } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, doc } from "firebase/firestore";
-import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from 'date-fns';
+import { collection, query, where, getDocs, doc, getDoc, documentId } from "firebase/firestore";
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays } from 'date-fns';
 import { ActivityData, CalendarEvent, DailyMetric, SleepData } from "@/ai/schemas";
 
 type Period = 'Diario' | 'Semanal' | 'Mensual';
@@ -59,14 +59,15 @@ export default function HealthSummaryWidget() {
             
             const fetchSupplements = async () => {
                 const dates = [];
-                 for (let d = new Date(startDate); d <= endDate; d = subDays(d, -1)) {
+                 for (let d = new Date(startDate); d <= endDate; d = addDays(d, 1)) {
                     dates.push(format(d, 'yyyy-MM-dd'));
                  }
-                const q = query(collection(userRef, 'supplements'), where('__name__', 'in', dates));
+                if(dates.length === 0) return [];
+                const q = query(collection(userRef, 'supplements'), where(documentId(), 'in', dates));
                 return (await getDocs(q)).docs.map(d => ({id: d.id, ...d.data()}));
             }
 
-            const [sleepData, exerciseData, cycleData, supplementData, activityData, calendarData] = await Promise.all([
+            const [sleepData, exerciseData, cycleData, supplementData, activityData] = await Promise.all([
                 fetchData('sleep_manual'),
                 fetchData('events'), // Also includes workouts
                 fetchData('dailyMetrics'),
