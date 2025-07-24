@@ -88,6 +88,9 @@ export const ActivityDataSchema = z.object({
     steps: z.number().optional().describe("Pasos totales del día."),
     activeTime: z.number().optional().describe("Tiempo total activo (en minutos)."),
     avgDayHeartRate: z.number().optional().describe("FC media del día."),
+    distance: z.number().optional().describe("Distancia recorrida en kilómetros."),
+    standHours: z.number().optional().describe("Horas de pie."),
+    restingHeartRate: z.number().optional().describe("FC en reposo o sedentaria (lpm)."),
 });
 export type ActivityData = z.infer<typeof ActivityDataSchema>;
 

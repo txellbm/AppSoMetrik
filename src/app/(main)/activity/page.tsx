@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Flame, Plus, Edit, Trash2, FileText, Copy } from "lucide-react";
 
 export default function ActivityPage() {
@@ -27,7 +26,6 @@ export default function ActivityPage() {
 
     const [isReportOpen, setIsReportOpen] = useState(false);
     const [reportContent, setReportContent] = useState('');
-
 
     useEffect(() => {
         setIsLoading(true);
@@ -48,8 +46,17 @@ export default function ActivityPage() {
 
     const handleSaveActivity = async (data: Omit<ActivityData, 'id'>) => {
         try {
-            const docRef = doc(db, "users", userId, "activity", data.date); // Use date as ID for uniqueness
-            await setDoc(docRef, data, { merge: true });
+            const docRef = doc(db, "users", userId, "activity", data.date);
+            
+            const dataToSave: { [key: string]: any } = {};
+            for (const key in data) {
+                const value = (data as any)[key];
+                if (value !== undefined && value !== null && value !== '') {
+                    dataToSave[key] = value;
+                }
+            }
+
+            await setDoc(docRef, dataToSave, { merge: true });
             
             toast({ title: editingActivity ? "Actividad actualizada" : "Actividad registrada" });
 
@@ -93,8 +100,11 @@ export default function ActivityPage() {
                 report += `Fecha: ${formatDate(activity.date)}\n`;
                 report += `Calorías Totales: ${activity.totalCalories || '-'}\n`;
                 report += `Pasos: ${activity.steps || '-'}\n`;
+                report += `Distancia: ${activity.distance || '-'} km\n`;
                 report += `Tiempo Activo: ${activity.activeTime || '-'} min\n`;
+                report += `Horas de Pie: ${activity.standHours || '-'}h\n`;
                 report += `FC Media Diaria: ${activity.avgDayHeartRate || '-'} lpm\n`;
+                report += `FC en Reposo: ${activity.restingHeartRate || '-'} lpm\n`;
                 report += "-------------------------------\n";
             });
         }
@@ -111,7 +121,6 @@ export default function ActivityPage() {
             toast({ variant: "destructive", title: "Error", description: "No se pudo copiar el informe." });
         });
     };
-
 
     return (
         <div className="flex flex-col gap-6">
@@ -133,17 +142,20 @@ export default function ActivityPage() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Fecha</TableHead>
-                                <TableHead>Calorías Totales</TableHead>
+                                <TableHead>Calorías</TableHead>
                                 <TableHead>Pasos</TableHead>
-                                <TableHead>Tiempo Activo (min)</TableHead>
-                                <TableHead>FC Media Diaria</TableHead>
+                                <TableHead>Distancia (km)</TableHead>
+                                <TableHead>Min Activos</TableHead>
+                                <TableHead>Horas de Pie</TableHead>
+                                <TableHead>FC Media</TableHead>
+                                <TableHead>FC Reposo</TableHead>
                                 <TableHead></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center h-24">Cargando actividad...</TableCell>
+                                    <TableCell colSpan={9} className="text-center h-24">Cargando actividad...</TableCell>
                                 </TableRow>
                             ) : activityData.length > 0 ? (
                                 activityData.map((activity) => (
@@ -151,8 +163,11 @@ export default function ActivityPage() {
                                         <TableCell>{formatDate(activity.date)}</TableCell>
                                         <TableCell>{activity.totalCalories || "-"}</TableCell>
                                         <TableCell>{activity.steps || "-"}</TableCell>
+                                        <TableCell>{activity.distance || "-"}</TableCell>
                                         <TableCell>{activity.activeTime || "-"}</TableCell>
+                                        <TableCell>{activity.standHours || "-"}</TableCell>
                                         <TableCell>{activity.avgDayHeartRate || "-"}</TableCell>
+                                        <TableCell>{activity.restingHeartRate || "-"}</TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="ghost" size="icon" onClick={() => openDialog(activity)}><Edit className="h-4 w-4"/></Button>
                                             <Button variant="ghost" size="icon" onClick={() => activity.id && handleDeleteActivity(activity.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
@@ -161,7 +176,7 @@ export default function ActivityPage() {
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
+                                    <TableCell colSpan={9} className="text-center h-24 text-muted-foreground">
                                         No hay actividad registrada.
                                     </TableCell>
                                 </TableRow>
@@ -193,10 +208,10 @@ export default function ActivityPage() {
                         </DialogDescription>
                     </DialogHeader>
                     <div className="py-4">
-                        <Textarea
+                        <textarea
                             readOnly
                             value={reportContent}
-                            className="h-64 text-sm font-mono"
+                            className="h-64 text-sm font-mono w-full p-2 border rounded-md"
                         />
                     </div>
                     <DialogFooter className="sm:justify-between">
@@ -231,7 +246,7 @@ function ActivityDialog({ isOpen, onClose, onSave, activity }: ActivityDialogPro
         }
     }, [activity]);
     
-    const handleChange = (field: keyof ActivityData, value: string | number) => {
+    const handleChange = (field: keyof ActivityData, value: string | number | undefined) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
@@ -251,26 +266,40 @@ function ActivityDialog({ isOpen, onClose, onSave, activity }: ActivityDialogPro
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
                      <div>
                         <Label htmlFor="date">Fecha</Label>
-                        <Input id="date" type="date" value={formData.date} onChange={e => handleChange('date', e.target.value)} required disabled={!!activity}/>
+                        <Input id="date" type="date" value={formData.date || ''} onChange={e => handleChange('date', e.target.value)} required disabled={!!activity}/>
                     </div>
                      <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <Label htmlFor="totalCalories">Calorías Totales</Label>
-                            <Input id="totalCalories" type="number" value={formData.totalCalories} onChange={e => handleChange('totalCalories', Number(e.target.value))} />
+                            <Label htmlFor="totalCalories">Calorías Totales (kcal)</Label>
+                            <Input id="totalCalories" type="number" value={formData.totalCalories ?? ''} onChange={e => handleChange('totalCalories', e.target.value === '' ? undefined : Number(e.target.value))} />
                         </div>
                         <div>
                             <Label htmlFor="steps">Pasos</Label>
-                            <Input id="steps" type="number" value={formData.steps} onChange={e => handleChange('steps', Number(e.target.value))} />
+                            <Input id="steps" type="number" value={formData.steps ?? ''} onChange={e => handleChange('steps', e.target.value === '' ? undefined : Number(e.target.value))} />
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <Label htmlFor="activeTime">Tiempo Activo (min)</Label>
-                            <Input id="activeTime" type="number" value={formData.activeTime} onChange={e => handleChange('activeTime', Number(e.target.value))} />
+                            <Label htmlFor="distance">Distancia (km)</Label>
+                            <Input id="distance" type="number" step="0.01" value={formData.distance ?? ''} onChange={e => handleChange('distance', e.target.value === '' ? undefined : Number(e.target.value))} />
+                        </div>
+                         <div>
+                           <Label htmlFor="activeTime">Minutos de Ejercicio Activo</Label>
+                           <Input id="activeTime" type="number" value={formData.activeTime ?? ''} onChange={e => handleChange('activeTime', e.target.value === '' ? undefined : Number(e.target.value))} />
+                        </div>
+                    </div>
+                     <div className="grid grid-cols-3 gap-4">
+                        <div>
+                            <Label htmlFor="standHours">Horas de Pie</Label>
+                            <Input id="standHours" type="number" value={formData.standHours ?? ''} onChange={e => handleChange('standHours', e.target.value === '' ? undefined : Number(e.target.value))} />
                         </div>
                          <div>
                            <Label htmlFor="avgDayHeartRate">FC Media del Día</Label>
-                           <Input id="avgDayHeartRate" type="number" value={formData.avgDayHeartRate} onChange={e => handleChange('avgDayHeartRate', Number(e.target.value))} />
+                           <Input id="avgDayHeartRate" type="number" value={formData.avgDayHeartRate ?? ''} onChange={e => handleChange('avgDayHeartRate', e.target.value === '' ? undefined : Number(e.target.value))} />
+                        </div>
+                         <div>
+                           <Label htmlFor="restingHeartRate">FC en Reposo</Label>
+                           <Input id="restingHeartRate" type="number" value={formData.restingHeartRate ?? ''} onChange={e => handleChange('restingHeartRate', e.target.value === '' ? undefined : Number(e.target.value))} />
                         </div>
                     </div>
                     <DialogFooter>
