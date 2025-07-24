@@ -14,8 +14,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
-import { Stethoscope, Calendar as CalendarIcon, Droplet, Plus, X, BrainCircuit, Activity } from "lucide-react";
+import { Stethoscope, Calendar as CalendarIcon, Droplet, Plus, X, FileText, Copy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+
 
 const getCyclePhase = (dayOfCycle: number | null): string => {
     if (dayOfCycle === null || dayOfCycle < 1) return "N/A";
@@ -36,6 +38,9 @@ export default function CyclePage() {
     const newSymptomRef = useRef<HTMLInputElement>(null);
     const notesRef = useRef<HTMLTextAreaElement>(null);
     const notesTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+    const [isReportOpen, setIsReportOpen] = useState(false);
+    const [reportContent, setReportContent] = useState('');
 
     useEffect(() => {
         setIsLoading(true);
@@ -203,6 +208,46 @@ export default function CyclePage() {
                 }
             });
     }, [dailyMetrics, cycleStartDay]);
+    
+    const generateReport = () => {
+        let report = "Informe de Historial del Ciclo\n";
+        report += "===============================\n\n";
+
+        if (cycleDataRows.length === 0) {
+            report += "No hay datos del ciclo menstrual registrados.";
+        } else {
+            cycleDataRows.forEach(row => {
+                const [date, phase, bleeding, symptoms, notes] = row.cells;
+                report += `Fecha: ${date}\n`;
+                report += `Fase: ${phase}\n`;
+                report += `Sangrado: ${(bleeding as React.ReactElement)?.props.children === 'Sí' ? 'Sí' : 'No'}\n`;
+                
+                let symptomsText = "Ninguno";
+                if(typeof symptoms === 'object' && symptoms !== null && 'props' in symptoms) {
+                   const symptomBadges = (symptoms as React.ReactElement).props.children;
+                   if(Array.isArray(symptomBadges)) {
+                       symptomsText = symptomBadges.map(b => b.props.children).join(', ');
+                   }
+                }
+                report += `Síntomas: ${symptomsText}\n`;
+                report += `Notas: ${notes}\n`;
+                report += "-------------------------------\n";
+            });
+        }
+
+        setReportContent(report);
+        setIsReportOpen(true);
+    };
+
+    const handleCopyToClipboard = () => {
+        if (!reportContent) return;
+        navigator.clipboard.writeText(reportContent).then(() => {
+            toast({ title: "¡Copiado!", description: "El informe ha sido copiado a tu portapapeles." });
+        }, (err) => {
+            console.error('Could not copy text: ', err);
+            toast({ variant: "destructive", title: "Error", description: "No se pudo copiar el informe." });
+        });
+    };
 
 
     return (
@@ -301,14 +346,17 @@ export default function CyclePage() {
                     </Card>
                  </div>
                  <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Stethoscope className="text-primary"/>
-                            Historial del Ciclo
-                        </CardTitle>
-                        <CardDescription>
-                            Un registro detallado de tu ciclo menstrual, síntomas y notas.
-                        </CardDescription>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle className="flex items-center gap-2">
+                                <Stethoscope className="text-primary"/>
+                                Historial del Ciclo
+                            </CardTitle>
+                            <CardDescription>
+                                Un registro detallado de tu ciclo menstrual, síntomas y notas.
+                            </CardDescription>
+                        </div>
+                        <Button variant="outline" onClick={generateReport}><FileText className="mr-2 h-4 w-4"/>Exportar</Button>
                     </CardHeader>
                     <CardContent>
                         {isLoading ? (
@@ -323,8 +371,31 @@ export default function CyclePage() {
                     </CardContent>
                 </Card>
             </div>
+
+            <Dialog open={isReportOpen} onOpenChange={setIsReportOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Informe de Historial del Ciclo</DialogTitle>
+                        <DialogDescription>
+                          Copia este informe para analizarlo con una IA o guardarlo en tus notas.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Textarea
+                            readOnly
+                            value={reportContent}
+                            className="h-64 text-sm font-mono"
+                        />
+                    </div>
+                    <DialogFooter className="sm:justify-between">
+                        <Button variant="outline" onClick={handleCopyToClipboard}>
+                           <Copy className="mr-2 h-4 w-4"/> Copiar
+                        </Button>
+                        <Button onClick={() => setIsReportOpen(false)}>Cerrar</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
         </div>
     );
 }
-
-    
