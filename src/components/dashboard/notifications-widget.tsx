@@ -57,7 +57,7 @@ export default function NotificationsWidget() {
                 const dailyMetricsQuery = query(collection(userRef, "dailyMetrics"), orderBy("date", "desc"));
                 const sleepQuery = query(collection(userRef, "sleep_manual"), orderBy("date", "desc"), limit(1));
                 const eventsQuery = query(collection(userRef, "events"), where("date", "==", todayStr));
-                const recentWorkoutsQuery = query(collection(userRef, "events"), where("type", "==", "entrenamiento"));
+                const recentWorkoutsQuery = query(collection(userRef, "events"), where("type", "==", "entrenamiento"), orderBy("date", "desc"), limit(5));
 
 
                 const [dailyMetricsSnap, sleepSnap, eventsSnap, recentWorkoutsSnap] = await Promise.all([
@@ -71,10 +71,7 @@ export default function NotificationsWidget() {
                 const dailyMetrics = dailyMetricsSnap.docs.map(d => ({...d.data(), date: d.id})) as DailyMetric[];
                 const lastSleep = sleepSnap.docs.length > 0 ? sleepSnap.docs[0].data() as SleepData : null;
                 const todayEvents = eventsSnap.docs.map(d => d.data()) as CalendarEvent[];
-                const recentWorkoutsData = recentWorkoutsSnap.docs.map(d => d.data() as CalendarEvent);
-                const recentWorkouts = recentWorkoutsData
-                    .sort((a, b) => b.date.localeCompare(a.date))
-                    .slice(0, 5);
+                const recentWorkouts = recentWorkoutsSnap.docs.map(d => d.data() as CalendarEvent);
 
 
                 // --- Cycle Calculation ---
