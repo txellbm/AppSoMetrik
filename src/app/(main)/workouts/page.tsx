@@ -28,13 +28,17 @@ export default function WorkoutsPage() {
     useEffect(() => {
         setIsLoading(true);
         const eventsColRef = collection(db, "users", userId, "events");
-        const q = query(eventsColRef, where("type", "==", "entrenamiento"), orderBy("date", "desc"));
+        const q = query(eventsColRef, where("type", "==", "entrenamiento"));
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const workoutData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as CalendarEvent[];
             
-            // Sort client-side by time within each day
-            workoutData.sort((a, b) => (a.startTime || "").localeCompare(b.startTime || ""));
+            // Sort client-side to avoid composite indexes
+            workoutData.sort((a, b) => {
+                const dateComparison = b.date.localeCompare(a.date);
+                if (dateComparison !== 0) return dateComparison;
+                return (a.startTime || "00:00").localeCompare(b.startTime || "00:00");
+            });
             
             setWorkouts(workoutData);
             setIsLoading(false);
@@ -227,5 +231,3 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
         </Dialog>
     );
 }
-
-    
