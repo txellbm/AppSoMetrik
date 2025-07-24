@@ -222,7 +222,12 @@ export default function CyclePage() {
                 report += `Fecha: ${date}\n`;
                 report += `Día del Ciclo: ${(day as React.ReactElement)?.props.children || '-'}\n`;
                 report += `Fase: ${phase}\n`;
-                report += `Sangrado: ${(bleeding as React.ReactElement)?.props.children === 'Sí' ? 'Sí' : 'No'}\n`;
+                
+                let bleedingText = "No";
+                if (typeof bleeding === 'object' && bleeding !== null && 'props' in bleeding) {
+                    bleedingText = (bleeding as React.ReactElement).props.children;
+                }
+                report += `Sangrado: ${bleedingText}\n`;
                 
                 let symptomsText = "Ninguno";
                 if(typeof symptoms === 'object' && symptoms !== null && 'props' in symptoms) {
