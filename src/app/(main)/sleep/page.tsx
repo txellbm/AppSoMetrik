@@ -11,12 +11,12 @@ import { useToast } from "@/hooks/use-toast";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Moon, Plus, Edit, Trash2, BedDouble, Clock, Timer, Percent, Heart, BrainCircuit, FileText } from "lucide-react";
+import { Moon, Plus, Edit, Trash2, BedDouble, Clock, Timer, Percent, Heart, BrainCircuit, FileText, Copy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
@@ -47,6 +47,10 @@ export default function SleepPage() {
     const [editingSleep, setEditingSleep] = useState<SleepData | null>(null);
     const userId = "user_test_id";
     const { toast } = useToast();
+    
+    const [isReportOpen, setIsReportOpen] = useState(false);
+    const [reportContent, setReportContent] = useState('');
+
 
     useEffect(() => {
         setIsLoading(true);
@@ -169,6 +173,51 @@ export default function SleepPage() {
         return format(parseISO(session.date), "EEEE, d 'de' LLLL", { locale: es });
     };
 
+    const generateReport = () => {
+        let report = `Informe de Sueño\n`;
+        report += "===================\n\n";
+
+        if (sleepData.length === 0) {
+            report += "No hay sesiones de sueño registradas.";
+        } else {
+            sleepData.forEach(session => {
+                report += `Tipo: ${session.type?.charAt(0).toUpperCase() + session.type?.slice(1)}\n`;
+                report += `Fecha: ${formatSleepDate(session)}\n`;
+                report += `Horario: ${session.bedtime} - ${session.wakeUpTime}\n`;
+                report += `Duración Total: ${formatMinutesToHHMM(session.sleepTime)}\n`;
+                report += `Eficiencia: ${session.efficiency ? `${session.efficiency}%` : '-'}\n`;
+                report += `Tiempo para dormir: ${session.timeToFallAsleep ? `${session.timeToFallAsleep} min` : '-'}\n`;
+                report += `Tiempo despierto: ${formatMinutesToHHMM(session.timeAwake)}\n`;
+                report += `Fases:\n`;
+                report += `  - REM: ${formatMinutesToHHMM(session.phases?.rem)}\n`;
+                report += `  - Ligero: ${formatMinutesToHHMM(session.phases?.light)}\n`;
+                report += `  - Profundo: ${formatMinutesToHHMM(session.phases?.deep)}\n`;
+                report += `Datos Fisiológicos:\n`;
+                report += `  - FC Media: ${session.avgHeartRate ? `${session.avgHeartRate} lpm` : '-'}\n`;
+                report += `  - FC Mín-Máx: ${session.minHeartRate || '-'}/${session.maxHeartRate || '-'} lpm\n`;
+                report += `  - LPM al despertar: ${session.lpmAlDespertar ? `${session.lpmAlDespertar} lpm` : '-'}\n`;
+                report += `  - VFC al dormir: ${session.vfcAlDormir ? `${session.vfcAlDormir} ms` : '-'}\n`;
+                report += `  - VFC al despertar: ${session.vfcAlDespertar ? `${session.vfcAlDespertar} ms` : '-'}\n`;
+                if(session.notes) {
+                    report += `Notas: ${session.notes}\n`;
+                }
+                report += "---------------------------------\n\n";
+            });
+        }
+        setReportContent(report);
+        setIsReportOpen(true);
+    };
+
+    const handleCopyToClipboard = () => {
+        if (!reportContent) return;
+        navigator.clipboard.writeText(reportContent).then(() => {
+            toast({ title: "¡Copiado!", description: "El informe ha sido copiado a tu portapapeles." });
+        }, (err) => {
+            console.error('Could not copy text: ', err);
+            toast({ variant: "destructive", title: "Error", description: "No se pudo copiar el informe." });
+        });
+    };
+
     return (
         <div className="flex flex-col gap-6">
             <Card>
@@ -182,10 +231,13 @@ export default function SleepPage() {
                             Registra y analiza tus sesiones de sueño para entender tus patrones de descanso.
                         </CardDescription>
                     </div>
-                     <Button onClick={() => openDialog(null)}>
-                        <Plus className="mr-2"/>
-                        Añadir Sesión
-                    </Button>
+                     <div className="flex items-center gap-2">
+                        <Button variant="outline" onClick={generateReport}><FileText className="mr-2 h-4 w-4"/>Exportar</Button>
+                        <Button onClick={() => openDialog(null)}>
+                           <Plus className="mr-2"/>
+                           Añadir Sesión
+                       </Button>
+                     </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                      {isLoading ? (
@@ -268,6 +320,30 @@ export default function SleepPage() {
                 onSave={handleSaveSleep}
                 sleep={editingSleep}
             />
+            
+            <Dialog open={isReportOpen} onOpenChange={setIsReportOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Informe de Sueño</DialogTitle>
+                        <DialogDescription>
+                          Copia este informe para analizarlo con una IA o guardarlo en tus notas.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Textarea
+                            readOnly
+                            value={reportContent}
+                            className="h-64 text-sm font-mono"
+                        />
+                    </div>
+                    <DialogFooter className="sm:justify-between">
+                        <Button variant="outline" onClick={handleCopyToClipboard}>
+                           <Copy className="mr-2 h-4 w-4"/> Copiar
+                        </Button>
+                        <Button onClick={() => setIsReportOpen(false)}>Cerrar</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

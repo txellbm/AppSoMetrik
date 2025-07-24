@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dumbbell, Edit, Flame, Heart, Timer, Footprints, ArrowRightLeft, Clock, Zap, Target, Video } from "lucide-react";
+import { Dumbbell, Edit, Flame, Heart, Timer, Footprints, ArrowRightLeft, Clock, Zap, Target, Video, FileText, Copy } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 
@@ -27,6 +27,10 @@ export default function WorkoutsPage() {
     const [editingWorkout, setEditingWorkout] = useState<CalendarEvent | null>(null);
     const userId = "user_test_id";
     const { toast } = useToast();
+    
+    const [isReportOpen, setIsReportOpen] = useState(false);
+    const [reportContent, setReportContent] = useState('');
+
 
     useEffect(() => {
         setIsLoading(true);
@@ -117,18 +121,64 @@ export default function WorkoutsPage() {
         return names[zone] || zone;
     };
 
+    const generateReport = () => {
+        let report = "Informe de Entrenamientos\n";
+        report += "===========================\n\n";
+
+        if (workouts.length === 0) {
+            report += "No hay entrenamientos registrados.";
+        } else {
+             Object.keys(groupedWorkouts).sort((a, b) => b.localeCompare(a)).forEach(date => {
+                report += `**${formatDate(date)}**\n`;
+                groupedWorkouts[date].forEach(workout => {
+                    report += `\n* ${workout.description} (${workout.startTime} - ${workout.endTime})\n`;
+                    const details = workout.workoutDetails;
+                    if(details) {
+                        if(details.realStartTime && details.realEndTime) report += `  - Real: ${details.realStartTime} - ${details.realEndTime}\n`;
+                        if(details.realDuration) report += `  - Duración: ${details.realDuration}\n`;
+                        if(details.activeCalories) report += `  - Calorías Activas: ${details.activeCalories} kcal\n`;
+                        if(details.totalCalories) report += `  - Calorías Totales: ${details.totalCalories} kcal\n`;
+                        if(details.avgHeartRate) report += `  - FC: ${details.avgHeartRate} lpm (media) (${details.minHeartRate || '·'}/${details.maxHeartRate || '·'})\n`;
+                        if(details.steps) report += `  - Pasos: ${details.steps}\n`;
+                        if(details.distance) report += `  - Distancia: ${(details.distance / 1000).toFixed(2)} km\n`;
+                        if(details.zones && Object.values(details.zones).some(z => z)) {
+                            report += `  - Zonas de FC: ${Object.entries(details.zones).filter(([,v]) => v).map(([z,v]) => `${formatZoneName(z)}: ${v} min`).join(', ')}\n`;
+                        }
+                        if(details.notes) report += `  - Notas: "${details.notes}"\n`;
+                    }
+                });
+                report += "\n---------------------------------\n";
+            });
+        }
+        setReportContent(report);
+        setIsReportOpen(true);
+    };
+
+    const handleCopyToClipboard = () => {
+        if (!reportContent) return;
+        navigator.clipboard.writeText(reportContent).then(() => {
+            toast({ title: "¡Copiado!", description: "El informe ha sido copiado a tu portapapeles." });
+        }, (err) => {
+            console.error('Could not copy text: ', err);
+            toast({ variant: "destructive", title: "Error", description: "No se pudo copiar el informe." });
+        });
+    };
+
 
     return (
         <div className="flex flex-col gap-6">
             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Dumbbell className="text-primary"/>
-                        Mis Entrenamientos
-                    </CardTitle>
-                    <CardDescription>
-                        Aquí se muestran tus entrenamientos programados en el calendario. Añade los detalles después de completarlos.
-                    </CardDescription>
+                <CardHeader className="flex flex-row justify-between items-start">
+                    <div>
+                        <CardTitle className="flex items-center gap-2">
+                            <Dumbbell className="text-primary"/>
+                            Mis Entrenamientos
+                        </CardTitle>
+                        <CardDescription>
+                            Aquí se muestran tus entrenamientos programados en el calendario. Añade los detalles después de completarlos.
+                        </CardDescription>
+                    </div>
+                     <Button variant="outline" onClick={generateReport}><FileText className="mr-2 h-4 w-4"/>Exportar</Button>
                 </CardHeader>
                 <CardContent>
                     {isLoading ? (
@@ -245,6 +295,30 @@ export default function WorkoutsPage() {
                     workout={editingWorkout}
                 />
             )}
+            
+            <Dialog open={isReportOpen} onOpenChange={setIsReportOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Informe de Entrenamientos</DialogTitle>
+                        <DialogDescription>
+                          Copia este informe para analizarlo con una IA o guardarlo en tus notas.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Textarea
+                            readOnly
+                            value={reportContent}
+                            className="h-64 text-sm font-mono"
+                        />
+                    </div>
+                    <DialogFooter className="sm:justify-between">
+                        <Button variant="outline" onClick={handleCopyToClipboard}>
+                           <Copy className="mr-2 h-4 w-4"/> Copiar
+                        </Button>
+                        <Button onClick={() => setIsReportOpen(false)}>Cerrar</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

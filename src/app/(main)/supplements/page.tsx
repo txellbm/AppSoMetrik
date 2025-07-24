@@ -8,10 +8,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Pill, Plus, X, Coffee, Sun, Moon, Dumbbell, Edit, Trash2, BookMarked, Info, Repeat, Briefcase, CalendarClock } from "lucide-react";
+import { Pill, Plus, X, Coffee, Sun, Moon, Dumbbell, Edit, Trash2, BookMarked, Info, Repeat, Briefcase, CalendarClock, FileText, Copy } from "lucide-react";
 import { format } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CalendarEvent } from "@/ai/schemas";
@@ -61,6 +61,10 @@ export default function SupplementsPage() {
     const { toast } = useToast();
     const userId = "user_test_id";
     const today = format(new Date(), "yyyy-MM-dd");
+
+    const [isReportOpen, setIsReportOpen] = useState(false);
+    const [reportContent, setReportContent] = useState('');
+
 
     // Fetch daily supplement intake
     useEffect(() => {
@@ -181,6 +185,53 @@ export default function SupplementsPage() {
         setIsDialogOpen(true);
     };
 
+    const generateReport = () => {
+        let report = `Informe de Suplementos (Hoy: ${today})\n`;
+        report += "========================================\n\n";
+
+        report += `**Consumo Diario**\n`;
+        const hasDailyIntake = Object.values(dailySupplements).some(arr => arr.length > 0);
+        if(!hasDailyIntake) {
+            report += "No hay suplementos registrados para hoy.\n";
+        } else {
+            supplementSections.forEach(section => {
+                if(dailySupplements[section.id] && dailySupplements[section.id]!.length > 0) {
+                    report += `\n*${section.title}*\n`;
+                    dailySupplements[section.id]!.forEach(item => {
+                        report += `  - ${item.name} (${item.dose})\n`;
+                    });
+                }
+            });
+        }
+        
+        report += "\n\n**Inventario de Suplementos**\n";
+        if(supplementInventory.length === 0) {
+            report += "No hay suplementos en el inventario.\n";
+        } else {
+            supplementInventory.forEach(sup => {
+                report += `\n* ${sup.name}\n`;
+                if(sup.recommendedDose) report += `  - Dosis: ${sup.recommendedDose}\n`;
+                if(sup.ingredients?.length > 0) {
+                    report += `  - Ingredientes: ${sup.ingredients.map(i => `${i.name} (${i.amount})`).join(', ')}\n`;
+                }
+                if(sup.notes) report += `  - Notas: ${sup.notes}\n`;
+            });
+        }
+
+        setReportContent(report);
+        setIsReportOpen(true);
+    };
+
+    const handleCopyToClipboard = () => {
+        if (!reportContent) return;
+        navigator.clipboard.writeText(reportContent).then(() => {
+            toast({ title: "¡Copiado!", description: "El informe ha sido copiado a tu portapapeles." });
+        }, (err) => {
+            console.error('Could not copy text: ', err);
+            toast({ variant: "destructive", title: "Error", description: "No se pudo copiar el informe." });
+        });
+    };
+
     return (
         <div className="flex flex-col gap-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -247,14 +298,17 @@ export default function SupplementsPage() {
             </div>
 
             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <BookMarked className="text-primary"/>
-                        Mis Suplementos
-                    </CardTitle>
-                     <CardDescription>
-                        Tu inventario personal de suplementos. Añade, edita y gestiona tus productos.
-                    </CardDescription>
+                <CardHeader className="flex flex-row justify-between items-start">
+                    <div>
+                        <CardTitle className="flex items-center gap-2">
+                            <BookMarked className="text-primary"/>
+                            Mis Suplementos
+                        </CardTitle>
+                         <CardDescription>
+                            Tu inventario personal de suplementos. Añade, edita y gestiona tus productos.
+                        </CardDescription>
+                    </div>
+                    <Button variant="outline" onClick={generateReport}><FileText className="mr-2 h-4 w-4"/>Exportar</Button>
                 </CardHeader>
                 <CardContent className="space-y-4">
                      {isLoading ? (
@@ -320,6 +374,31 @@ export default function SupplementsPage() {
                 onSave={handleSaveSupplementToInventory}
                 supplement={editingSupplement}
             />
+
+            <Dialog open={isReportOpen} onOpenChange={setIsReportOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Informe de Suplementos</DialogTitle>
+                        <DialogDescription>
+                          Copia este informe para analizarlo con una IA o guardarlo en tus notas.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Textarea
+                            readOnly
+                            value={reportContent}
+                            className="h-64 text-sm font-mono"
+                        />
+                    </div>
+                    <DialogFooter className="sm:justify-between">
+                        <Button variant="outline" onClick={handleCopyToClipboard}>
+                           <Copy className="mr-2 h-4 w-4"/> Copiar
+                        </Button>
+                        <Button onClick={() => setIsReportOpen(false)}>Cerrar</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
         </div>
     );
 }

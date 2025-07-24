@@ -11,10 +11,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Flame, Plus, Edit, Trash2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Flame, Plus, Edit, Trash2, FileText, Copy } from "lucide-react";
 
 export default function ActivityPage() {
     const [activityData, setActivityData] = useState<ActivityData[]>([]);
@@ -23,6 +24,10 @@ export default function ActivityPage() {
     const [editingActivity, setEditingActivity] = useState<ActivityData | null>(null);
     const userId = "user_test_id";
     const { toast } = useToast();
+
+    const [isReportOpen, setIsReportOpen] = useState(false);
+    const [reportContent, setReportContent] = useState('');
+
 
     useEffect(() => {
         setIsLoading(true);
@@ -77,17 +82,51 @@ export default function ActivityPage() {
         return `${day}/${month}/${year}`;
     };
 
+    const generateReport = () => {
+        let report = `Informe de Actividad Diaria\n`;
+        report += "===============================\n\n";
+
+        if (activityData.length === 0) {
+            report += "No hay actividad registrada.";
+        } else {
+            activityData.forEach(activity => {
+                report += `Fecha: ${formatDate(activity.date)}\n`;
+                report += `Calorías Totales: ${activity.totalCalories || '-'}\n`;
+                report += `Pasos: ${activity.steps || '-'}\n`;
+                report += `Tiempo Activo: ${activity.activeTime || '-'} min\n`;
+                report += `FC Media Diaria: ${activity.avgDayHeartRate || '-'} lpm\n`;
+                report += "-------------------------------\n";
+            });
+        }
+        setReportContent(report);
+        setIsReportOpen(true);
+    };
+
+    const handleCopyToClipboard = () => {
+        if (!reportContent) return;
+        navigator.clipboard.writeText(reportContent).then(() => {
+            toast({ title: "¡Copiado!", description: "El informe ha sido copiado a tu portapapeles." });
+        }, (err) => {
+            console.error('Could not copy text: ', err);
+            toast({ variant: "destructive", title: "Error", description: "No se pudo copiar el informe." });
+        });
+    };
+
+
     return (
         <div className="flex flex-col gap-6">
             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Flame className="text-primary"/>
-                        Actividad Diaria
-                    </CardTitle>
-                    <CardDescription>
-                        Registra tu actividad diaria para tener una visión completa de tu gasto energético.
-                    </CardDescription>
+                <CardHeader className="flex flex-row justify-between items-start">
+                    <div>
+                        <CardTitle className="flex items-center gap-2">
+                            <Flame className="text-primary"/>
+                            Actividad Diaria
+                        </CardTitle>
+                        <CardDescription>
+                            Registra tu actividad diaria para tener una visión completa de tu gasto energético.
+                        </CardDescription>
+                    </div>
+                     <Button variant="outline" onClick={generateReport}><FileText className="mr-2 h-4 w-4"/>Exportar</Button>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -144,6 +183,30 @@ export default function ActivityPage() {
                 onSave={handleSaveActivity}
                 activity={editingActivity}
             />
+
+            <Dialog open={isReportOpen} onOpenChange={setIsReportOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Informe de Actividad</DialogTitle>
+                        <DialogDescription>
+                          Copia este informe para analizarlo con una IA o guardarlo en tus notas.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Textarea
+                            readOnly
+                            value={reportContent}
+                            className="h-64 text-sm font-mono"
+                        />
+                    </div>
+                    <DialogFooter className="sm:justify-between">
+                        <Button variant="outline" onClick={handleCopyToClipboard}>
+                           <Copy className="mr-2 h-4 w-4"/> Copiar
+                        </Button>
+                        <Button onClick={() => setIsReportOpen(false)}>Cerrar</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
