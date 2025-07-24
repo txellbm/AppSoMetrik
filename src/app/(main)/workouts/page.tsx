@@ -180,16 +180,14 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
     const [formData, setFormData] = useState<CalendarEvent['workoutDetails']>({});
 
     useEffect(() => {
-        if (isOpen) {
-            setFormData({});
-        }
-    }, [isOpen]);
-    
-    useEffect(() => {
         if (formData?.realStartTime && formData.realEndTime && workout.date) {
             try {
                 const start = parse(`${workout.date} ${formData.realStartTime}`, 'yyyy-MM-dd HH:mm', new Date());
-                const end = parse(`${workout.date} ${formData.realEndTime}`, 'yyyy-MM-dd HH:mm', new Date());
+                let end = parse(`${workout.date} ${formData.realEndTime}`, 'yyyy-MM-dd HH:mm', new Date());
+
+                if (end < start) {
+                    end = new Date(end.getTime() + 24 * 60 * 60 * 1000); 
+                }
 
                 if(start < end) {
                     const diffSeconds = differenceInSeconds(end, start);
@@ -320,16 +318,16 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
                             <AccordionTrigger className="text-sm">Zonas de entrenamiento</AccordionTrigger>
                             <AccordionContent className="space-y-3 pt-2">
                                 <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                                    <Label htmlFor="zone-salud" className="text-right">Zona Salud (min)</Label>
-                                    <Input id="zone-salud" type="number" value={formData?.zones?.salud ?? ''} onChange={e => handleZoneChange('salud', e.target.value)} />
-                                    <Label htmlFor="zone-quemaGrasa" className="text-right">Zona Quema Grasa (min)</Label>
-                                    <Input id="zone-quemaGrasa" type="number" value={formData?.zones?.quemaGrasa ?? ''} onChange={e => handleZoneChange('quemaGrasa', e.target.value)} />
-                                    <Label htmlFor="zone-aptitudFisica" className="text-right">Zona Aptitud Física (min)</Label>
-                                    <Input id="zone-aptitudFisica" type="number" value={formData?.zones?.aptitudFisica ?? ''} onChange={e => handleZoneChange('aptitudFisica', e.target.value)} />
-                                    <Label htmlFor="zone-altaIntensidad" className="text-right">Zona Alta Intensidad (min)</Label>
-                                    <Input id="zone-altaIntensidad" type="number" value={formData?.zones?.altaIntensidad ?? ''} onChange={e => handleZoneChange('altaIntensidad', e.target.value)} />
                                     <Label htmlFor="zone-extremo" className="text-right">Zona Extremo (min)</Label>
                                     <Input id="zone-extremo" type="number" value={formData?.zones?.extremo ?? ''} onChange={e => handleZoneChange('extremo', e.target.value)} />
+                                    <Label htmlFor="zone-altaIntensidad" className="text-right">Zona Alta Intensidad (min)</Label>
+                                    <Input id="zone-altaIntensidad" type="number" value={formData?.zones?.altaIntensidad ?? ''} onChange={e => handleZoneChange('altaIntensidad', e.target.value)} />
+                                    <Label htmlFor="zone-aptitudFisica" className="text-right">Zona Aptitud Física (min)</Label>
+                                    <Input id="zone-aptitudFisica" type="number" value={formData?.zones?.aptitudFisica ?? ''} onChange={e => handleZoneChange('aptitudFisica', e.target.value)} />
+                                    <Label htmlFor="zone-quemaGrasa" className="text-right">Zona Quema Grasa (min)</Label>
+                                    <Input id="zone-quemaGrasa" type="number" value={formData?.zones?.quemaGrasa ?? ''} onChange={e => handleZoneChange('quemaGrasa', e.target.value)} />
+                                    <Label htmlFor="zone-salud" className="text-right">Zona Salud (min)</Label>
+                                    <Input id="zone-salud" type="number" value={formData?.zones?.salud ?? ''} onChange={e => handleZoneChange('salud', e.target.value)} />
                                 </div>
                             </AccordionContent>
                         </AccordionItem>
