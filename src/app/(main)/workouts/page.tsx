@@ -55,7 +55,28 @@ export default function WorkoutsPage() {
     const handleSaveWorkoutDetails = async (id: string, details: CalendarEvent['workoutDetails']) => {
         try {
             const docRef = doc(db, "users", userId, "events", id);
-            await updateDoc(docRef, { workoutDetails: details });
+            
+            const cleanupUndefined = (obj: any): any => {
+                if (obj === null || typeof obj !== 'object') {
+                    return obj;
+                }
+                const newObj = { ...obj };
+                for (const key in newObj) {
+                    if (newObj[key] === undefined || newObj[key] === null || newObj[key] === '') {
+                        delete newObj[key];
+                    } else if (typeof newObj[key] === 'object') {
+                        newObj[key] = cleanupUndefined(newObj[key]);
+                         if (Object.keys(newObj[key]).length === 0) {
+                            delete newObj[key];
+                        }
+                    }
+                }
+                return newObj;
+            };
+
+            const cleanedDetails = cleanupUndefined(details);
+
+            await updateDoc(docRef, { workoutDetails: cleanedDetails });
             toast({ title: "Entrenamiento actualizado" });
             setIsDialogOpen(false);
             setEditingWorkout(null);
@@ -240,7 +261,6 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
 
     useEffect(() => {
         if (isOpen) {
-            // Load existing details if they exist, otherwise start with an empty object
             setDetails(workout.workoutDetails || {});
         }
     }, [isOpen, workout.workoutDetails]);
@@ -296,26 +316,7 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if(workout.id) {
-            const cleanupUndefined = (obj: any): any => {
-                if (obj === null || typeof obj !== 'object') {
-                    return obj;
-                }
-                const newObj = { ...obj };
-                for (const key in newObj) {
-                    if (newObj[key] === undefined || newObj[key] === null || newObj[key] === '') {
-                        delete newObj[key];
-                    } else if (typeof newObj[key] === 'object') {
-                        newObj[key] = cleanupUndefined(newObj[key]);
-                         if (Object.keys(newObj[key]).length === 0) {
-                            delete newObj[key];
-                        }
-                    }
-                }
-                return newObj;
-            };
-
-            const cleanedDetails = cleanupUndefined(details);
-            onSave(workout.id, cleanedDetails);
+            onSave(workout.id, details);
         }
     };
 
@@ -361,12 +362,12 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
                            <Input id="avgHeartRate" type="number" value={details?.avgHeartRate ?? ''} onChange={e => handleChange('avgHeartRate', e.target.value)} />
                         </div>
                         <div>
-                           <Label htmlFor="maxHeartRate">FC Máxima (lpm)</Label>
-                           <Input id="maxHeartRate" type="number" value={details?.maxHeartRate ?? ''} onChange={e => handleChange('maxHeartRate', e.target.value)} />
-                        </div>
-                        <div>
                            <Label htmlFor="minHeartRate">FC Mínima (lpm)</Label>
                            <Input id="minHeartRate" type="number" value={details?.minHeartRate ?? ''} onChange={e => handleChange('minHeartRate', e.target.value)} />
+                        </div>
+                        <div>
+                           <Label htmlFor="maxHeartRate">FC Máxima (lpm)</Label>
+                           <Input id="maxHeartRate" type="number" value={details?.maxHeartRate ?? ''} onChange={e => handleChange('maxHeartRate', e.target.value)} />
                         </div>
                     </div>
                      <div className="grid grid-cols-2 gap-4">
@@ -421,6 +422,3 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
         </Dialog>
     );
 }
-
-
-    
