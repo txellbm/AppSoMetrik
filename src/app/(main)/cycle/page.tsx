@@ -41,10 +41,10 @@ export default function CyclePage() {
         const unsubscribe = onSnapshot(qDailyMetrics, (snapshot) => {
             const metrics = snapshot.docs.map(doc => ({ ...doc.data(), date: doc.id })) as DailyMetric[];
             setDailyMetrics(metrics);
-            setIsLoading(false);
+setIsLoading(false);
         }, (error) => {
             console.error("Error loading daily metrics:", error);
-            setIsLoading(false);
+setIsLoading(false);
         });
 
         return () => unsubscribe();
@@ -184,7 +184,7 @@ export default function CyclePage() {
                             disabled={(date) => date > new Date() || date < new Date('2020-01-01')}
                             modifiers={{ menstruation: menstruationDays }}
                             modifiersClassNames={{
-                                menstruation: 'bg-destructive/80 text-destructive-foreground rounded-full',
+                                menstruation: 'bg-destructive/80 text-destructive-foreground',
                             }}
                         />
                     </CardContent>
