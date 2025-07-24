@@ -45,6 +45,25 @@ type QuickEventTypeInfo = {
 
 type QuickEventTypes = Record<QuickEventType, QuickEventTypeInfo>;
 
+const eventColors: Record<string, string> = {
+    "Trabajo": "bg-blue-500 text-white",
+    "Pilates": "bg-purple-500 text-white",
+    "Flexibilidad": "bg-pink-500 text-white",
+    "Fuerza": "bg-orange-500 text-white",
+    "default_entrenamiento": "bg-green-500 text-white",
+    "nota": "bg-yellow-500 text-black",
+    "vacaciones": "bg-teal-500 text-white",
+    "descanso": "bg-indigo-500 text-white",
+    "default": "bg-gray-400 text-white",
+};
+
+const getEventColorClass = (event: CalendarEvent): string => {
+    if (event.type === 'entrenamiento') {
+        return eventColors[event.description] || eventColors.default_entrenamiento;
+    }
+    return eventColors[event.type] || eventColors.default;
+};
+
 
 export default function CalendarPage() {
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -185,20 +204,22 @@ export default function CalendarPage() {
                 const existingEventsSnap = await getDocs(q);
                 const existingEvents = existingEventsSnap.docs.map(d => ({ ...d.data(), id: d.id }));
 
-                const newEventStart = parse(`${data.date} ${data.startTime}`, 'yyyy-MM-dd HH:mm', new Date());
-                const newEventEnd = parse(`${data.date} ${data.endTime}`, 'yyyy-MM-dd HH:mm', new Date());
+                if (data.startTime && data.endTime) {
+                    const newEventStart = parse(`${data.date} ${data.startTime}`, 'yyyy-MM-dd HH:mm', new Date());
+                    const newEventEnd = parse(`${data.date} ${data.endTime}`, 'yyyy-MM-dd HH:mm', new Date());
 
-                for (const existing of existingEvents) {
-                    if (selectedEvent?.id && existing.id === selectedEvent.id) continue;
+                    for (const existing of existingEvents) {
+                        if (selectedEvent?.id && existing.id === selectedEvent.id) continue;
+                        if (!existing.startTime || !existing.endTime) continue;
 
-                    const existingStart = parse(`${existing.date} ${existing.startTime}`, 'yyyy-MM-dd HH:mm', new Date());
-                    const existingEnd = parse(`${existing.date} ${existing.endTime}`, 'yyyy-MM-dd HH:mm', new Date());
-                    
-                    if (newEventStart < existingEnd && newEventEnd > existingStart) {
-                        throw new Error(`Conflicto de horario con el evento: ${existing.description}`);
+                        const existingStart = parse(`${existing.date} ${existing.startTime}`, 'yyyy-MM-dd HH:mm', new Date());
+                        const existingEnd = parse(`${existing.date} ${existing.endTime}`, 'yyyy-MM-dd HH:mm', new Date());
+                        
+                        if (newEventStart < existingEnd && newEventEnd > existingStart) {
+                            throw new Error(`Conflicto de horario con el evento: ${existing.description}`);
+                        }
                     }
                 }
-
                 const eventData: CalendarEvent = { ...data, id: docRef.id };
                 transaction.set(docRef, eventData, { merge: true });
             });
@@ -388,6 +409,7 @@ export default function CalendarPage() {
                                 selected={currentDate}
                                 onEventClick={(event) => openDialog(event)}
                                 onDayClick={handleDateSelect}
+                                getEventColorClass={getEventColorClass}
                             />
                        )}
                        {view === 'week' && (
@@ -396,6 +418,7 @@ export default function CalendarPage() {
                                 events={events}
                                 onEventClick={(event) => openDialog(event)}
                                 onDayClick={handleDateSelect}
+                                getEventColorClass={getEventColorClass}
                            />
                        )}
                        {view === 'day' && (
@@ -403,6 +426,7 @@ export default function CalendarPage() {
                                 day={currentDate}
                                 events={events}
                                 onEventClick={(event) => openDialog(event)}
+                                getEventColorClass={getEventColorClass}
                             />
                        )}
                 </div>
@@ -471,9 +495,12 @@ export default function CalendarPage() {
                                 <ul className="space-y-2">
                                 {eventsForSelectedDay.map(event => (
                                     <li key={event.id} className="flex items-center justify-between bg-muted p-2 rounded-md">
-                                        <div>
-                                            <p className="font-semibold">{event.description}</p>
-                                            <p className="text-sm text-muted-foreground">{event.startTime} - {event.endTime}</p>
+                                        <div className="flex items-center gap-2">
+                                            <div className={cn("w-2 h-2 rounded-full", getEventColorClass(event))}></div>
+                                            <div>
+                                                <p className="font-semibold">{event.description}</p>
+                                                <p className="text-sm text-muted-foreground">{event.startTime} - {event.endTime}</p>
+                                            </div>
                                         </div>
                                         <div className="flex gap-1">
                                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openDialog(event)}><Edit className="h-4 w-4"/></Button>
@@ -502,7 +529,7 @@ export default function CalendarPage() {
             <AlertDialog open={!!eventToDelete} onOpenChange={(open) => !open && setEventToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                    <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+                    <AlertDialogTitle>¿Estás absolutely seguro?</AlertDialogTitle>
                     <AlertDialogDescription>
                         Esta acción no se puede deshacer. Esto eliminará permanentemente el evento
                         de tus registros.

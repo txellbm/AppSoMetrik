@@ -8,20 +8,6 @@ import { DayPicker, DayProps } from "react-day-picker";
 import { es } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 
-const eventTypeColors: Record<string, string> = {
-    entrenamiento: "bg-purple-500 text-white",
-    trabajo: "bg-blue-500 text-white",
-    nota: "bg-yellow-500 text-black",
-    vacaciones: "bg-green-500 text-white",
-    descanso: "bg-teal-500 text-white",
-    default: "bg-gray-500 text-white",
-};
-
-const getEventColorClass = (event: CalendarEvent): string => {
-    return eventTypeColors[event.type] || eventTypeColors.default;
-};
-
-
 type MonthlyCalendarViewProps = {
     month: Date;
     onMonthChange: (date: Date) => void;
@@ -29,9 +15,10 @@ type MonthlyCalendarViewProps = {
     selected: Date | undefined;
     onEventClick: (event: CalendarEvent) => void;
     onDayClick: (date: Date) => void;
+    getEventColorClass: (event: CalendarEvent) => string;
 };
 
-export function MonthlyCalendarView({ month, onMonthChange, events, selected, onEventClick, onDayClick }: MonthlyCalendarViewProps) {
+export function MonthlyCalendarView({ month, onMonthChange, events, selected, onEventClick, onDayClick, getEventColorClass }: MonthlyCalendarViewProps) {
     
     const getEventsForDay = (day: Date) => {
         return events
