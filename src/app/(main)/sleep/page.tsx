@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState } from "react";
 import { collection, onSnapshot, query, doc, orderBy, addDoc, updateDoc, deleteDoc } from "firebase/firestore";
-import { format, parseISO, differenceInMinutes, formatDuration, intervalToDuration } from "date-fns";
+import { format, parseISO, differenceInMinutes, intervalToDuration } from "date-fns";
 import { es } from 'date-fns/locale';
 import { db } from "@/lib/firebase";
 import { SleepData } from "@/ai/schemas";
@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Moon, Plus, Edit, Trash2 } from "lucide-react";
+import { Moon, Plus, Edit, Trash2, Sun } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function SleepPage() {
@@ -30,12 +30,13 @@ export default function SleepPage() {
     useEffect(() => {
         setIsLoading(true);
         const userRef = doc(db, "users", userId);
+        // Simplified query to avoid composite index requirement
         const qSleep = query(collection(userRef, "sleep"), orderBy("date", "desc"));
 
         const unsubscribe = onSnapshot(qSleep, (snapshot) => {
             let data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as SleepData[];
             
-            // Client-side sorting
+            // Client-side sorting to handle ordering by date and then by bedtime
             data.sort((a, b) => {
                 const dateComparison = b.date.localeCompare(a.date);
                 if (dateComparison !== 0) return dateComparison;
@@ -94,7 +95,7 @@ export default function SleepPage() {
 
     const formatDate = (dateString: string) => {
        try {
-         return format(parseISO(dateString), "PPP", { locale: es });
+         return format(parseISO(dateString), "PPPP", { locale: es });
        } catch (error) {
          return "Fecha inválida";
        }
@@ -140,7 +141,7 @@ export default function SleepPage() {
                                                     </div>
                                                      <div>
                                                         <Label className="text-xs">Duración</Label>
-                                                        <p className="font-mono text-sm">{formatSleepDuration(Number(metric.sleepTime))}</p>
+                                                        <p className="font-mono text-sm">{formatSleepDuration(metric.sleepTime ? Number(metric.sleepTime) : undefined)}</p>
                                                     </div>
                                                     <div>
                                                         <Label className="text-xs">Eficiencia</Label>
@@ -220,7 +221,7 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
                 wakeUpTime: "07:00",
             });
         }
-    }, [sleep]);
+    }, [sleep, isOpen]);
 
     const handleChange = (field: keyof SleepData, value: string | number) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -230,7 +231,7 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
         setFormData(prev => ({
             ...prev,
             phases: {
-                ...prev.phases,
+                ...(prev.phases || {}),
                 [phase]: Number(value)
             }
         }));
@@ -302,11 +303,11 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
                      <div className="grid grid-cols-2 gap-4">
                         <div>
                             <Label htmlFor="sleepTime">Tiempo total dormido (min)</Label>
-                            <Input id="sleepTime" type="number" placeholder="Se calcula solo si se deja vacío" value={formData.sleepTime} onChange={(e) => handleChange('sleepTime', e.target.value)}/>
+                            <Input id="sleepTime" type="number" placeholder="Se calcula solo si se deja vacío" value={formData.sleepTime || ''} onChange={(e) => handleChange('sleepTime', e.target.value)}/>
                         </div>
                         <div>
                            <Label htmlFor="efficiency">Eficiencia (%)</Label>
-                           <Input id="efficiency" type="number" value={formData.efficiency} onChange={(e) => handleChange('efficiency', Number(e.target.value))}/>
+                           <Input id="efficiency" type="number" value={formData.efficiency || ''} onChange={(e) => handleChange('efficiency', Number(e.target.value))}/>
                         </div>
                     </div>
                     <div>
@@ -319,11 +320,11 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
                     </div>
                      <div>
                         <Label htmlFor="hrv">VFC (ms)</Label>
-                        <Input id="hrv" type="number" value={formData.hrv} onChange={(e) => handleChange('hrv', Number(e.target.value))}/>
+                        <Input id="hrv" type="number" value={formData.hrv || ''} onChange={(e) => handleChange('hrv', Number(e.target.value))}/>
                     </div>
                     <div>
                         <Label htmlFor="notes">Notas / Sensaciones</Label>
-                        <Textarea id="notes" value={formData.notes} onChange={(e) => handleChange('notes', e.target.value)} />
+                        <Textarea id="notes" value={formData.notes || ''} onChange={(e) => handleChange('notes', e.target.value)} />
                     </div>
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
@@ -334,11 +335,5 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
         </Dialog>
     );
 }
-
-const Sun = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
-        <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.166 17.834a.75.75 0 00-1.06 1.06l1.59 1.591a.75.75 0 101.06-1.06l-1.59-1.59zM5.25 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 015.25 12zM6.166 7.166a.75.75 0 00-1.06 1.06l1.591 1.59a.75.75 0 101.06-1.061L6.166 7.166z" />
-    </svg>
-);
 
     
