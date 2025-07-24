@@ -107,6 +107,14 @@ export const CalendarEventSchema = z.object({
     description: z.string().describe("Descripción o detalle del evento."),
     startTime: z.string().optional().describe("Hora de inicio (HH:mm)."),
     endTime: z.string().optional().describe("Hora de fin (HH:mm)."),
+    // Workout specific data can be nested
+    workoutDetails: z.object({
+        duration: z.number().optional().describe("Duración real en minutos."),
+        calories: z.number().optional().describe("Calorías quemadas."),
+        avgHeartRate: z.number().optional().describe("FC media."),
+        maxHeartRate: z.number().optional().describe("FC máxima."),
+        notes: z.string().optional().describe("Sensaciones o notas post-entreno."),
+    }).optional(),
 });
 export type CalendarEvent = z.infer<typeof CalendarEventSchema>;
 

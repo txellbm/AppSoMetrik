@@ -6,7 +6,7 @@ import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query, where, writeBatch, doc, deleteDoc, runTransaction, getDocs } from "firebase/firestore";
 import { CalendarEvent } from "@/ai/schemas";
 import { useToast } from "@/hooks/use-toast";
-import { addDays, addMonths, endOfMonth, format, startOfMonth, subDays, subMonths, getDay, addWeeks, startOfWeek, isSameDay, parse, endOfWeek } from "date-fns";
+import { addDays, addMonths, endOfMonth, format, startOfMonth, subDays, subMonths, getDay, addWeeks, startOfWeek, isSameDay, parse, endOfWeek, lastDayOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, PlusCircle, Trash2, Edit, Settings, FileText, Copy } from "lucide-react";
@@ -429,10 +429,6 @@ export default function CalendarPage() {
 
         switch (view) {
             case 'day':
-                events.forEach(event => {
-                    report += `- ${event.startTime || ''}-${event.endTime || ''}: ${event.description} [${event.type}]\n`;
-                });
-                break;
             case 'week':
             case 'month':
                 const groupedEvents = events.reduce((acc, event) => {

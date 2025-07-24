@@ -3,13 +3,13 @@
 
 import React, { useEffect, useState } from "react";
 import { collection, onSnapshot, query, doc, orderBy, addDoc, updateDoc, deleteDoc } from "firebase/firestore";
-import { format, parseISO, differenceInMinutes } from "date-fns";
+import { format, parseISO, differenceInMinutes, formatDuration, intervalToDuration } from "date-fns";
+import { es } from 'date-fns/locale';
 import { db } from "@/lib/firebase";
 import { SleepData } from "@/ai/schemas";
 import { useToast } from "@/hooks/use-toast";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Moon, Plus, Edit, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export default function SleepPage() {
     const [sleepData, setSleepData] = useState<SleepData[]>([]);
@@ -29,7 +30,7 @@ export default function SleepPage() {
     useEffect(() => {
         setIsLoading(true);
         const userRef = doc(db, "users", userId);
-        const qSleep = query(collection(userRef, "sleep"), orderBy("date", "desc"));
+        const qSleep = query(collection(userRef, "sleep"), orderBy("date", "desc"), orderBy("bedtime", "asc"));
 
         const unsubscribe = onSnapshot(qSleep, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as SleepData[];
@@ -76,19 +77,26 @@ export default function SleepPage() {
         setEditingSleep(sleep);
         setIsDialogOpen(true);
     };
+    
+    const formatSleepDuration = (minutes: number | undefined) => {
+        if(minutes === undefined || minutes === null) return "-";
+        const duration = intervalToDuration({ start: 0, end: minutes * 60 * 1000 });
+        return `${duration.hours || 0}h ${duration.minutes || 0}m`;
+    }
 
     const formatDate = (dateString: string) => {
-        if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return '-';
-        const [year, month, day] = dateString.split('-');
-        return `${day}/${month}/${year}`;
+       try {
+         return format(parseISO(dateString), "PPP", { locale: es });
+       } catch (error) {
+         return "Fecha inválida";
+       }
     };
     
-    const formatDuration = (minutes: number | undefined) => {
-        if(minutes === undefined || minutes === null) return "-";
-        const hours = Math.floor(minutes / 60);
-        const mins = minutes % 60;
-        return `${hours}h ${mins}m`;
-    }
+    const groupedSleepData = sleepData.reduce((acc, curr) => {
+        (acc[curr.date] = acc[curr.date] || []).push(curr);
+        return acc;
+    }, {} as Record<string, SleepData[]>);
+
 
     return (
         <div className="flex flex-col gap-6">
@@ -96,7 +104,7 @@ export default function SleepPage() {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Moon className="text-primary"/>
-                        Historial de Sueño
+                        Registro de Sueño
                     </CardTitle>
                     <CardDescription>
                         Registra manualmente tus sesiones de sueño para analizar tus patrones de descanso.
@@ -104,43 +112,65 @@ export default function SleepPage() {
                 </CardHeader>
                 <CardContent>
                     {isLoading ? (
-                        <p>Cargando datos de sueño...</p>
+                        <p className="text-center py-8">Cargando datos de sueño...</p>
+                    ) : Object.keys(groupedSleepData).length > 0 ? (
+                        <div className="space-y-6">
+                            {Object.entries(groupedSleepData).map(([date, sessions]) => (
+                                <div key={date}>
+                                    <h3 className="font-semibold mb-2 border-b pb-1">{formatDate(date)}</h3>
+                                    <div className="space-y-4">
+                                        {sessions.map(metric => (
+                                            <Card key={metric.id} className="bg-muted/50">
+                                                <CardContent className="pt-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 items-center">
+                                                    <div className="font-semibold flex items-center gap-2">
+                                                        {metric.type === 'noche' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                                                        <Badge variant={metric.type === 'noche' ? "default" : "secondary"} className="capitalize">{metric.type}</Badge>
+                                                    </div>
+                                                    <div>
+                                                        <Label className="text-xs">Horario</Label>
+                                                        <p className="font-mono text-sm">{metric.bedtime} - {metric.wakeUpTime}</p>
+                                                    </div>
+                                                     <div>
+                                                        <Label className="text-xs">Duración</Label>
+                                                        <p className="font-mono text-sm">{formatSleepDuration(Number(metric.sleepTime))}</p>
+                                                    </div>
+                                                    <div>
+                                                        <Label className="text-xs">Eficiencia</Label>
+                                                        <p className="font-mono text-sm">{metric.efficiency ? `${metric.efficiency}%` : "-"}</p>
+                                                    </div>
+                                                      <div>
+                                                        <Label className="text-xs">VFC (ms)</Label>
+                                                        <p className="font-mono text-sm">{metric.hrv || "-"}</p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <Button variant="ghost" size="icon" onClick={() => openDialog(metric)}><Edit className="h-4 w-4"/></Button>
+                                                        <Button variant="ghost" size="icon" onClick={() => metric.id && handleDeleteSleep(metric.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                                    </div>
+                                                </CardContent>
+                                                {(metric.notes || metric.phases) && (
+                                                    <CardFooter className="flex-col items-start gap-2 text-sm pt-0 pb-4">
+                                                        {metric.phases && (
+                                                            <div className="flex gap-4">
+                                                                <p><span className="font-semibold">Profundo:</span> {formatSleepDuration(metric.phases.deep)}</p>
+                                                                <p><span className="font-semibold">Ligero:</span> {formatSleepDuration(metric.phases.light)}</p>
+                                                                <p><span className="font-semibold">REM:</span> {formatSleepDuration(metric.phases.rem)}</p>
+                                                            </div>
+                                                        )}
+                                                        {metric.notes && (
+                                                            <p className="text-muted-foreground italic">"{metric.notes}"</p>
+                                                        )}
+                                                    </CardFooter>
+                                                )}
+                                            </Card>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Fecha</TableHead>
-                                    <TableHead>Tipo</TableHead>
-                                    <TableHead>Horario</TableHead>
-                                    <TableHead>Duración</TableHead>
-                                    <TableHead>Eficiencia</TableHead>
-                                    <TableHead>VFC</TableHead>
-                                    <TableHead></TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {sleepData.length > 0 ? sleepData.map(metric => (
-                                    <TableRow key={metric.id}>
-                                        <TableCell className="font-medium">{formatDate(metric.date)}</TableCell>
-                                        <TableCell className="capitalize">{metric.type}</TableCell>
-                                        <TableCell>{metric.bedtime} - {metric.wakeUpTime}</TableCell>
-                                        <TableCell>{formatDuration(Number(metric.sleepTime))}</TableCell>
-                                        <TableCell>{metric.efficiency ? `${metric.efficiency}%` : "-"}</TableCell>
-                                        <TableCell>{metric.hrv || "-"}</TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="ghost" size="icon" onClick={() => openDialog(metric)}><Edit className="h-4 w-4"/></Button>
-                                            <Button variant="ghost" size="icon" onClick={() => metric.id && handleDeleteSleep(metric.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
-                                        </TableCell>
-                                    </TableRow>
-                                )) : (
-                                     <TableRow>
-                                        <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
-                                            No hay datos de sueño registrados.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                         <div className="text-center h-24 text-muted-foreground flex items-center justify-center">
+                            <p>No hay datos de sueño registrados.</p>
+                        </div>
                     )}
                 </CardContent>
                  <CardFooter>
@@ -296,3 +326,9 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
         </Dialog>
     );
 }
+
+const Sun = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
+        <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.166 17.834a.75.75 0 00-1.06 1.06l1.59 1.591a.75.75 0 101.06-1.06l-1.59-1.59zM5.25 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 015.25 12zM6.166 7.166a.75.75 0 00-1.06 1.06l1.591 1.59a.75.75 0 101.06-1.061L6.166 7.166z" />
+    </svg>
+);
