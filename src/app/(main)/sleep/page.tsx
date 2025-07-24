@@ -1,23 +1,33 @@
+
 "use client";
 
-import { useEffect, useState } from "react";
-import { SleepData } from "@/ai/schemas";
-import { collection, onSnapshot, query, doc, orderBy } from "firebase/firestore";
+import React, { useEffect, useState } from "react";
+import { collection, onSnapshot, query, doc, orderBy, addDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import { format, parseISO, differenceInMinutes } from "date-fns";
 import { db } from "@/lib/firebase";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SleepData } from "@/ai/schemas";
+import { useToast } from "@/hooks/use-toast";
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Moon, Clock, Heart, Wind, MessageSquare } from "lucide-react";
-import FileUploadProcessor from "@/components/dashboard/file-upload-processor";
-import { Badge } from "@/components/ui/badge";
-import React from "react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Moon, Plus, Edit, Trash2 } from "lucide-react";
 
 export default function SleepPage() {
     const [sleepData, setSleepData] = useState<SleepData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [editingSleep, setEditingSleep] = useState<SleepData | null>(null);
     const userId = "user_test_id";
+    const { toast } = useToast();
 
     useEffect(() => {
+        setIsLoading(true);
         const userRef = doc(db, "users", userId);
         const qSleep = query(collection(userRef, "sleep"), orderBy("date", "desc"));
 
@@ -32,22 +42,56 @@ export default function SleepPage() {
 
         return () => unsubscribe();
     }, [userId]);
+
+    const handleSaveSleep = async (data: Omit<SleepData, 'id'>) => {
+        try {
+            const collectionRef = collection(db, "users", userId, "sleep");
+            if (editingSleep?.id) {
+                const docRef = doc(collectionRef, editingSleep.id);
+                await updateDoc(docRef, data);
+                toast({ title: "Sesión de sueño actualizada" });
+            } else {
+                await addDoc(collectionRef, data);
+                toast({ title: "Sesión de sueño registrada" });
+            }
+            setIsDialogOpen(false);
+            setEditingSleep(null);
+        } catch (error) {
+            console.error("Error saving sleep session:", error);
+            toast({ variant: "destructive", title: "Error", description: "No se pudo guardar la sesión de sueño." });
+        }
+    };
     
-    // Helper to format date from YYYY-MM-DD to DD/MM/YYYY
+    const handleDeleteSleep = async (id: string) => {
+        try {
+            await deleteDoc(doc(db, "users", userId, "sleep", id));
+            toast({ title: "Sesión de sueño eliminada", variant: "destructive" });
+        } catch (error) {
+            console.error("Error deleting sleep session:", error);
+            toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar la sesión." });
+        }
+    }
+    
+    const openDialog = (sleep: SleepData | null) => {
+        setEditingSleep(sleep);
+        setIsDialogOpen(true);
+    };
+
     const formatDate = (dateString: string) => {
         if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return '-';
         const [year, month, day] = dateString.split('-');
         return `${day}/${month}/${year}`;
     };
+    
+    const formatDuration = (minutes: number | undefined) => {
+        if(minutes === undefined || minutes === null) return "-";
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return `${hours}h ${mins}m`;
+    }
 
     return (
         <div className="flex flex-col gap-6">
-            <FileUploadProcessor 
-                title="Subir Datos de Sueño de AutoSleep"
-                description="Sube aquí tu archivo CSV exportado desde AutoSleep."
-                dataType="sleepData"
-                userId={userId}
-            />
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -55,110 +99,200 @@ export default function SleepPage() {
                         Historial de Sueño
                     </CardTitle>
                     <CardDescription>
-                        Un registro detallado de tus patrones de sueño. Haz clic en una noche para ver todos los detalles.
+                        Registra manualmente tus sesiones de sueño para analizar tus patrones de descanso.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     {isLoading ? (
                         <p>Cargando datos de sueño...</p>
-                    ) : sleepData.length > 0 ? (
-                        <div className="border rounded-md">
-                        <Accordion type="single" collapsible className="w-full">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-12"></TableHead> {/* For the accordion trigger */}
-                                        <TableHead>Fecha</TableHead>
-                                        <TableHead>Calidad (%)</TableHead>
-                                        <TableHead>Eficiencia (%)</TableHead>
-                                        <TableHead>Tiempo Dormido</TableHead>
-                                        <TableHead>VFC (ms)</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                {sleepData.map(metric => (
-                                    <AccordionItem value={metric.date} key={metric.date}>
-                                      <React.Fragment>
-                                        <TableRow>
-                                            <TableCell>
-                                                <AccordionTrigger />
-                                            </TableCell>
-                                            <TableCell className="font-medium">{formatDate(metric.date)}</TableCell>
-                                            <TableCell>{metric.quality || "-"}</TableCell>
-                                            <TableCell>{metric.efficiency || "-"}</TableCell>
-                                            <TableCell>{metric.sleepTime || "-"}</TableCell>
-                                            <TableCell>{metric.hrv || "-"}</TableCell>
-                                        </TableRow>
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="p-0 border-none">
-                                                <AccordionContent>
-                                                    <div className="p-4 bg-muted/50 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-                                                        <DetailSection icon={<Clock/>} title="Horarios">
-                                                            <DetailItem label="Hora de Dormir" value={metric.bedtime} />
-                                                            <DetailItem label="Hora de Despertar" value={metric.wakeUpTime} />
-                                                            <DetailItem label="Tiempo en Cama" value={metric.inBedTime} unit="min" />
-                                                            <DetailItem label="Tiempo Despierto" value={metric.awakeTime} unit="min" />
-                                                            <DetailItem label="Para Dormirse" value={metric.timeToFallAsleep} unit="min" />
-                                                        </DetailSection>
-
-                                                        <DetailSection icon={<Wind/>} title="Salud Respiratoria">
-                                                        <DetailItem label="SpO2 Media" value={metric.SPO2?.avg} unit="%" />
-                                                        <DetailItem label="SpO2 Mín" value={metric.SPO2?.min} unit="%" />
-                                                        <DetailItem label="SpO2 Máx" value={metric.SPO2?.max} unit="%" />
-                                                        <DetailItem label="Frec. Resp. Media" value={metric.respiratoryRate} unit="rpm"/>
-                                                        <DetailItem label="Frec. Resp. Mín" value={metric.respiratoryRateMin} unit="rpm"/>
-                                                        <DetailItem label="Frec. Resp. Máx" value={metric.respiratoryRateMax} unit="rpm"/>
-                                                        <DetailItem label="Apnea Detectada" value={metric.apnea} />
-                                                        </DetailSection>
-
-                                                        <DetailSection icon={<Heart/>} title="Salud Cardíaca">
-                                                            <DetailItem label="VFC (ms)" value={metric.hrv} />
-                                                            <DetailItem label="VFC 7 días (ms)" value={metric.hrv7DayAvg} />
-                                                        </DetailSection>
-
-                                                        { (metric.notes || metric.tags) &&
-                                                            <DetailSection icon={<MessageSquare/>} title="Notas y Etiquetas">
-                                                                {metric.tags && <div className="flex flex-wrap gap-1">{metric.tags.split(',').map(tag => <Badge key={tag} variant="secondary">{tag.trim()}</Badge>)}</div>}
-                                                                {metric.notes && <p className="text-sm text-muted-foreground mt-2">{metric.notes}</p>}
-                                                            </DetailSection>
-                                                        }
-                                                    </div>
-                                                </AccordionContent>
-                                            </TableCell>
-                                        </TableRow>
-                                      </React.Fragment>
-                                    </AccordionItem>
-                                ))}
-                                </TableBody>
-                            </Table>
-                        </Accordion>
-                        </div>
                     ) : (
-                        <div className="text-center h-24 flex items-center justify-center text-muted-foreground">
-                            No hay datos de sueño registrados. Sube un archivo para empezar.
-                        </div>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Fecha</TableHead>
+                                    <TableHead>Tipo</TableHead>
+                                    <TableHead>Horario</TableHead>
+                                    <TableHead>Duración</TableHead>
+                                    <TableHead>Eficiencia</TableHead>
+                                    <TableHead>VFC</TableHead>
+                                    <TableHead></TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {sleepData.length > 0 ? sleepData.map(metric => (
+                                    <TableRow key={metric.id}>
+                                        <TableCell className="font-medium">{formatDate(metric.date)}</TableCell>
+                                        <TableCell className="capitalize">{metric.type}</TableCell>
+                                        <TableCell>{metric.bedtime} - {metric.wakeUpTime}</TableCell>
+                                        <TableCell>{formatDuration(Number(metric.sleepTime))}</TableCell>
+                                        <TableCell>{metric.efficiency ? `${metric.efficiency}%` : "-"}</TableCell>
+                                        <TableCell>{metric.hrv || "-"}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="icon" onClick={() => openDialog(metric)}><Edit className="h-4 w-4"/></Button>
+                                            <Button variant="ghost" size="icon" onClick={() => metric.id && handleDeleteSleep(metric.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                        </TableCell>
+                                    </TableRow>
+                                )) : (
+                                     <TableRow>
+                                        <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
+                                            No hay datos de sueño registrados.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
                     )}
                 </CardContent>
+                 <CardFooter>
+                    <Button onClick={() => openDialog(null)}>
+                        <Plus className="mr-2"/>
+                        Añadir Sesión de Sueño
+                    </Button>
+                </CardFooter>
             </Card>
+
+            <SleepDialog 
+                isOpen={isDialogOpen}
+                onClose={() => setIsDialogOpen(false)}
+                onSave={handleSaveSleep}
+                sleep={editingSleep}
+            />
         </div>
     );
 }
 
-const DetailSection = ({ icon, title, children }: { icon: React.ReactNode, title: string, children: React.ReactNode }) => (
-    <div className="space-y-2 rounded-lg border bg-background p-4">
-        <h4 className="flex items-center gap-2 font-semibold text-sm text-primary">{icon}{title}</h4>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1 pl-6">
-            {children}
-        </div>
-    </div>
-)
+type SleepDialogProps = {
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (data: Omit<SleepData, 'id'>) => void;
+    sleep: SleepData | null;
+};
 
-const DetailItem = ({ label, value, unit }: { label: string, value?: string | number | null, unit?: string }) => {
-    if (value === undefined || value === null || value === "") return null;
+function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
+    const [formData, setFormData] = useState<Partial<SleepData>>({});
+
+    useEffect(() => {
+        if (sleep) {
+            setFormData(sleep);
+        } else {
+            setFormData({
+                date: format(new Date(), "yyyy-MM-dd"),
+                type: "noche",
+                bedtime: "23:00",
+                wakeUpTime: "07:00",
+            });
+        }
+    }, [sleep]);
+
+    const handleChange = (field: keyof SleepData, value: string | number) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+    };
+    
+    const handlePhaseChange = (phase: 'deep' | 'light' | 'rem', value: string) => {
+        setFormData(prev => ({
+            ...prev,
+            phases: {
+                ...prev.phases,
+                [phase]: Number(value)
+            }
+        }));
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        let sleepTime: number | undefined = undefined;
+        if(formData.bedtime && formData.wakeUpTime && formData.date){
+            const start = parseISO(`${formData.date}T${formData.bedtime}`);
+            let end = parseISO(`${formData.date}T${formData.wakeUpTime}`);
+            if (end < start) {
+                end = new Date(end.getTime() + 24 * 60 * 60 * 1000); // Add a day if wake up is next day
+            }
+            sleepTime = differenceInMinutes(end, start);
+        }
+
+        const dataToSave: Omit<SleepData, 'id'> = {
+            date: formData.date!,
+            type: formData.type!,
+            bedtime: formData.bedtime!,
+            wakeUpTime: formData.wakeUpTime!,
+            sleepTime: formData.sleepTime || String(sleepTime),
+            efficiency: formData.efficiency,
+            hrv: formData.hrv,
+            phases: formData.phases,
+            notes: formData.notes
+        };
+
+        onSave(dataToSave);
+    };
+
+    if (!isOpen) return null;
+
     return (
-        <>
-            <dt className="text-sm font-medium text-muted-foreground">{label}</dt>
-            <dd className="text-sm">{value} {unit}</dd>
-        </>
-    )
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{sleep ? 'Editar Sesión de Sueño' : 'Registrar Sesión de Sueño'}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4 py-4 max-h-[80vh] overflow-y-auto pr-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <Label htmlFor="date">Fecha</Label>
+                            <Input id="date" type="date" value={formData.date} onChange={(e) => handleChange('date', e.target.value)} required/>
+                        </div>
+                        <div>
+                            <Label htmlFor="type">Tipo</Label>
+                             <Select value={formData.type} onValueChange={(v) => handleChange('type', v)}>
+                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="noche">Noche</SelectItem>
+                                    <SelectItem value="siesta">Siesta</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                     <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <Label htmlFor="bedtime">Hora de dormir</Label>
+                            <Input id="bedtime" type="time" value={formData.bedtime} onChange={(e) => handleChange('bedtime', e.target.value)} required/>
+                        </div>
+                        <div>
+                           <Label htmlFor="wakeUpTime">Hora de despertar</Label>
+                           <Input id="wakeUpTime" type="time" value={formData.wakeUpTime} onChange={(e) => handleChange('wakeUpTime', e.target.value)} required/>
+                        </div>
+                    </div>
+                     <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <Label htmlFor="sleepTime">Tiempo total dormido (min)</Label>
+                            <Input id="sleepTime" type="number" placeholder="Se calcula solo si se deja vacío" value={formData.sleepTime} onChange={(e) => handleChange('sleepTime', e.target.value)}/>
+                        </div>
+                        <div>
+                           <Label htmlFor="efficiency">Eficiencia (%)</Label>
+                           <Input id="efficiency" type="number" value={formData.efficiency} onChange={(e) => handleChange('efficiency', Number(e.target.value))}/>
+                        </div>
+                    </div>
+                    <div>
+                        <Label>Fases del sueño (minutos)</Label>
+                        <div className="grid grid-cols-3 gap-2 mt-1">
+                            <Input type="number" placeholder="Profundo" value={formData.phases?.deep || ''} onChange={(e) => handlePhaseChange('deep', e.target.value)}/>
+                            <Input type="number" placeholder="Ligero" value={formData.phases?.light || ''} onChange={(e) => handlePhaseChange('light', e.target.value)}/>
+                            <Input type="number" placeholder="REM" value={formData.phases?.rem || ''} onChange={(e) => handlePhaseChange('rem', e.target.value)}/>
+                        </div>
+                    </div>
+                     <div>
+                        <Label htmlFor="hrv">VFC (ms)</Label>
+                        <Input id="hrv" type="number" value={formData.hrv} onChange={(e) => handleChange('hrv', Number(e.target.value))}/>
+                    </div>
+                    <div>
+                        <Label htmlFor="notes">Notas / Sensaciones</Label>
+                        <Textarea id="notes" value={formData.notes} onChange={(e) => handleChange('notes', e.target.value)} />
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+                        <Button type="submit">Guardar</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
 }

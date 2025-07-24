@@ -13,13 +13,15 @@ import AIChatWidget from "@/components/dashboard/ai-chat-widget";
 import NotificationsWidget from "@/components/dashboard/notifications-widget";
 import { collection, onSnapshot, doc, query, orderBy, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { LayoutDashboard, Moon, Dumbbell, HeartPulse, Stethoscope, Pill, CalendarDays, Database } from "lucide-react";
+import { LayoutDashboard, Moon, Dumbbell, HeartPulse, Stethoscope, Pill, CalendarDays, Flame } from "lucide-react";
 import SleepPage from "./(main)/sleep/page";
 import WorkoutsPage from "./(main)/workouts/page";
 import RecoveryPage from "./(main)/recovery/page";
 import CyclePage from "./(main)/cycle/page";
 import SupplementsPage from "./(main)/supplements/page";
 import CalendarPage from "./(main)/calendar/page";
+import ActivityPage from "./(main)/activity/page";
+
 
 const initialDashboardData: DashboardData = {
   workouts: [],
@@ -63,15 +65,16 @@ export default function Home() {
 
   return (
     <>
-      <Tabs defaultValue="calendar" className="flex-grow flex flex-col">
+      <Tabs defaultValue="dashboard" className="flex-grow flex flex-col">
         <div className="bg-background/95 backdrop-blur-sm sticky top-0 z-10 border-b">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-7 h-auto p-2">
+          <TabsList className="grid w-full grid-cols-3 md:grid-cols-8 h-auto p-2">
             <TabsTrigger value="dashboard"><LayoutDashboard className="mr-2 h-4 w-4"/>Panel</TabsTrigger>
             <TabsTrigger value="calendar"><CalendarDays className="mr-2 h-4 w-4"/>Calendario</TabsTrigger>
             <TabsTrigger value="cycle"><Stethoscope className="mr-2 h-4 w-4"/>Ciclo</TabsTrigger>
             <TabsTrigger value="workouts"><Dumbbell className="mr-2 h-4 w-4"/>Entrenos</TabsTrigger>
             <TabsTrigger value="sleep"><Moon className="mr-2 h-4 w-4"/>Sueño</TabsTrigger>
             <TabsTrigger value="recovery"><HeartPulse className="mr-2 h-4 w-4"/>Recuperación</TabsTrigger>
+            <TabsTrigger value="activity"><Flame className="mr-2 h-4 w-4"/>Actividad</TabsTrigger>
             <TabsTrigger value="supplements"><Pill className="mr-2 h-4 w-4"/>Suplementos</TabsTrigger>
           </TabsList>
         </div>
@@ -83,9 +86,7 @@ export default function Home() {
                     <AIChatWidget />
                 </div>
               <div className="lg:col-span-1 space-y-6">
-                <NotificationsWidget
-                    // This will be refactored to use the new granular data
-                />
+                <NotificationsWidget />
               </div>
             </div>
           </div>
@@ -109,6 +110,10 @@ export default function Home() {
 
         <TabsContent value="recovery" className="p-6">
             <RecoveryPage />
+        </TabsContent>
+        
+        <TabsContent value="activity" className="p-6">
+            <ActivityPage />
         </TabsContent>
 
         <TabsContent value="supplements" className="p-6">
