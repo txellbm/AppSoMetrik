@@ -60,7 +60,7 @@ export function DailyCalendarView({ day, events, onEventClick }: DailyCalendarVi
                     ))}
 
                     {/* All-day events */}
-                    <div className="absolute top-0 left-0 right-0 p-1 space-y-1">
+                    <div className="absolute top-0 left-0 right-0 p-1 space-y-1 z-10">
                         {sortedEvents.filter(e => !e.startTime || !e.endTime).map(event => (
                             <div
                                 key={event.id}
@@ -85,10 +85,10 @@ export function DailyCalendarView({ day, events, onEventClick }: DailyCalendarVi
                                 key={event.id}
                                 onClick={() => onEventClick(event)}
                                 className={cn(
-                                    "absolute left-2 right-2 p-2 rounded-md text-white text-xs cursor-pointer shadow-md overflow-hidden border-l-4",
+                                    "absolute left-2 right-2 p-2 rounded-md text-white text-xs cursor-pointer shadow-md overflow-hidden border-l-4 z-10",
                                     eventTypeColors[event.type] || eventTypeColors.default
                                 )}
-                                style={{ top: `${top}px`, height: `${Math.max(height, 24)}px` }}
+                                style={{ top: `${top}px`, height: `${Math.max(height, 32)}px` }} // Min height
                                 title={`${event.description} (${event.startTime} - ${event.endTime})`}
                             >
                                 <p className="font-bold">{event.description}</p>

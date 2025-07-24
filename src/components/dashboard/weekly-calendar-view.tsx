@@ -102,7 +102,7 @@ export function WeeklyCalendarView({ week, events, onEventClick, onDayClick }: W
                                             "absolute left-1 right-1 p-1 rounded-md text-white text-xs cursor-pointer shadow-md overflow-hidden border-l-2 z-10",
                                             eventTypeColors[event.type] || eventTypeColors.default
                                         )}
-                                        style={{ top: `${top}px`, height: `${Math.max(height, 24)}px` }}
+                                        style={{ top: `${top}px`, height: `${Math.max(height, 32)}px` }} // Min height
                                         title={`${event.description} (${event.startTime} - ${event.endTime})`}
                                     >
                                         <p className="font-semibold truncate">{event.description}</p>
@@ -117,4 +117,3 @@ export function WeeklyCalendarView({ week, events, onEventClick, onDayClick }: W
         </div>
     );
 }
-
