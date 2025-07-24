@@ -460,35 +460,39 @@ export default function CalendarPage() {
                 
                 <aside className="lg:col-span-1 space-y-4">
                     <Card>
-                        <CardHeader className="pb-4 flex flex-row items-center justify-between">
+                        <CardHeader className="pb-4">
                            <div>
                              <CardTitle className="text-base">Eventos Rápidos</CardTitle>
                              <CardDescription className="text-xs">Selecciona un tipo y haz clic en el calendario para añadirlo.</CardDescription>
                            </div>
-                           <Button variant="ghost" size="icon" onClick={() => setIsSettingsOpen(true)}>
-                                <Settings className="h-4 w-4" />
-                           </Button>
                         </CardHeader>
-                        <CardContent className="grid grid-cols-2 gap-x-4 gap-y-6">
+                         <CardContent className="space-y-6">
                             {quickEventGroups.map(({name, events}) => {
                                 if (events.length === 0) return null;
                                 return (
                                 <div key={name} className="space-y-2">
-                                    <h4 className="font-semibold text-sm mb-2 capitalize">{name === 'nota' ? 'Otros' : name}</h4>
-                                    {events.map((type) => {
-                                        const config = quickEventTypes[type];
-                                        if (!config) return null;
-                                        const isSelected = selectedQuickEventType === type;
-                                        return (
-                                            <QuickEventCard 
-                                                key={type}
-                                                type={type}
-                                                config={config}
-                                                isSelected={isSelected}
-                                                onSelect={setSelectedQuickEventType}
-                                            />
-                                        )
-                                    })}
+                                     <div className="flex items-center justify-between">
+                                        <h4 className="font-semibold text-sm capitalize">{name === 'nota' ? 'Otros' : name}</h4>
+                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsSettingsOpen(true)}>
+                                            <Settings className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {events.map((type) => {
+                                            const config = quickEventTypes[type];
+                                            if (!config) return null;
+                                            const isSelected = selectedQuickEventType === type;
+                                            return (
+                                                <QuickEventCard 
+                                                    key={type}
+                                                    type={type}
+                                                    config={config}
+                                                    isSelected={isSelected}
+                                                    onSelect={setSelectedQuickEventType}
+                                                />
+                                            )
+                                        })}
+                                    </div>
                                 </div>
                                 )
                             })}
@@ -616,6 +620,8 @@ const QuickEventCard = ({ type, config, isSelected, onSelect }: QuickEventCardPr
         <Label className="font-semibold text-sm cursor-pointer">{type}</Label>
     </Badge>
 );
+
+    
 
     
 
