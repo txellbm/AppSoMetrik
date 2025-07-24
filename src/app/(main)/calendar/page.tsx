@@ -356,11 +356,6 @@ export default function CalendarPage() {
         }
     };
     
-    const eventsForSelectedDay = useMemo(() => {
-        if (!currentDate) return [];
-        return events.filter(e => isSameDay(new Date(e.date + 'T00:00:00'), currentDate)).sort((a,b) => (a.startTime || "00:00").localeCompare(b.startTime || "00:00"));
-    }, [currentDate, events]);
-    
     const { workouts, work } = useMemo(() => {
         const workouts: QuickEventType[] = [];
         const work: QuickEventType[] = [];
@@ -485,35 +480,6 @@ export default function CalendarPage() {
                             </div>
                         </CardContent>
                     </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Eventos del día</CardTitle>
-                            <CardDescription>{currentDate ? format(currentDate, "PPP", { locale: es }) : 'Selecciona un día'}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {eventsForSelectedDay.length > 0 ? (
-                                <ul className="space-y-2">
-                                {eventsForSelectedDay.map(event => (
-                                    <li key={event.id} className="flex items-center justify-between bg-muted p-2 rounded-md">
-                                        <div className="flex items-center gap-2">
-                                            <div className={cn("w-2 h-2 rounded-full", getEventColorClass(event))}></div>
-                                            <div>
-                                                <p className="font-semibold">{event.description}</p>
-                                                <p className="text-sm text-muted-foreground">{event.startTime} - {event.endTime}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-1">
-                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openDialog(event)}><Edit className="h-4 w-4"/></Button>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => event.id && confirmDelete(event.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
-                                        </div>
-                                    </li>
-                                ))}
-                                </ul>
-                            ) : (
-                                <p className="text-sm text-muted-foreground text-center py-4">No hay eventos para este día.</p>
-                            )}
-                        </CardContent>
-                    </Card>
                 </aside>
             </main>
             
@@ -630,3 +596,5 @@ const QuickEventCard = ({ type, config, isSelected, onSelect, onConfigChange, on
         </div>
     </Card>
 );
+
+    
