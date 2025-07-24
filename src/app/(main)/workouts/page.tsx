@@ -157,7 +157,7 @@ export default function WorkoutsPage() {
                                                             <Timer className="h-4 w-4 text-muted-foreground"/>
                                                             <span>Duración: {workout.workoutDetails.realDuration}</span>
                                                         </div>
-                                                    )}
+                                                     )}
                                                      {workout.workoutDetails?.activeCalories && (
                                                         <div className="flex items-center gap-2">
                                                             <Flame className="h-4 w-4 text-muted-foreground"/>
