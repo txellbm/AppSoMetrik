@@ -30,10 +30,18 @@ export default function SleepPage() {
     useEffect(() => {
         setIsLoading(true);
         const userRef = doc(db, "users", userId);
-        const qSleep = query(collection(userRef, "sleep"), orderBy("date", "desc"), orderBy("bedtime", "asc"));
+        const qSleep = query(collection(userRef, "sleep"), orderBy("date", "desc"));
 
         const unsubscribe = onSnapshot(qSleep, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as SleepData[];
+            let data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as SleepData[];
+            
+            // Client-side sorting
+            data.sort((a, b) => {
+                const dateComparison = b.date.localeCompare(a.date);
+                if (dateComparison !== 0) return dateComparison;
+                return (a.bedtime || "00:00").localeCompare(b.bedtime || "00:00");
+            });
+
             setSleepData(data);
             setIsLoading(false);
         }, (error) => {
@@ -332,3 +340,5 @@ const Sun = (props: React.SVGProps<SVGSVGElement>) => (
         <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.166 17.834a.75.75 0 00-1.06 1.06l1.59 1.591a.75.75 0 101.06-1.06l-1.59-1.59zM5.25 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 015.25 12zM6.166 7.166a.75.75 0 00-1.06 1.06l1.591 1.59a.75.75 0 101.06-1.061L6.166 7.166z" />
     </svg>
 );
+
+    
