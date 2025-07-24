@@ -127,6 +127,7 @@ export const CalendarEventSchema = z.object({
           quemaGrasa: z.number().optional().describe("Minutos en Zona de Quema de Grasa."),
           salud: z.number().optional().describe("Minutos en Zona de Salud."),
         }).optional(),
+        videoUrl: z.string().optional().describe("URL a un vídeo de YouTube."),
     }).optional(),
 });
 export type CalendarEvent = z.infer<typeof CalendarEventSchema>;

@@ -11,11 +11,11 @@ import { useToast } from "@/hooks/use-toast";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dumbbell, Edit, Flame, Heart, Timer, Footprints, ArrowRightLeft, ChevronsUpDown, Clock, Zap, Target } from "lucide-react";
+import { Dumbbell, Edit, Flame, Heart, Timer, Footprints, ArrowRightLeft, Clock, Zap, Target, Video } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 
@@ -188,7 +188,15 @@ export default function WorkoutsPage() {
                                                         <p className="pt-2 text-muted-foreground italic">"{workout.workoutDetails.notes}"</p>
                                                     )}
                                                 </CardContent>
-                                                <CardFooter>
+                                                <CardFooter className="flex-col items-stretch gap-2">
+                                                    {workout.workoutDetails?.videoUrl && (
+                                                         <Button variant="outline" asChild>
+                                                            <a href={workout.workoutDetails.videoUrl} target="_blank" rel="noopener noreferrer">
+                                                                <Video className="mr-2 h-4 w-4"/>
+                                                                Ver vídeo
+                                                            </a>
+                                                        </Button>
+                                                    )}
                                                     <Button className="w-full" onClick={() => openDialog(workout)}>
                                                         <Edit className="mr-2 h-4 w-4"/>
                                                         Añadir/Editar Detalles
@@ -232,6 +240,7 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
 
     useEffect(() => {
         if (isOpen) {
+            // Load existing details if they exist, otherwise start with an empty object
             setDetails(workout.workoutDetails || {});
         }
     }, [isOpen, workout.workoutDetails]);
@@ -265,10 +274,10 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
 
 
     const handleChange = (field: keyof NonNullable<CalendarEvent['workoutDetails']>, value: any) => {
-        if (['realDuration', 'notes', 'realStartTime', 'realEndTime'].includes(field as string)) {
-             setDetails(prev => ({ ...prev, [field]: value }));
+        const numValue = (typeof value === 'string' && value.trim() === '') ? undefined : Number(value);
+        if (['realDuration', 'notes', 'realStartTime', 'realEndTime', 'videoUrl'].includes(field as string)) {
+             setDetails(prev => ({ ...prev, [field]: value.trim() === '' ? undefined : value }));
         } else {
-             const numValue = (typeof value === 'string' && value.trim() === '') ? undefined : Number(value);
              setDetails(prev => ({ ...prev, [field]: numValue }));
         }
     };
@@ -293,7 +302,7 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
                 }
                 const newObj = { ...obj };
                 for (const key in newObj) {
-                    if (newObj[key] === undefined) {
+                    if (newObj[key] === undefined || newObj[key] === null || newObj[key] === '') {
                         delete newObj[key];
                     } else if (typeof newObj[key] === 'object') {
                         newObj[key] = cleanupUndefined(newObj[key]);
@@ -390,6 +399,14 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
                             </AccordionContent>
                         </AccordionItem>
                     </Accordion>
+                    
+                    {(workout.description === "Contorsión" || workout.description === "Flexibilidad") && (
+                         <div>
+                            <Label htmlFor="videoUrl">Enlace a vídeo (YouTube)</Label>
+                            <Input id="videoUrl" type="url" placeholder="https://youtube.com/..." value={details?.videoUrl || ''} onChange={e => handleChange('videoUrl', e.target.value)} />
+                        </div>
+                    )}
+
 
                     <div>
                         <Label htmlFor="notes">Sensaciones / Notas</Label>
