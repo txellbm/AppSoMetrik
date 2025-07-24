@@ -3,17 +3,18 @@
 
 import { useState, useEffect, useRef } from "react";
 import { db } from "@/lib/firebase";
-import { doc, onSnapshot, setDoc, updateDoc, arrayUnion, arrayRemove, getDoc, collection, addDoc, deleteDoc, getDocs } from "firebase/firestore";
+import { doc, onSnapshot, setDoc, updateDoc, arrayUnion, arrayRemove, getDoc, collection, addDoc, deleteDoc, query, where, getDocs } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Pill, Plus, X, Coffee, Sun, Moon, Dumbbell, Edit, Trash2, BookMarked, Info, Repeat } from "lucide-react";
+import { Pill, Plus, X, Coffee, Sun, Moon, Dumbbell, Edit, Trash2, BookMarked, Info, Repeat, Briefcase, CalendarClock } from "lucide-react";
 import { format } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CalendarEvent } from "@/ai/schemas";
 
 type SupplementMoment = "desayuno" | "comida" | "cena" | "preEntreno" | "postEntreno";
 
@@ -45,6 +46,7 @@ const supplementSections: { id: SupplementMoment, title: string, icon: React.Rea
 export default function SupplementsPage() {
     const [dailySupplements, setDailySupplements] = useState<DailySupplementData>({});
     const [supplementInventory, setSupplementInventory] = useState<SupplementDefinition[]>([]);
+    const [todaysEvents, setTodaysEvents] = useState<CalendarEvent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingSupplement, setEditingSupplement] = useState<SupplementDefinition | null>(null);
@@ -71,6 +73,7 @@ export default function SupplementsPage() {
 
     // Fetch supplement inventory
     useEffect(() => {
+        setIsLoading(true);
         const inventoryColRef = collection(db, "users", userId, "user_supplements");
         const unsubscribe = onSnapshot(inventoryColRef, (snapshot) => {
             const inventory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplementDefinition));
@@ -83,6 +86,18 @@ export default function SupplementsPage() {
 
         return () => unsubscribe();
     }, [userId]);
+
+    // Fetch today's events
+    useEffect(() => {
+        const fetchTodaysEvents = async () => {
+            const eventsColRef = collection(db, "users", userId, "events");
+            const q = query(eventsColRef, where("date", "==", today));
+            const querySnapshot = await getDocs(q);
+            const events = querySnapshot.docs.map(doc => doc.data() as CalendarEvent).sort((a,b) => (a.startTime || "00:00").localeCompare(b.startTime || "00:00"));
+            setTodaysEvents(events);
+        };
+        fetchTodaysEvents();
+    }, [userId, today]);
     
     const handleAddSupplementToDaily = async (moment: SupplementMoment, item: string) => {
         if (!item.trim()) return;
@@ -158,30 +173,67 @@ export default function SupplementsPage() {
 
     return (
         <div className="flex flex-col gap-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Pill className="text-primary"/>
-                        Registro de Suplementos para Hoy ({today})
-                    </CardTitle>
-                    <CardDescription>
-                        Añade los suplementos que tomas en cada momento del día, bien manualmente o desde tu inventario.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {supplementSections.map(({ id, title, icon }) => (
-                        <DailySupplementCard 
-                            key={id}
-                            moment={id}
-                            title={title}
-                            icon={icon}
-                            items={dailySupplements[id] || []}
-                            onAdd={handleAddSupplementToDaily}
-                            onRemove={handleRemoveSupplementFromDaily}
-                        />
-                    ))}
-                </CardContent>
-            </Card>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Pill className="text-primary"/>
+                                Registro de Suplementos para Hoy ({today})
+                            </CardTitle>
+                            <CardDescription>
+                                Añade los suplementos que tomas en cada momento del día, bien manualmente o desde tu inventario.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {supplementSections.map(({ id, title, icon }) => (
+                                <DailySupplementCard 
+                                    key={id}
+                                    moment={id}
+                                    title={title}
+                                    icon={icon}
+                                    items={dailySupplements[id] || []}
+                                    onAdd={handleAddSupplementToDaily}
+                                    onRemove={handleRemoveSupplementFromDaily}
+                                />
+                            ))}
+                        </CardContent>
+                    </Card>
+                </div>
+                 <div className="md:col-span-1">
+                     <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                               <CalendarClock className="text-primary"/>
+                               Agenda de Hoy
+                            </CardTitle>
+                             <CardDescription>
+                                Tus entrenamientos y trabajo de hoy.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                             {todaysEvents.length > 0 ? (
+                                todaysEvents.map(event => {
+                                    if (event.type === 'entrenamiento' || event.type === 'trabajo') {
+                                        return (
+                                            <div key={event.id} className="flex items-center gap-3 bg-muted p-2 rounded-lg">
+                                                {event.type === 'entrenamiento' ? <Dumbbell className="h-5 w-5 text-blue-500"/> : <Briefcase className="h-5 w-5 text-purple-500"/>}
+                                                <div>
+                                                    <p className="font-semibold text-sm">{event.description}</p>
+                                                    <p className="text-xs text-muted-foreground">{event.startTime} - {event.endTime}</p>
+                                                </div>
+                                            </div>
+                                        )
+                                    }
+                                    return null;
+                                })
+                            ) : (
+                                <p className="text-sm text-muted-foreground text-center py-4">No hay entrenamientos o trabajo programado para hoy.</p>
+                            )}
+                        </CardContent>
+                    </Card>
+                 </div>
+            </div>
 
             <Card>
                 <CardHeader>
@@ -197,7 +249,7 @@ export default function SupplementsPage() {
                      {isLoading ? (
                         <p>Cargando inventario...</p>
                     ) : supplementInventory.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {supplementInventory.map(sup => (
                                 <Card key={sup.id} className="flex flex-col">
                                     <CardHeader className="pb-2">
