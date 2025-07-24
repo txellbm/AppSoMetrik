@@ -15,11 +15,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CalendarEvent } from "@/ai/schemas";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 
 type SupplementMoment = "desayuno" | "comida" | "cena" | "preEntreno" | "postEntreno";
 
+type TakenSupplement = {
+    name: string;
+    dose: number;
+};
+
 type DailySupplementData = {
-    [key in SupplementMoment]?: string[];
+    [key in SupplementMoment]?: TakenSupplement[];
 };
 
 type Ingredient = {
@@ -99,8 +106,11 @@ export default function SupplementsPage() {
         fetchTodaysEvents();
     }, [userId, today]);
     
-    const handleAddSupplementToDaily = async (moment: SupplementMoment, item: string) => {
-        if (!item.trim()) return;
+    const handleAddSupplementToDaily = async (moment: SupplementMoment, item: TakenSupplement) => {
+        if (!item.name.trim() || item.dose <= 0) {
+            toast({ variant: "destructive", title: "Datos inválidos", description: "Selecciona un suplemento y una dosis válida." });
+            return;
+        }
         const docRef = doc(db, "users", userId, "supplements", today);
 
         try {
@@ -112,7 +122,7 @@ export default function SupplementsPage() {
             }
             toast({
                 title: "Suplemento añadido",
-                description: `${item} ha sido añadido a ${moment}.`,
+                description: `${item.name} (${item.dose}) ha sido añadido a ${moment}.`,
             });
         } catch (error) {
             console.error("Error adding supplement:", error);
@@ -120,13 +130,13 @@ export default function SupplementsPage() {
         }
     };
     
-    const handleRemoveSupplementFromDaily = async (moment: SupplementMoment, item: string) => {
+    const handleRemoveSupplementFromDaily = async (moment: SupplementMoment, item: TakenSupplement) => {
         const docRef = doc(db, "users", userId, "supplements", today);
         try {
             await updateDoc(docRef, { [moment]: arrayRemove(item) });
             toast({
                 title: "Suplemento eliminado",
-                description: `${item} ha sido eliminado de ${moment}.`,
+                description: `${item.name} ha sido eliminado de ${moment}.`,
                 variant: "destructive"
             });
         } catch (error) {
@@ -182,7 +192,7 @@ export default function SupplementsPage() {
                                 Registro de Suplementos para Hoy ({today})
                             </CardTitle>
                             <CardDescription>
-                                Añade los suplementos que tomas en cada momento del día, bien manualmente o desde tu inventario.
+                                Añade los suplementos que tomas en cada momento del día desde tu inventario.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -193,6 +203,7 @@ export default function SupplementsPage() {
                                     title={title}
                                     icon={icon}
                                     items={dailySupplements[id] || []}
+                                    inventory={supplementInventory}
                                     onAdd={handleAddSupplementToDaily}
                                     onRemove={handleRemoveSupplementFromDaily}
                                 />
@@ -278,7 +289,7 @@ export default function SupplementsPage() {
                                     <CardFooter className="flex justify-between bg-muted/50 p-2">
                                         <div className="flex gap-1">
                                             {supplementSections.map(sec => (
-                                                <Button key={sec.id} size="icon" variant="ghost" className="h-7 w-7" title={`Añadir a ${sec.title}`} onClick={() => handleAddSupplementToDaily(sec.id, sup.name)}>
+                                                <Button key={sec.id} size="icon" variant="ghost" className="h-7 w-7" title={`Añadir a ${sec.title}`} onClick={() => handleAddSupplementToDaily(sec.id, { name: sup.name, dose: 1 })}>
                                                     {React.cloneElement(sec.icon as React.ReactElement, { className: "h-4 w-4"})}
                                                 </Button>
                                             ))}
@@ -317,18 +328,21 @@ type DailySupplementCardProps = {
     moment: SupplementMoment;
     title: string;
     icon: React.ReactNode;
-    items: string[];
-    onAdd: (moment: SupplementMoment, item: string) => void;
-    onRemove: (moment: SupplementMoment, item: string) => void;
+    items: TakenSupplement[];
+    inventory: SupplementDefinition[];
+    onAdd: (moment: SupplementMoment, item: TakenSupplement) => void;
+    onRemove: (moment: SupplementMoment, item: TakenSupplement) => void;
 }
 
-function DailySupplementCard({ moment, title, icon, items, onAdd, onRemove }: DailySupplementCardProps) {
-    const inputRef = useRef<HTMLInputElement>(null);
+function DailySupplementCard({ moment, title, icon, items, inventory, onAdd, onRemove }: DailySupplementCardProps) {
+    const [selectedSupplement, setSelectedSupplement] = useState('');
+    const [dose, setDose] = useState(1);
     
     const handleAddClick = () => {
-        if (inputRef.current?.value) {
-            onAdd(moment, inputRef.current.value);
-            inputRef.current.value = "";
+        if (selectedSupplement) {
+            onAdd(moment, { name: selectedSupplement, dose: dose });
+            setSelectedSupplement('');
+            setDose(1);
         }
     };
 
@@ -342,13 +356,30 @@ function DailySupplementCard({ moment, title, icon, items, onAdd, onRemove }: Da
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="flex items-center gap-2">
-                    <Input ref={inputRef} placeholder="Añadir suplemento..." className="h-9" onKeyDown={(e) => e.key === 'Enter' && handleAddClick()} />
-                    <Button size="icon" className="h-9 w-9" onClick={handleAddClick}><Plus className="h-4 w-4"/></Button>
+                    <Select value={selectedSupplement} onValueChange={setSelectedSupplement}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar suplemento..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {inventory.map(sup => (
+                                <SelectItem key={sup.id} value={sup.name}>{sup.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Input 
+                        type="number"
+                        value={dose}
+                        onChange={(e) => setDose(Number(e.target.value))}
+                        className="h-9 w-20"
+                        min="0"
+                        step="0.5"
+                    />
+                    <Button size="icon" className="h-9 w-9 flex-shrink-0" onClick={handleAddClick}><Plus className="h-4 w-4"/></Button>
                 </div>
                 <div className="flex flex-wrap gap-2 min-h-[36px]">
                     {items.map((item, index) => (
                         <Badge key={index} variant="secondary" className="py-1 px-2 text-sm font-normal">
-                           {item}
+                           {item.name} ({item.dose})
                            <button onClick={() => onRemove(moment, item)} className="ml-2 rounded-full hover:bg-destructive/20 p-0.5">
                             <X className="h-3 w-3" />
                            </button>
@@ -465,8 +496,3 @@ function SupplementDialog({ isOpen, onClose, onSave, supplement }: SupplementDia
         </Dialog>
     );
 }
-
-    
-
-
-    
