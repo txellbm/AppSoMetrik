@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import { collection, onSnapshot, query, where, doc, updateDoc, orderBy } from "firebase/firestore";
-import { format, parseISO } from "date-fns";
+import { format, parse, parseISO, differenceInSeconds } from "date-fns";
 import { es } from "date-fns/locale";
 import { db } from "@/lib/firebase";
 import { CalendarEvent } from "@/ai/schemas";
@@ -16,6 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dumbbell, Edit, Flame, Heart, Timer, Footprints, ArrowRightLeft } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+
 
 export default function WorkoutsPage() {
     const [workouts, setWorkouts] = useState<CalendarEvent[]>([]);
@@ -31,12 +33,12 @@ export default function WorkoutsPage() {
         const q = query(eventsColRef, where("type", "==", "entrenamiento"));
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const workoutData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as CalendarEvent[];
+            let workoutData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as CalendarEvent[];
             
             workoutData.sort((a, b) => {
-                const dateComparison = b.date.localeCompare(a.date);
-                if (dateComparison !== 0) return dateComparison;
-                return (a.startTime || "00:00").localeCompare(b.startTime || "00:00");
+                const dateA = a.date + (a.startTime || '00:00');
+                const dateB = b.date + (b.startTime || '00:00');
+                return dateB.localeCompare(dateA);
             });
             
             setWorkouts(workoutData);
@@ -112,7 +114,7 @@ export default function WorkoutsPage() {
                                                 <CardContent className="flex-grow space-y-2 text-sm">
                                                     <div className="flex items-center gap-2">
                                                         <Timer className="h-4 w-4 text-muted-foreground"/>
-                                                        <span>Duración: {workout.workoutDetails?.duration || '-'}</span>
+                                                        <span>Duración: {workout.workoutDetails?.realDuration || '-'}</span>
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <Flame className="h-4 w-4 text-muted-foreground"/>
@@ -182,13 +184,43 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
         }
     }, [workout]);
     
-    const handleChange = (field: keyof NonNullable<CalendarEvent['workoutDetails']>, value: string | number) => {
+    useEffect(() => {
+        if (formData?.realStartTime && formData.realEndTime && workout.date) {
+            const start = parse(`${workout.date} ${formData.realStartTime}`, 'yyyy-MM-dd HH:mm', new Date());
+            const end = parse(`${workout.date} ${formData.realEndTime}`, 'yyyy-MM-dd HH:mm', new Date());
+
+            if(start < end) {
+                const diffSeconds = differenceInSeconds(end, start);
+                const hours = Math.floor(diffSeconds / 3600);
+                const minutes = Math.floor((diffSeconds % 3600) / 60);
+                const seconds = diffSeconds % 60;
+                
+                const pad = (num: number) => num.toString().padStart(2, '0');
+                
+                setFormData(prev => ({...prev, realDuration: `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`}));
+            }
+        }
+    }, [formData?.realStartTime, formData?.realEndTime, workout.date]);
+
+
+    const handleChange = (field: keyof NonNullable<CalendarEvent['workoutDetails']>, value: any) => {
         const numValue = (typeof value === 'string' && value.trim() === '') ? undefined : Number(value);
-        if (['duration', 'notes'].includes(field)) {
+        if (['realDuration', 'notes', 'realStartTime', 'realEndTime'].includes(field as string)) {
              setFormData(prev => ({ ...prev, [field]: value }));
         } else {
              setFormData(prev => ({ ...prev, [field]: numValue }));
         }
+    };
+    
+    const handleZoneChange = (zone: keyof NonNullable<NonNullable<CalendarEvent['workoutDetails']>['zones']>, value: string) => {
+        const numValue = value.trim() === '' ? undefined : Number(value);
+        setFormData(prev => ({ 
+            ...prev, 
+            zones: {
+                ...(prev?.zones || {}),
+                [zone]: numValue
+            }
+        }));
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -202,7 +234,7 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-h-[90vh] overflow-y-auto pr-6">
                 <DialogHeader>
                     <DialogTitle>Detalles de: {workout.description}</DialogTitle>
                     <DialogDescription>
@@ -210,27 +242,35 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-3 gap-4">
                         <div>
-                            <Label htmlFor="duration">Duración real (hh:mm:ss)</Label>
-                            <Input id="duration" type="text" placeholder="01:07:23" value={formData?.duration || ''} onChange={e => handleChange('duration', e.target.value)} />
+                            <Label htmlFor="realStartTime">Hora Inicio Real</Label>
+                            <Input id="realStartTime" type="time" value={formData?.realStartTime || ''} onChange={e => handleChange('realStartTime', e.target.value)} />
                         </div>
+                        <div>
+                            <Label htmlFor="realEndTime">Hora Fin Real</Label>
+                            <Input id="realEndTime" type="time" value={formData?.realEndTime || ''} onChange={e => handleChange('realEndTime', e.target.value)} />
+                        </div>
+                         <div>
+                            <Label htmlFor="realDuration">Duración Real</Label>
+                            <Input id="realDuration" type="text" placeholder="01:07:23" value={formData?.realDuration || ''} onChange={e => handleChange('realDuration', e.target.value)} />
+                        </div>
+                    </div>
+                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <Label htmlFor="activeCalories">Calorías activas (kcal)</Label>
                             <Input id="activeCalories" type="number" placeholder="194" value={formData?.activeCalories || ''} onChange={e => handleChange('activeCalories', e.target.value)} />
                         </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
                         <div>
                            <Label htmlFor="totalCalories">Calorías totales (kcal)</Label>
                            <Input id="totalCalories" type="number" placeholder="278 (opcional)" value={formData?.totalCalories || ''} onChange={e => handleChange('totalCalories', e.target.value)} />
                         </div>
-                         <div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                        <div>
                            <Label htmlFor="avgHeartRate">FC Media (lpm)</Label>
                            <Input id="avgHeartRate" type="number" placeholder="104" value={formData?.avgHeartRate || ''} onChange={e => handleChange('avgHeartRate', e.target.value)} />
                         </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
                         <div>
                            <Label htmlFor="maxHeartRate">FC Máxima (lpm)</Label>
                            <Input id="maxHeartRate" type="number" placeholder="158" value={formData?.maxHeartRate || ''} onChange={e => handleChange('maxHeartRate', e.target.value)} />
@@ -250,6 +290,27 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
                            <Input id="distance" type="number" placeholder="420 (opcional)" value={formData?.distance || ''} onChange={e => handleChange('distance', e.target.value)} />
                         </div>
                     </div>
+
+                    <Accordion type="single" collapsible className="w-full">
+                        <AccordionItem value="item-1">
+                            <AccordionTrigger className="text-sm">Zonas de entrenamiento (opcional)</AccordionTrigger>
+                            <AccordionContent className="space-y-3 pt-2">
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                                    <Label htmlFor="zone-salud" className="text-right">Zona Salud (min)</Label>
+                                    <Input id="zone-salud" type="number" value={formData?.zones?.salud || ''} onChange={e => handleZoneChange('salud', e.target.value)} />
+                                    <Label htmlFor="zone-quemaGrasa" className="text-right">Zona Quema Grasa (min)</Label>
+                                    <Input id="zone-quemaGrasa" type="number" value={formData?.zones?.quemaGrasa || ''} onChange={e => handleZoneChange('quemaGrasa', e.target.value)} />
+                                    <Label htmlFor="zone-aptitudFisica" className="text-right">Zona Aptitud Física (min)</Label>
+                                    <Input id="zone-aptitudFisica" type="number" value={formData?.zones?.aptitudFisica || ''} onChange={e => handleZoneChange('aptitudFisica', e.target.value)} />
+                                    <Label htmlFor="zone-altaIntensidad" className="text-right">Zona Alta Intensidad (min)</Label>
+                                    <Input id="zone-altaIntensidad" type="number" value={formData?.zones?.altaIntensidad || ''} onChange={e => handleZoneChange('altaIntensidad', e.target.value)} />
+                                    <Label htmlFor="zone-extremo" className="text-right">Zona Extremo (min)</Label>
+                                    <Input id="zone-extremo" type="number" value={formData?.zones?.extremo || ''} onChange={e => handleZoneChange('extremo', e.target.value)} />
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
+
                     <div>
                         <Label htmlFor="notes">Sensaciones / Notas</Label>
                         <Textarea id="notes" placeholder="Me sentí bien, sin molestias" value={formData?.notes || ''} onChange={e => handleChange('notes', e.target.value)} />

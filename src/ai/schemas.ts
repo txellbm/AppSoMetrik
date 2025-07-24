@@ -109,7 +109,9 @@ export const CalendarEventSchema = z.object({
     endTime: z.string().optional().describe("Hora de fin (HH:mm)."),
     // Workout specific data can be nested
     workoutDetails: z.object({
-        duration: z.string().optional().describe("Duración real en formato hh:mm:ss."),
+        realStartTime: z.string().optional().describe("Hora de inicio real (HH:mm)."),
+        realEndTime: z.string().optional().describe("Hora de fin real (HH:mm)."),
+        realDuration: z.string().optional().describe("Duración real en formato hh:mm:ss."),
         activeCalories: z.number().optional().describe("Calorías activas quemadas."),
         totalCalories: z.number().optional().describe("Calorías totales quemadas."),
         avgHeartRate: z.number().optional().describe("FC media."),
@@ -118,6 +120,13 @@ export const CalendarEventSchema = z.object({
         steps: z.number().optional().describe("Pasos durante el entreno."),
         distance: z.number().optional().describe("Distancia recorrida en metros."),
         notes: z.string().optional().describe("Sensaciones o notas post-entreno."),
+        zones: z.object({
+          extremo: z.number().optional().describe("Minutos en Zona Extrema."),
+          altaIntensidad: z.number().optional().describe("Minutos en Zona de Alta Intensidad."),
+          aptitudFisica: z.number().optional().describe("Minutos en Zona de Aptitud Física."),
+          quemaGrasa: z.number().optional().describe("Minutos en Zona de Quema de Grasa."),
+          salud: z.number().optional().describe("Minutos en Zona de Salud."),
+        }).optional(),
     }).optional(),
 });
 export type CalendarEvent = z.infer<typeof CalendarEventSchema>;
