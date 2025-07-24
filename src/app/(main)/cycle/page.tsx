@@ -47,9 +47,7 @@ export default function CyclePage() {
     const userId = "user_test_id";
     const { toast } = useToast();
 
-    const selectedDateStr = useMemo(() => selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '', [selectedDate]);
-    
-    const [selectedDayMetric, setSelectedDayMetric] = useState<Partial<DailyMetric>>({ date: selectedDateStr, sintomas: [], notas: '' });
+    const [selectedDayMetric, setSelectedDayMetric] = useState<Partial<DailyMetric>>({ sintomas: [], notas: '' });
 
 
     // Fetch all metrics to initialize calendar and for the history table
@@ -69,20 +67,22 @@ export default function CyclePage() {
         return () => unsubscribe();
     }, [userId]);
 
-    // Fetch data for the selected day
+    // Fetch or create data for the selected day
     useEffect(() => {
-        if (!selectedDateStr) return;
+        if (!selectedDate) return;
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        
         const fetchDayData = async () => {
-            const docRef = doc(db, "users", userId, "dailyMetrics", selectedDateStr);
+            const docRef = doc(db, "users", userId, "dailyMetrics", dateStr);
             const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
-                setSelectedDayMetric({ date: selectedDateStr, ...docSnap.data()});
+                setSelectedDayMetric({ date: dateStr, ...docSnap.data()});
             } else {
-                setSelectedDayMetric({ date: selectedDateStr, estadoCiclo: undefined, sintomas: [], notas: '' });
+                setSelectedDayMetric({ date: dateStr, estadoCiclo: undefined, sintomas: [], notas: '' });
             }
         };
         fetchDayData();
-    }, [selectedDateStr, userId]);
+    }, [selectedDate, userId]);
     
     const { cycleStartDay, currentDayOfCycle } = useMemo(() => {
         const sortedMenstruationDays = dailyMetrics
@@ -121,12 +121,13 @@ export default function CyclePage() {
 
 
     const handleUpdateMetric = useCallback(async (field: keyof DailyMetric, value: any) => {
-        if (!selectedDateStr) return;
+        if (!selectedDate) return;
 
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
         const updatedMetric = { ...selectedDayMetric, [field]: value };
         setSelectedDayMetric(updatedMetric);
 
-        const docRef = doc(db, "users", userId, "dailyMetrics", selectedDateStr);
+        const docRef = doc(db, "users", userId, "dailyMetrics", dateStr);
         try {
             await setDoc(docRef, { [field]: value }, { merge: true });
             toast({
@@ -138,7 +139,7 @@ export default function CyclePage() {
             console.error("Error updating metric:", error);
             toast({ variant: "destructive", title: "Error", description: "No se pudo guardar el cambio." });
         }
-    }, [selectedDateStr, selectedDayMetric, userId, toast, selectedDate]);
+    }, [selectedDate, selectedDayMetric, userId, toast]);
 
 
     const cycleDataRows = useMemo(() => {
@@ -299,5 +300,4 @@ export default function CyclePage() {
             </div>
         </div>
     );
-
-    
+}
