@@ -177,3 +177,5 @@ export const RecoveryDataSchema = z.object({
     notes: z.string().optional().describe("Observaciones sobre la recuperación."),
 });
 export type RecoveryData = z.infer<typeof RecoveryDataSchema>;
+
+    

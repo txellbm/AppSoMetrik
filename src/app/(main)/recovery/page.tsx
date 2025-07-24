@@ -2,8 +2,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RecoveryData } from "@/ai/schemas";
-import { collection, onSnapshot, query, doc, setDoc } from "firebase/firestore";
+import { RecoveryData, SleepData } from "@/ai/schemas";
+import { collection, onSnapshot, query, doc, setDoc, getDocs, orderBy, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { HeartPulse, Wind, Moon, Dumbbell, Plus, Edit } from "lucide-react";
@@ -128,6 +128,7 @@ export default function RecoveryPage() {
                 onClose={() => setIsDialogOpen(false)}
                 onSave={handleSaveRecovery}
                 recovery={recoveryData}
+                userId={userId}
             />
 
              <Card className="w-full max-w-2xl">
@@ -181,18 +182,48 @@ type RecoveryDialogProps = {
     onClose: () => void;
     onSave: (data: Omit<RecoveryData, 'id'>) => void;
     recovery: RecoveryData | null;
+    userId: string;
 }
 
-function RecoveryDialog({ isOpen, onClose, onSave, recovery }: RecoveryDialogProps) {
+function RecoveryDialog({ isOpen, onClose, onSave, recovery, userId }: RecoveryDialogProps) {
     const [formData, setFormData] = useState<Partial<RecoveryData>>({});
+    const today = format(new Date(), "yyyy-MM-dd");
     
     useEffect(() => {
-        if(recovery) {
-            setFormData(recovery);
-        } else {
-            setFormData({ symptoms: [] });
+        const fetchLatestHrv = async () => {
+            const userRef = doc(db, "users", userId);
+            const qSleep = query(
+                collection(userRef, "sleep_manual"), 
+                orderBy("date", "desc"),
+                limit(1)
+            );
+            
+            const sleepSnap = await getDocs(qSleep);
+            
+            if (!sleepSnap.empty) {
+                const latestSleep = sleepSnap.docs[0].data() as SleepData;
+                // Check if the latest sleep data is for the current day and has HRV data
+                if (latestSleep.date === today && latestSleep.vfcAlDespertar) {
+                     return latestSleep.vfcAlDespertar;
+                }
+            }
+            return undefined;
+        };
+
+        if(isOpen) {
+            if(recovery) {
+                setFormData(recovery);
+            } else {
+                // It's a new entry, try to autocomplete
+                fetchLatestHrv().then(hrv => {
+                    setFormData({ 
+                        symptoms: [],
+                        morningHrv: hrv 
+                    });
+                });
+            }
         }
-    }, [recovery]);
+    }, [isOpen, recovery, userId, today]);
 
     const handleChange = (field: keyof RecoveryData, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -256,3 +287,5 @@ function RecoveryDialog({ isOpen, onClose, onSave, recovery }: RecoveryDialogPro
         </Dialog>
     )
 }
+
+    
