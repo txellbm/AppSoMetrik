@@ -42,23 +42,26 @@ export default function RecoveryPage() {
         return () => unsubscribe();
     }, [userId, today]);
 
-    const handleSaveRecovery = async (data: Omit<RecoveryData, 'id' | 'morningHrv'>) => {
+    const handleSaveRecovery = async (data: Omit<RecoveryData, 'id' | 'date' | 'morningHrv'>) => {
         try {
             const userRef = doc(db, "users", userId);
             const qSleep = query(
                 collection(userRef, "sleep_manual"),
-                where("date", "==", today),
-                orderBy("bedtime", "desc"),
-                limit(1)
+                where("date", "==", today)
             );
             
             const sleepSnap = await getDocs(qSleep);
             let morningHrv: number | undefined = undefined;
 
             if (!sleepSnap.empty) {
-                const latestSleep = sleepSnap.docs[0].data() as SleepData;
-                if (latestSleep.vfcAlDespertar) {
-                     morningHrv = latestSleep.vfcAlDespertar;
+                const sleepSessions = sleepSnap.docs
+                    .map(doc => doc.data() as SleepData)
+                    .sort((a, b) => (b.bedtime || "00:00").localeCompare(a.bedtime || "00:00"));
+                
+                const latestSleepWithHrv = sleepSessions.find(s => s.vfcAlDespertar !== undefined);
+
+                if (latestSleepWithHrv) {
+                     morningHrv = latestSleepWithHrv.vfcAlDespertar;
                 }
             }
 
