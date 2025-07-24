@@ -65,13 +65,13 @@ const getEventColorClass = (event: CalendarEvent): string => {
         return eventColors[event.description];
     }
     // Then check for event type
+    if (event.type === 'entrenamiento' && eventColors[`default_${event.type}`]) {
+        return eventColors[`default_${event.type}`];
+    }
     if (eventColors[event.type]) {
         return eventColors[event.type];
     }
-    // Fallback for general training
-    if (event.type === 'entrenamiento') {
-        return eventColors.default_entrenamiento;
-    }
+
     // Default fallback
     return eventColors.default;
 };
@@ -99,6 +99,8 @@ export default function CalendarPage() {
         "Nota rápida": { name: "Nota rápida", duration: 0, startTime: "12:00", defaultDaysOfWeek: [], type: "nota"}
     });
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [settingsFilter, setSettingsFilter] = useState<CalendarEvent['type'] | null>(null);
+
 
     const [eventToDelete, setEventToDelete] = useState<string | null>(null);
 
@@ -297,7 +299,7 @@ export default function CalendarPage() {
         const newName = `Evento #${Object.keys(quickEventTypes).length + 1}`;
         setQuickEventTypes(prev => ({
             ...prev,
-            [newName]: { name: newName, duration: 60, startTime: "12:00", defaultDaysOfWeek: [], type: 'nota' }
+            [newName]: { name: newName, duration: 60, startTime: "12:00", defaultDaysOfWeek: [], type: settingsFilter || 'nota' }
         }));
     }
 
@@ -389,7 +391,7 @@ export default function CalendarPage() {
             }
         });
         // This is to ensure consistent ordering
-        const orderedGroups: {name: string, events: QuickEventType[]}[] = [
+        const orderedGroups: {name: CalendarEvent['type'], events: QuickEventType[]}[] = [
             { name: 'entrenamiento', events: groups.entrenamiento},
             { name: 'trabajo', events: groups.trabajo},
             { name: 'nota', events: groups.nota},
@@ -400,6 +402,16 @@ export default function CalendarPage() {
         return orderedGroups;
 
     }, [quickEventTypes]);
+    
+    const openSettingsDialog = (filter: CalendarEvent['type']) => {
+        setSettingsFilter(filter);
+        setIsSettingsOpen(true);
+    }
+    
+    const filteredQuickEventKeys = useMemo(() => {
+        if (!settingsFilter) return Object.keys(quickEventTypes);
+        return Object.keys(quickEventTypes).filter(key => quickEventTypes[key].type === settingsFilter);
+    }, [quickEventTypes, settingsFilter]);
 
 
     return (
@@ -473,7 +485,7 @@ export default function CalendarPage() {
                                 <div key={name} className="space-y-2">
                                      <div className="flex items-center justify-between">
                                         <h4 className="font-semibold text-sm capitalize">{name === 'nota' ? 'Otros' : name}</h4>
-                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsSettingsOpen(true)}>
+                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openSettingsDialog(name)}>
                                             <Settings className="h-4 w-4" />
                                         </Button>
                                     </div>
@@ -529,10 +541,10 @@ export default function CalendarPage() {
              <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Configurar Eventos Rápidos</DialogTitle>
+                        <DialogTitle>Configurar Eventos Rápidos: <span className="capitalize">{settingsFilter === 'nota' ? 'Otros' : settingsFilter}</span></DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
-                        {Object.keys(quickEventTypes).map(key => (
+                        {filteredQuickEventKeys.map(key => (
                            <div key={key} className="p-2 border rounded-md space-y-3">
                                 <div className="flex items-center gap-2">
                                    <Input 
@@ -589,7 +601,7 @@ export default function CalendarPage() {
                         ))}
                     </div>
                     <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between">
-                         <Button variant="outline" onClick={handleAddNewQuickEvent}>Añadir nuevo evento rápido</Button>
+                         <Button variant="outline" onClick={handleAddNewQuickEvent}>Añadir nuevo evento</Button>
                         <Button onClick={() => setIsSettingsOpen(false)}>Cerrar</Button>
                     </DialogFooter>
                 </DialogContent>
@@ -620,9 +632,3 @@ const QuickEventCard = ({ type, config, isSelected, onSelect }: QuickEventCardPr
         <Label className="font-semibold text-sm cursor-pointer">{type}</Label>
     </Badge>
 );
-
-    
-
-    
-
-    
