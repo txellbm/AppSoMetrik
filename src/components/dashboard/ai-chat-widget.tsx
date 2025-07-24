@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect, useActionState } from "react";
@@ -115,7 +116,7 @@ function ChatForm({ onNewMessage }: { onNewMessage: (message: Message) => void }
     const [dailyMetricsSnap, sleepSnap, eventsSnap] = await Promise.all([
         getDocs(dailyMetricsQuery),
         getDocs(sleepQuery),
-        getDocs(eventsSnap),
+        getDocs(eventsQuery),
     ]);
 
     const dailyMetrics = dailyMetricsSnap.docs.map(d => ({...d.data(), date: d.id})) as DailyMetric[];
