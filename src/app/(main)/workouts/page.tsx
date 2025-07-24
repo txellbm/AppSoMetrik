@@ -181,7 +181,7 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
 
     useEffect(() => {
         if (isOpen) {
-            setFormData({});
+            setFormData({}); // Always reset form on open
         }
     }, [isOpen]);
     
@@ -348,5 +348,3 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
         </Dialog>
     );
 }
-
-    
