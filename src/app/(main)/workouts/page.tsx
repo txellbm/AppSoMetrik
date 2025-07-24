@@ -102,7 +102,7 @@ export default function WorkoutsPage() {
                          <p className="text-center py-8">Cargando entrenamientos...</p>
                     ) : Object.keys(groupedWorkouts).length > 0 ? (
                         <div className="space-y-6">
-                            {Object.keys(groupedWorkouts).map((date) => (
+                            {Object.keys(groupedWorkouts).sort((a, b) => b.localeCompare(a)).map((date) => (
                                 <div key={date}>
                                     <h3 className="font-semibold mb-2 border-b pb-1">{formatDate(date)}</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -180,7 +180,6 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
     const [formData, setFormData] = useState<CalendarEvent['workoutDetails']>({});
 
     useEffect(() => {
-        // Reset form to blank state every time it opens
         if (isOpen) {
             setFormData({});
         }
@@ -232,7 +231,6 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if(workout.id) {
-            // Firestore does not support `undefined` values. We need to clean the object.
             const cleanupUndefined = (obj: any): any => {
                 if (obj === null || typeof obj !== 'object') {
                     return obj;
@@ -271,15 +269,15 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
                     <div className="grid grid-cols-3 gap-4">
                         <div>
                             <Label htmlFor="realStartTime">Hora Inicio Real</Label>
-                            <Input id="realStartTime" type="time" value={formData?.realStartTime || ''} onChange={e => handleChange('realStartTime', e.target.value)} />
+                            <Input id="realStartTime" type="time" value={formData?.realStartTime ?? ''} onChange={e => handleChange('realStartTime', e.target.value)} />
                         </div>
                         <div>
                             <Label htmlFor="realEndTime">Hora Fin Real</Label>
-                            <Input id="realEndTime" type="time" value={formData?.realEndTime || ''} onChange={e => handleChange('realEndTime', e.target.value)} />
+                            <Input id="realEndTime" type="time" value={formData?.realEndTime ?? ''} onChange={e => handleChange('realEndTime', e.target.value)} />
                         </div>
                          <div>
                             <Label htmlFor="realDuration">Duración Real</Label>
-                            <Input id="realDuration" type="text" placeholder="01:07:23" value={formData?.realDuration || ''} onChange={e => handleChange('realDuration', e.target.value)} />
+                            <Input id="realDuration" type="text" placeholder="01:07:23" value={formData?.realDuration ?? ''} onChange={e => handleChange('realDuration', e.target.value)} />
                         </div>
                     </div>
                      <div className="grid grid-cols-2 gap-4">
@@ -350,3 +348,5 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
         </Dialog>
     );
 }
+
+    
