@@ -40,7 +40,8 @@ const prompt = ai.definePrompt({
 **DATOS CONSOLIDADOS DEL USUARIO (Período: {{{periodo}}}):**
 
 - **Sueño**: {{{sleepData}}}
-- **Ejercicio y Actividad**: {{{exerciseData}}}
+- **Ejercicio**: {{{exerciseData}}}
+- **Actividad Diaria**: {{{activityData}}}
 - **Salud Cardíaca y Fisiología**: {{{heartRateData}}}
 - **Ciclo Menstrual**: {{{menstruationData}}}
 - **Suplementos**: {{{supplementData}}}
@@ -62,4 +63,3 @@ const generateHealthSummaryFlow = ai.defineFlow(
   }
 );
     
-

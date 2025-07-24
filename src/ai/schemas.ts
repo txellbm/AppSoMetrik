@@ -10,7 +10,8 @@ import {z} from 'genkit';
 export const HealthSummaryInputSchema = z.object({
   periodo: z.string().describe('El período de tiempo para el informe (ej. Diario, Semanal, Mensual).'),
   sleepData: z.string().describe('Resumen de los datos de sueño.'),
-  exerciseData: z.string().describe('Resumen de los datos de ejercicio y actividad.'),
+  exerciseData: z.string().describe('Resumen de los datos de ejercicio.'),
+  activityData: z.string().describe('Resumen de los datos de actividad diaria.'),
   heartRateData: z.string().describe('Resumen de los datos de frecuencia cardíaca, VFC, recuperación, respiración y nivel de energía.'),
   menstruationData: z.string().describe('Resumen de los datos de menstruación.'),
   supplementData: z.string().describe('Resumen de los datos de suplementos.'),

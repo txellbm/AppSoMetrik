@@ -79,8 +79,8 @@ export default function HealthSummaryWidget() {
                 return (await getDocs(q)).docs.map(d => ({id: d.id, ...d.data()}));
             }
             
-            // Fetch all daily metrics to calculate cycle phase correctly without a composite index
-            const allDailyMetricsQuery = query(collection(userRef, "dailyMetrics"), orderBy("date", "desc"));
+            // Fetch all daily metrics to calculate cycle phase correctly
+            const allDailyMetricsQuery = query(collection(userRef, "dailyMetrics"));
             const allDailyMetricsSnap = await getDocs(allDailyMetricsQuery);
             const allDailyMetrics = allDailyMetricsSnap.docs.map(d => ({ ...d.data(), id: d.id })) as DailyMetric[];
 
@@ -103,7 +103,7 @@ export default function HealthSummaryWidget() {
             const dayOfCycle = cycleStartDay ? differenceInDays(startOfDay(now), cycleStartDay) + 1 : null;
             const currentPhase = getCyclePhase(dayOfCycle);
 
-            const [sleepData, exerciseData, supplementData, activityData] = await Promise.all([
+            const [sleepData, eventData, supplementData, activityData] = await Promise.all([
                 fetchDataInPeriod('sleep_manual'),
                 fetchDataInPeriod('events'), // Also includes workouts
                 fetchSupplements(),
@@ -124,13 +124,14 @@ export default function HealthSummaryWidget() {
             const menstruationSummary = `Fase actual: ${currentPhase}, Día del ciclo: ${dayOfCycle || 'N/A'}. Síntomas y notas del período: \n${formatForAI('Datos del ciclo', cycleDataInPeriod as DailyMetric[])}`;
 
 
-            const allCalendarEvents = (exerciseData as CalendarEvent[]).sort((a,b) => a.date.localeCompare(b.date));
+            const allCalendarEvents = (eventData as CalendarEvent[]).sort((a,b) => a.date.localeCompare(b.date));
             const workouts = allCalendarEvents.filter(e => e.type === 'entrenamiento');
 
             const aiInput: HealthSummaryInput = {
                 periodo: period,
                 sleepData: formatForAI('Sueño', sleepData as SleepData[]),
-                exerciseData: formatForAI('Entrenamientos y Actividad', [...workouts, ...(activityData as ActivityData[])]),
+                exerciseData: formatForAI('Entrenamientos', workouts),
+                activityData: formatForAI('Actividad Diaria', activityData as ActivityData[]),
                 heartRateData: "Faltan datos de Frecuencia Cardíaca y VFC. El usuario aún no los registra.",
                 menstruationData: menstruationSummary,
                 supplementData: formatForAI('Suplementos', supplementData),
