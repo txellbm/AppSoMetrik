@@ -3,16 +3,16 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { DailyMetric } from "@/ai/schemas";
-import { collection, onSnapshot, query, doc, setDoc, getDoc, orderBy, deleteField } from "firebase/firestore";
+import { collection, onSnapshot, query, doc, setDoc, getDoc, orderBy, deleteField, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { format, startOfDay, differenceInDays } from 'date-fns';
+import { format, startOfDay, differenceInDays, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/dashboard/data-table";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
-import { Stethoscope, Calendar as CalendarIcon, Droplet, Wind, Shield, Zap, NotepadText, Activity } from "lucide-react";
+import { Stethoscope, Calendar as CalendarIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +34,7 @@ export default function CyclePage() {
     const [isMarkingMode, setIsMarkingMode] = useState(false);
 
     useEffect(() => {
+        setIsLoading(true);
         const userRef = doc(db, "users", userId);
         const qDailyMetrics = query(collection(userRef, "dailyMetrics"), orderBy("date", "desc"));
 
@@ -52,7 +53,7 @@ export default function CyclePage() {
     const { cycleStartDay, currentDayOfCycle } = useMemo(() => {
         const sortedMenstruationDays = dailyMetrics
             .filter(m => m.estadoCiclo === 'menstruacion')
-            .map(m => startOfDay(new Date(m.date.replace(/-/g, '/')))) 
+            .map(m => startOfDay(parseISO(m.date))) 
             .sort((a, b) => b.getTime() - a.getTime());
 
         if (sortedMenstruationDays.length === 0) {
@@ -80,7 +81,7 @@ export default function CyclePage() {
     const menstruationDays = useMemo(() => {
         return dailyMetrics
             .filter(m => m.estadoCiclo === 'menstruacion')
-            .map(m => startOfDay(new Date(m.date.replace(/-/g, '/'))));
+            .map(m => parseISO(m.date));
     }, [dailyMetrics]);
 
 
@@ -93,23 +94,26 @@ export default function CyclePage() {
             
             try {
                 const docSnap = await getDoc(docRef);
-                let newStatus: 'menstruacion' | null = 'menstruacion';
+                let newStatusIsSet = false;
 
                 if (docSnap.exists() && docSnap.data().estadoCiclo === 'menstruacion') {
-                    newStatus = null; 
-                }
-
-                if (newStatus === null) {
-                    await setDoc(docRef, { estadoCiclo: deleteField() }, { merge: true });
+                    // Day exists and is marked, so we unmark it.
+                    await updateDoc(docRef, { estadoCiclo: deleteField() });
+                    toast({
+                        title: "Día desmarcado",
+                        description: `${format(day, 'PPP', { locale: es })} ya no está marcado como día de menstruación.`,
+                        duration: 2000,
+                    });
                 } else {
-                    await setDoc(docRef, { estadoCiclo: newStatus }, { merge: true });
+                    // Day doesn't exist or is not marked, so we mark it.
+                    await setDoc(docRef, { estadoCiclo: 'menstruacion' }, { merge: true });
+                    newStatusIsSet = true;
+                     toast({
+                        title: "Día marcado",
+                        description: `${format(day, 'PPP', { locale: es })} ha sido marcado como día de menstruación.`,
+                        duration: 2000,
+                    });
                 }
-                
-                toast({
-                    title: newStatus ? "Día marcado" : "Día desmarcado",
-                    description: `${format(day, 'PPP', { locale: es })} ha sido ${newStatus ? 'marcado como día de menstruación' : 'desmarcado'}.`,
-                    duration: 2000,
-                });
             } catch (error) {
                  console.error("Error toggling menstruation day:", error);
                  toast({ variant: "destructive", title: "Error", description: "No se pudo actualizar el día." });
@@ -118,7 +122,7 @@ export default function CyclePage() {
     };
 
     const cycleDataRows = useMemo(() => {
-        const formatDateForTable = (dateString: string) => format(new Date(dateString.replace(/-/g, '/')), 'dd/MM/yyyy');
+        const formatDateForTable = (dateString: string) => format(parseISO(dateString), 'dd/MM/yyyy');
         
         const allRelevantMetrics = dailyMetrics
             .filter(m => m.estadoCiclo || (m.sintomas && m.sintomas.length > 0) || m.notas)
@@ -126,7 +130,7 @@ export default function CyclePage() {
 
         return allRelevantMetrics.map(metric => {
                 let dayOfCycle: number | null = null;
-                const metricDate = new Date(metric.date.replace(/-/g, '/'));
+                const metricDate = parseISO(metric.date);
                 if (cycleStartDay) {
                     const diff = differenceInDays(metricDate, cycleStartDay) + 1;
                     if (diff > 0) dayOfCycle = diff;
