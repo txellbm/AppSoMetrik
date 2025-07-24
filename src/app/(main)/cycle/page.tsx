@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { DailyMetric } from "@/ai/schemas";
 import { collection, onSnapshot, query, doc, setDoc, getDoc, orderBy, deleteField, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -14,7 +14,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { Stethoscope, Calendar as CalendarIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 
 const getCyclePhase = (dayOfCycle: number | null): string => {
     if (dayOfCycle === null || dayOfCycle < 1) return "N/A";
@@ -98,7 +97,13 @@ export default function CyclePage() {
 
                 if (docSnap.exists() && docSnap.data().estadoCiclo === 'menstruacion') {
                     // Day exists and is marked, so we unmark it.
-                    await updateDoc(docRef, { estadoCiclo: deleteField() });
+                    // If the document has other fields, only remove the cycle state.
+                    if (Object.keys(docSnap.data()).length > 1) {
+                         await updateDoc(docRef, { estadoCiclo: deleteField() });
+                    } else {
+                        // If it only has the cycle state, we can consider deleting it, but update is safer.
+                         await updateDoc(docRef, { estadoCiclo: deleteField() });
+                    }
                 } else {
                     // Day doesn't exist or is not marked, so we mark it.
                     await setDoc(docRef, { estadoCiclo: 'menstruacion' }, { merge: true });
@@ -174,14 +179,10 @@ export default function CyclePage() {
                             onSelect={handleDayClick}
                             locale={es}
                             className="rounded-md border"
-                            disabled={(date) => date > new Date()}
+                            disabled={(date) => date > new Date() || date < new Date('2020-01-01')}
                             modifiers={{ menstruation: menstruationDays }}
-                            modifiersStyles={{
-                                menstruation: { 
-                                    backgroundColor: 'hsl(var(--destructive))', 
-                                    color: 'hsl(var(--destructive-foreground))',
-                                    borderRadius: '100%',
-                                },
+                            modifiersClassNames={{
+                                menstruation: 'bg-destructive text-destructive-foreground rounded-full',
                             }}
                         />
                     </CardContent>
@@ -233,3 +234,5 @@ export default function CyclePage() {
         </div>
     );
 }
+
+    
