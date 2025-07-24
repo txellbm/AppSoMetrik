@@ -31,7 +31,7 @@ export default function Home() {
     <>
       <Tabs defaultValue="dashboard" className="flex-grow flex flex-col">
         <div className="bg-background/95 backdrop-blur-sm sticky top-0 z-10 border-b">
-          <TabsList className="grid w-full grid-cols-5 md:grid-cols-11 h-auto p-2">
+          <TabsList className="grid w-full grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-11 h-auto p-2">
             <TabsTrigger value="dashboard"><LayoutDashboard className="mr-2 h-4 w-4"/>Panel</TabsTrigger>
             <TabsTrigger value="calendar"><CalendarDays className="mr-2 h-4 w-4"/>Calendario</TabsTrigger>
             <TabsTrigger value="goals"><Target className="mr-2 h-4 w-4"/>Objetivos</TabsTrigger>
