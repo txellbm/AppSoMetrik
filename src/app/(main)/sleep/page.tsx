@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -78,56 +77,54 @@ export default function SleepPage() {
                                 </TableHeader>
                                 <TableBody>
                                 {sleepData.map(metric => (
-                                    <AccordionItem value={metric.date} key={metric.date} asChild>
-                                        <React.Fragment>
-                                            <TableRow>
-                                                <TableCell>
-                                                    <AccordionTrigger />
-                                                </TableCell>
-                                                <TableCell className="font-medium">{formatDate(metric.date)}</TableCell>
-                                                <TableCell>{metric.quality || "-"}</TableCell>
-                                                <TableCell>{metric.efficiency || "-"}</TableCell>
-                                                <TableCell>{metric.sleepTime || "-"}</TableCell>
-                                                <TableCell>{metric.hrv || "-"}</TableCell>
-                                            </TableRow>
-                                            <TableRow>
-                                                <TableCell colSpan={6} className="p-0">
-                                                    <AccordionContent>
-                                                        <div className="p-4 bg-muted/50 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-                                                            <DetailSection icon={<Clock/>} title="Horarios">
-                                                                <DetailItem label="Hora de Dormir" value={metric.bedtime} />
-                                                                <DetailItem label="Hora de Despertar" value={metric.wakeUpTime} />
-                                                                <DetailItem label="Tiempo en Cama" value={metric.inBedTime} unit="min" />
-                                                                <DetailItem label="Tiempo Despierto" value={metric.awakeTime} unit="min" />
-                                                                <DetailItem label="Para Dormirse" value={metric.timeToFallAsleep} unit="min" />
-                                                            </DetailSection>
+                                    <AccordionItem value={metric.date} key={metric.date}>
+                                        <TableRow>
+                                            <TableCell>
+                                                <AccordionTrigger />
+                                            </TableCell>
+                                            <TableCell className="font-medium">{formatDate(metric.date)}</TableCell>
+                                            <TableCell>{metric.quality || "-"}</TableCell>
+                                            <TableCell>{metric.efficiency || "-"}</TableCell>
+                                            <TableCell>{metric.sleepTime || "-"}</TableCell>
+                                            <TableCell>{metric.hrv || "-"}</TableCell>
+                                        </TableRow>
+                                        <TableRow>
+                                            <TableCell colSpan={6} className="p-0 border-none">
+                                                <AccordionContent>
+                                                    <div className="p-4 bg-muted/50 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                                                        <DetailSection icon={<Clock/>} title="Horarios">
+                                                            <DetailItem label="Hora de Dormir" value={metric.bedtime} />
+                                                            <DetailItem label="Hora de Despertar" value={metric.wakeUpTime} />
+                                                            <DetailItem label="Tiempo en Cama" value={metric.inBedTime} unit="min" />
+                                                            <DetailItem label="Tiempo Despierto" value={metric.awakeTime} unit="min" />
+                                                            <DetailItem label="Para Dormirse" value={metric.timeToFallAsleep} unit="min" />
+                                                        </DetailSection>
 
-                                                            <DetailSection icon={<Wind/>} title="Salud Respiratoria">
-                                                            <DetailItem label="SpO2 Media" value={metric.SPO2?.avg} unit="%" />
-                                                            <DetailItem label="SpO2 Mín" value={metric.SPO2?.min} unit="%" />
-                                                            <DetailItem label="SpO2 Máx" value={metric.SPO2?.max} unit="%" />
-                                                            <DetailItem label="Frec. Resp. Media" value={metric.respiratoryRate} unit="rpm"/>
-                                                            <DetailItem label="Frec. Resp. Mín" value={metric.respiratoryRateMin} unit="rpm"/>
-                                                            <DetailItem label="Frec. Resp. Máx" value={metric.respiratoryRateMax} unit="rpm"/>
-                                                            <DetailItem label="Apnea Detectada" value={metric.apnea} />
-                                                            </DetailSection>
+                                                        <DetailSection icon={<Wind/>} title="Salud Respiratoria">
+                                                        <DetailItem label="SpO2 Media" value={metric.SPO2?.avg} unit="%" />
+                                                        <DetailItem label="SpO2 Mín" value={metric.SPO2?.min} unit="%" />
+                                                        <DetailItem label="SpO2 Máx" value={metric.SPO2?.max} unit="%" />
+                                                        <DetailItem label="Frec. Resp. Media" value={metric.respiratoryRate} unit="rpm"/>
+                                                        <DetailItem label="Frec. Resp. Mín" value={metric.respiratoryRateMin} unit="rpm"/>
+                                                        <DetailItem label="Frec. Resp. Máx" value={metric.respiratoryRateMax} unit="rpm"/>
+                                                        <DetailItem label="Apnea Detectada" value={metric.apnea} />
+                                                        </DetailSection>
 
-                                                            <DetailSection icon={<Heart/>} title="Salud Cardíaca">
-                                                                <DetailItem label="VFC (ms)" value={metric.hrv} />
-                                                                <DetailItem label="VFC 7 días (ms)" value={metric.hrv7DayAvg} />
-                                                            </DetailSection>
+                                                        <DetailSection icon={<Heart/>} title="Salud Cardíaca">
+                                                            <DetailItem label="VFC (ms)" value={metric.hrv} />
+                                                            <DetailItem label="VFC 7 días (ms)" value={metric.hrv7DayAvg} />
+                                                        </DetailSection>
 
-                                                            { (metric.notes || metric.tags) &&
-                                                                <DetailSection icon={<MessageSquare/>} title="Notas y Etiquetas">
-                                                                    {metric.tags && <div className="flex flex-wrap gap-1">{metric.tags.split(',').map(tag => <Badge key={tag} variant="secondary">{tag.trim()}</Badge>)}</div>}
-                                                                    {metric.notes && <p className="text-sm text-muted-foreground mt-2">{metric.notes}</p>}
-                                                                </DetailSection>
-                                                            }
-                                                        </div>
-                                                    </AccordionContent>
-                                                </TableCell>
-                                            </TableRow>
-                                        </React.Fragment>
+                                                        { (metric.notes || metric.tags) &&
+                                                            <DetailSection icon={<MessageSquare/>} title="Notas y Etiquetas">
+                                                                {metric.tags && <div className="flex flex-wrap gap-1">{metric.tags.split(',').map(tag => <Badge key={tag} variant="secondary">{tag.trim()}</Badge>)}</div>}
+                                                                {metric.notes && <p className="text-sm text-muted-foreground mt-2">{metric.notes}</p>}
+                                                            </DetailSection>
+                                                        }
+                                                    </div>
+                                                </AccordionContent>
+                                            </TableCell>
+                                        </TableRow>
                                     </AccordionItem>
                                 ))}
                                 </TableBody>
