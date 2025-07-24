@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot, setDoc, updateDoc, arrayUnion, arrayRemove, getDoc, collection, addDoc, deleteDoc, query, where, getDocs } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -575,3 +575,5 @@ function SupplementDialog({ isOpen, onClose, onSave, supplement }: SupplementDia
         </Dialog>
     );
 }
+
+    
