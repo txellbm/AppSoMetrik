@@ -11,10 +11,24 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Bot, Send, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+import { db } from "@/lib/firebase";
+import { collection, query, where, getDocs, doc, orderBy, limit } from "firebase/firestore";
+import { format, startOfDay, differenceInDays, parseISO } from 'date-fns';
+import { DailyMetric, SleepData, CalendarEvent } from "@/ai/schemas";
+
+
 type Message = {
   role: "user" | "assistant";
   content: string;
 };
+
+const getCyclePhase = (dayOfCycle: number | null): string => {
+    if (dayOfCycle === null || dayOfCycle < 1) return "N/A";
+    if (dayOfCycle <= 5) return "Menstrual";
+    if (dayOfCycle <= 14) return "Folicular";
+    return "Lútea";
+};
+
 
 export default function AIChatWidget() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -81,6 +95,7 @@ export default function AIChatWidget() {
 
 function ChatForm({ onNewMessage }: { onNewMessage: (message: Message) => void }) {
   const formRef = useRef<HTMLFormElement>(null);
+  const userId = "user_test_id";
 
   const formAction = async (prevState: any, formData: FormData) => {
     const message = formData.get("message") as string;
@@ -88,8 +103,60 @@ function ChatForm({ onNewMessage }: { onNewMessage: (message: Message) => void }
 
     onNewMessage({ role: "user", content: message });
     formRef.current?.reset();
+    
+    // --- Data Fetching & Context Building ---
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    const userRef = doc(db, "users", userId);
+    
+    const dailyMetricsQuery = query(collection(userRef, "dailyMetrics"), orderBy("date", "desc"));
+    const sleepQuery = query(collection(userRef, "sleep_manual"), orderBy("date", "desc"), limit(1));
+    const eventsQuery = query(collection(userRef, "events"), where("date", "==", todayStr));
 
-    const input: AiAssistantChatInput = { message };
+    const [dailyMetricsSnap, sleepSnap, eventsSnap] = await Promise.all([
+        getDocs(dailyMetricsQuery),
+        getDocs(sleepQuery),
+        getDocs(eventsSnap),
+    ]);
+
+    const dailyMetrics = dailyMetricsSnap.docs.map(d => ({...d.data(), date: d.id})) as DailyMetric[];
+    const lastSleep = sleepSnap.docs.length > 0 ? sleepSnap.docs[0].data() as SleepData : null;
+    const todayEvents = eventsSnap.docs.map(d => d.data()) as CalendarEvent[];
+    const todayWorkouts = todayEvents.filter(e => e.type === 'entrenamiento');
+
+    const sortedMenstruationDays = dailyMetrics
+        .filter(m => m.estadoCiclo === 'menstruacion')
+        .map(m => startOfDay(parseISO(m.date)))
+        .sort((a, b) => b.getTime() - a.getTime());
+
+    let cycleStartDay = null;
+    if (sortedMenstruationDays.length > 0) {
+        cycleStartDay = sortedMenstruationDays[0];
+        for (let i = 1; i < sortedMenstruationDays.length; i++) {
+            if (differenceInDays(sortedMenstruationDays[i - 1], sortedMenstruationDays[i]) > 1) break;
+            cycleStartDay = sortedMenstruationDays[i];
+        }
+    }
+    const dayOfCycle = cycleStartDay ? differenceInDays(startOfDay(new Date()), cycleStartDay) + 1 : null;
+    const currentPhase = getCyclePhase(dayOfCycle);
+
+    let summaryLines : string[] = [];
+    if(currentPhase !== "N/A" && dayOfCycle) {
+        summaryLines.push(`Ciclo: Día ${dayOfCycle}, fase ${currentPhase}.`);
+    }
+    if (lastSleep) {
+        summaryLines.push(`Sueño de anoche: Duración de ${lastSleep.sleepTime} minutos con una eficiencia del ${lastSleep.efficiency}%.`);
+    }
+    if (todayWorkouts.length > 0) {
+        summaryLines.push(`Entrenamientos planeados para hoy: ${todayWorkouts.map(w => w.description).join(', ')}.`);
+    }
+     if (todayEvents.length > 0) {
+         summaryLines.push(`Agenda de hoy: ${todayEvents.map(e => `${e.description} de ${e.startTime} a ${e.endTime}`).join('; ')}.`);
+    }
+    
+    const userContext = summaryLines.join(' ');
+    // --- End Data Fetching ---
+
+    const input: AiAssistantChatInput = { message, userContext: userContext || undefined };
     try {
       const { response } = await aiAssistantChat(input);
       onNewMessage({ role: "assistant", content: response });

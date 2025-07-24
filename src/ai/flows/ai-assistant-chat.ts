@@ -14,6 +14,7 @@ import {z} from 'genkit';
 
 const AiAssistantChatInputSchema = z.object({
   message: z.string().describe('El mensaje del usuario al asistente de IA.'),
+  userContext: z.string().optional().describe('Un resumen de los datos de salud recientes del usuario para dar contexto.'),
 });
 export type AiAssistantChatInput = z.infer<typeof AiAssistantChatInputSchema>;
 
@@ -34,10 +35,19 @@ const prompt = ai.definePrompt({
 
       Estás diseñado para proporcionar análisis, consejos y recordatorios relacionados con los datos de salud y bienestar del usuario.
       Tu objetivo es ayudar al usuario a comprender sus datos, detectar patrones y apoyar su rutina diaria de autocuidado.
+      
+      {{#if userContext}}
+      Utiliza el siguiente contexto sobre los datos recientes del usuario para fundamentar tu respuesta. Si el usuario hace una pregunta que puede ser respondida con estos datos, úsalos.
+
+      Contexto de datos del usuario:
+      ---
+      {{{userContext}}}
+      ---
+      {{/if}}
 
       Mensaje del usuario: {{{message}}}
 
-      Respuesta:`, // The response is what we expect the LLM to generate
+      Respuesta:`, 
 });
 
 const aiAssistantChatFlow = ai.defineFlow(
