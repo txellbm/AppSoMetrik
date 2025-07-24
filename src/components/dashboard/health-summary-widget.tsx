@@ -9,9 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Bot, Clipboard, Loader2 } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, doc, documentId, orderBy, startAt } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, documentId, orderBy, startAt, getDoc } from "firebase/firestore";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, parseISO, differenceInDays } from 'date-fns';
-import { ActivityData, CalendarEvent, DailyMetric, SleepData } from "@/ai/schemas";
+import { ActivityData, CalendarEvent, DailyMetric, SleepData, FoodIntakeData } from "@/ai/schemas";
 
 type Period = 'Diario' | 'Semanal' | 'Mensual';
 
@@ -65,22 +65,22 @@ export default function HealthSummaryWidget() {
                  return (await getDocs(q)).docs.map(d => ({id: d.id, ...d.data()}));
             }
             
-            const fetchSupplements = async () => {
-                const dates = [];
-                 for (let d = new Date(startDate); d <= endDate; d = addDays(d, 1)) {
+            const fetchCollectionInPeriod = async (colName: string) => {
+                const dates: string[] = [];
+                for (let d = new Date(startDate); d <= endDate; d = addDays(d, 1)) {
                     dates.push(format(d, 'yyyy-MM-dd'));
-                 }
-                if(dates.length === 0) return [];
-                 if (dates.length > 30) {
-                    console.warn("Querying for too many supplement dates, this may be slow or hit Firestore limits.");
-                    // Fallback or chunking might be needed for larger ranges in a real app
                 }
-                const q = query(collection(userRef, 'supplements'), where(documentId(), 'in', dates));
+                if (dates.length === 0) return [];
+                if (dates.length > 30) {
+                    // Firestore 'in' query limit is 30
+                    console.warn(`Querying for more than 30 days in ${colName}, this may be slow or fail.`);
+                }
+                const q = query(collection(userRef, colName), where(documentId(), 'in', dates));
                 return (await getDocs(q)).docs.map(d => ({id: d.id, ...d.data()}));
             }
             
             // Fetch all daily metrics to calculate cycle phase correctly
-            const allDailyMetricsQuery = query(collection(userRef, "dailyMetrics"));
+            const allDailyMetricsQuery = query(collection(userRef, "dailyMetrics"), orderBy('date', 'desc'));
             const allDailyMetricsSnap = await getDocs(allDailyMetricsQuery);
             const allDailyMetrics = allDailyMetricsSnap.docs.map(d => ({ ...d.data(), id: d.id })) as DailyMetric[];
 
@@ -103,16 +103,21 @@ export default function HealthSummaryWidget() {
             const dayOfCycle = cycleStartDay ? differenceInDays(startOfDay(now), cycleStartDay) + 1 : null;
             const currentPhase = getCyclePhase(dayOfCycle);
 
-            const [sleepData, eventData, supplementData, activityData] = await Promise.all([
+            const [sleepData, eventData, supplementData, activityData, foodData] = await Promise.all([
                 fetchDataInPeriod('sleep_manual'),
                 fetchDataInPeriod('events'), // Also includes workouts
-                fetchSupplements(),
+                fetchCollectionInPeriod('supplements'),
                 fetchDataInPeriod('activity'),
+                fetchCollectionInPeriod('food_intake'),
             ]);
 
             const cycleDataInPeriod = allDailyMetrics.filter(m => {
-                const metricDate = parseISO(m.date);
-                return metricDate >= startDate && metricDate <= endDate;
+                try {
+                    const metricDate = parseISO(m.date);
+                    return metricDate >= startDate && metricDate <= endDate;
+                } catch {
+                    return false;
+                }
             });
             
             // Format data for AI
@@ -120,6 +125,18 @@ export default function HealthSummaryWidget() {
                 if(data.length === 0) return `No hay datos de ${title} para este período.`;
                 return `${title}:\n${data.map(d => `- ${JSON.stringify(d)}`).join('\n')}\n`;
             }
+
+             const heartRateSummaryLines = [];
+            const allSleepData = sleepData as SleepData[];
+            const allActivityData = activityData as ActivityData[];
+
+            allSleepData.forEach(s => {
+                if(s.avgHeartRate) heartRateSummaryLines.push(`Sueño (${s.date}): FC media ${s.avgHeartRate} lpm, VFC al despertar ${s.vfcAlDespertar || 'N/A'} ms.`);
+            });
+             allActivityData.forEach(a => {
+                if(a.avgDayHeartRate) heartRateSummaryLines.push(`Actividad (${a.date}): FC media ${a.avgDayHeartRate} lpm, FC en reposo ${a.restingHeartRate || 'N/A'} lpm.`);
+            });
+            const heartRateSummary = heartRateSummaryLines.length > 0 ? heartRateSummaryLines.join(' ') : "No hay datos de frecuencia cardíaca o VFC registrados.";
             
             const menstruationSummary = `Fase actual: ${currentPhase}, Día del ciclo: ${dayOfCycle || 'N/A'}. Síntomas y notas del período: \n${formatForAI('Datos del ciclo', cycleDataInPeriod as DailyMetric[])}`;
 
@@ -129,13 +146,13 @@ export default function HealthSummaryWidget() {
 
             const aiInput: HealthSummaryInput = {
                 periodo: period,
-                sleepData: formatForAI('Sueño', sleepData as SleepData[]),
+                sleepData: formatForAI('Sueño', allSleepData),
                 exerciseData: formatForAI('Entrenamientos', workouts),
-                activityData: formatForAI('Actividad Diaria', activityData as ActivityData[]),
-                heartRateData: "Faltan datos de Frecuencia Cardíaca y VFC. El usuario aún no los registra.",
+                activityData: formatForAI('Actividad Diaria', allActivityData),
+                heartRateData: heartRateSummary,
                 menstruationData: menstruationSummary,
                 supplementData: formatForAI('Suplementos', supplementData),
-                foodIntakeData: "Faltan datos de Alimentación. El usuario aún no los registra.",
+                foodIntakeData: formatForAI('Alimentación e Hidratación', foodData as FoodIntakeData[]),
                 calendarData: formatForAI('Eventos del Calendario', allCalendarEvents),
             };
 

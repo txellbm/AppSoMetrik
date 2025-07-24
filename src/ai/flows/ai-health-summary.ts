@@ -23,7 +23,7 @@ const prompt = ai.definePrompt({
 
 **Instrucciones Clave:**
 - **Enfócate en el Período**: Analiza los datos exclusivamente dentro del período de tiempo solicitado (diario, semanal, mensual).
-- **Correlaciona Datos:** Busca activamente relaciones entre diferentes áreas. Por ejemplo, ¿cómo afecta el sueño a la recuperación y al rendimiento en los entrenamientos? ¿Hay patrones entre el ciclo menstrual y los niveles de energía o el estado de ánimo?
+- **Correlaciona Datos:** Busca activamente relaciones entre diferentes áreas. Por ejemplo, ¿cómo afecta el sueño a la recuperación y al rendimiento en los entrenamientos? ¿Hay patrones entre el ciclo menstrual y los niveles de energía o el estado de ánimo? ¿La dieta parece influir en el sueño?
 - **Estructura Clara:** Organiza el informe en las secciones que se detallan a continuación.
 - **Tono Profesional y Empático:** Usa un lenguaje claro, alentador y basado en los datos.
 
@@ -33,8 +33,9 @@ const prompt = ai.definePrompt({
 - **Análisis del Sueño**: Detalles sobre los patrones de sueño, calidad, duración promedio y su posible impacto en otras métricas como la VFC y la energía.
 - **Actividad Física y Ejercicio**: Un resumen de las calorías quemadas, el progreso hacia los objetivos y una tabla detallada de los entrenamientos realizados. Analiza la consistencia y la intensidad.
 - **Salud Cardíaca y Fisiología**: Información sobre la frecuencia cardíaca en reposo, VFC (HRV), y frecuencia respiratoria. Explica qué significan estas métricas en el contexto del usuario.
-- **Hidratación y Nutrición**: Detalles sobre la ingesta de líquidos y alimentos (si están disponibles).
+- **Hidratación y Nutrición**: Detalles sobre la ingesta de líquidos y alimentos. Analiza la calidad de la dieta y la consistencia en la hidratación.
 - **Ciclo Menstrual**: Si hay datos, un análisis de la fase actual del ciclo, el día del ciclo, los síntomas registrados y sus implicaciones en la energía, el estado de ánimo y las recomendaciones de entrenamiento. Analiza la regularidad del ciclo y la duración de la menstruación.
+- **Suplementos**: Un resumen de los suplementos tomados durante el período.
 - **Recomendaciones Clave**: Una lista con viñetas de las 3-5 recomendaciones más importantes y accionables basadas en el análisis cruzado de todos los datos proporcionados para el período.
 
 **DATOS CONSOLIDADOS DEL USUARIO (Período: {{{periodo}}}):**

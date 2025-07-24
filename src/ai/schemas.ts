@@ -152,3 +152,16 @@ export const DailyMetricSchema = z.object({
   notas: z.string().optional().describe("Notas generales del día."),
 });
 export type DailyMetric = z.infer<typeof DailyMetricSchema>;
+
+export const FoodIntakeSchema = z.object({
+    id: z.string().optional(),
+    date: z.string().describe("Fecha del registro (YYYY-MM-DD)."),
+    waterIntake: z.number().optional().describe("Agua total bebida en ml."),
+    otherDrinks: z.string().optional().describe("Otras bebidas consumidas."),
+    breakfast: z.string().optional().describe("Descripción del desayuno."),
+    lunch: z.string().optional().describe("Descripción de la comida."),
+    dinner: z.string().optional().describe("Descripción de la cena."),
+    snacks: z.string().optional().describe("Descripción de snacks o picoteos."),
+    notes: z.string().optional().describe("Notas generales sobre la alimentación del día."),
+});
+export type FoodIntakeData = z.infer<typeof FoodIntakeSchema>;
