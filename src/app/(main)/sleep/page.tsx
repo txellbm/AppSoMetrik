@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Moon, Plus, Edit, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 export default function SleepPage() {
     const [sleepData, setSleepData] = useState<SleepData[]>([]);
@@ -219,22 +220,16 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
     }, [formData.date, formData.bedtime, formData.wakeUpTime]);
 
 
-    const handleChange = (field: keyof SleepData, value: string | number) => {
-        const numValue = (value === '') ? undefined : (typeof value === 'string' ? Number(value) : value);
-        if (['date', 'type', 'bedtime', 'wakeUpTime', 'notes'].includes(field)) {
-             setFormData(prev => ({ ...prev, [field]: value }));
-        } else {
-            setFormData(prev => ({ ...prev, [field]: numValue }));
-        }
+    const handleChange = (field: keyof Omit<SleepData, 'phases'>, value: string | number | undefined) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
     };
-    
-    const handlePhaseChange = (phase: 'deep' | 'light' | 'rem', value: string) => {
-        const numValue = value === '' ? undefined : Number(value);
+
+    const handlePhaseChange = (phase: 'deep' | 'light' | 'rem', value: number | undefined) => {
         setFormData(prev => ({
             ...prev,
             phases: {
                 ...(prev.phases || {}),
-                [phase]: numValue
+                [phase]: value
             }
         }));
     };
@@ -254,6 +249,9 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
             avgHeartRate: formData.avgHeartRate,
             minHeartRate: formData.minHeartRate,
             maxHeartRate: formData.maxHeartRate,
+            lpmAlDespertar: formData.lpmAlDespertar,
+            vfcAlDormir: formData.vfcAlDormir,
+            vfcAlDespertar: formData.vfcAlDespertar,
             phases: formData.phases,
             notes: formData.notes
         };
@@ -263,23 +261,23 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
     
     const formatMinutesToHHMM = (minutes: number | undefined) => {
         if (minutes === undefined || minutes === null) return '';
-        const h = Math.floor(minutes / 60).toString().padStart(2,'0');
-        const m = (minutes % 60).toString().padStart(2,'0');
+        const h = Math.floor(minutes / 60).toString().padStart(2, '0');
+        const m = (minutes % 60).toString().padStart(2, '0');
         return `${h}:${m}`;
     }
 
     const handleDurationChange = (field: 'timeAwake' | 'phases.deep' | 'phases.light' | 'phases.rem', value: string) => {
         const [hours, minutes] = value.split(':').map(Number);
-        const totalMinutes = (hours || 0) * 60 + (minutes || 0);
+        const totalMinutes = (isNaN(hours) ? 0 : hours) * 60 + (isNaN(minutes) ? 0 : minutes);
+        const finalValue = totalMinutes > 0 ? totalMinutes : undefined;
 
-        if(field.startsWith('phases.')){
+        if (field.startsWith('phases.')) {
             const phase = field.split('.')[1] as 'deep' | 'light' | 'rem';
-            handlePhaseChange(phase, String(totalMinutes));
-        } else {
-             handleChange(field, totalMinutes);
+            handlePhaseChange(phase, finalValue);
+        } else if (field === 'timeAwake') {
+            handleChange('timeAwake', finalValue);
         }
     }
-
 
     if (!isOpen) return null;
 
@@ -290,11 +288,9 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
                     <DialogTitle>{sleep ? 'Editar Sesión de Sueño' : 'Registrar Sesión de Sueño'}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 py-4 max-h-[80vh] overflow-y-auto pr-4">
+                    
+                    <h4 className="font-semibold text-primary">💤 Sueño</h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div>
-                            <Label htmlFor="date">Fecha</Label>
-                            <Input id="date" type="date" value={formData.date || ''} onChange={(e) => handleChange('date', e.target.value)} required/>
-                        </div>
                         <div>
                             <Label htmlFor="type">Tipo</Label>
                              <Select value={formData.type || 'noche'} onValueChange={(v) => handleChange('type', v)}>
@@ -304,6 +300,10 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
                                     <SelectItem value="siesta">Siesta</SelectItem>
                                 </SelectContent>
                             </Select>
+                        </div>
+                        <div>
+                            <Label htmlFor="date">Fecha</Label>
+                            <Input id="date" type="date" value={formData.date || ''} onChange={(e) => handleChange('date', e.target.value)} required/>
                         </div>
                          <div>
                             <Label htmlFor="bedtime">Hora de inicio</Label>
@@ -316,42 +316,68 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
                     </div>
                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                            <Label htmlFor="sleepTime">Duración total</Label>
-                            <Input id="sleepTime" type="time" placeholder="hh:mm" value={formatMinutesToHHMM(formData.sleepTime)} disabled />
-                        </div>
-                        <div>
                            <Label htmlFor="timeToFallAsleep">Me dormí en (min)</Label>
-                           <Input id="timeToFallAsleep" type="number" value={formData.timeToFallAsleep || ''} onChange={(e) => handleChange('timeToFallAsleep', e.target.value)}/>
+                           <Input id="timeToFallAsleep" type="number" value={formData.timeToFallAsleep ?? ''} onChange={(e) => handleChange('timeToFallAsleep', e.target.value === '' ? undefined : Number(e.target.value))}/>
                         </div>
                         <div>
                             <Label htmlFor="timeAwake">Tiempo despierto</Label>
                             <Input id="timeAwake" type="time" placeholder="hh:mm" value={formatMinutesToHHMM(formData.timeAwake)} onChange={(e) => handleDurationChange('timeAwake', e.target.value)} />
                         </div>
+                        <div>
+                            <Label htmlFor="sleepTime">Duración total</Label>
+                            <Input id="sleepTime" type="time" placeholder="hh:mm" value={formatMinutesToHHMM(formData.sleepTime)} disabled />
+                        </div>
                          <div>
                            <Label htmlFor="efficiency">Eficiencia (%)</Label>
-                           <Input id="efficiency" type="number" value={formData.efficiency || ''} onChange={(e) => handleChange('efficiency', e.target.value)}/>
+                           <Input id="efficiency" type="number" value={formData.efficiency ?? ''} onChange={(e) => handleChange('efficiency', e.target.value === '' ? undefined : Number(e.target.value))}/>
                         </div>
                     </div>
                     <div>
-                        <Label>Fases del sueño (hh:mm)</Label>
+                        <Label>Fases del sueño</Label>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-1">
-                            <Input type="time" placeholder="Sueño Ligero" value={formatMinutesToHHMM(formData.phases?.light)} onChange={(e) => handleDurationChange('phases.light', e.target.value)}/>
-                            <Input type="time" placeholder="Sueño Profundo" value={formatMinutesToHHMM(formData.phases?.deep)} onChange={(e) => handleDurationChange('phases.deep', e.target.value)}/>
-                            <Input type="time" placeholder="REM" value={formatMinutesToHHMM(formData.phases?.rem)} onChange={(e) => handleDurationChange('phases.rem', e.target.value)}/>
+                            <Input type="time" placeholder="REM (hh:mm)" value={formatMinutesToHHMM(formData.phases?.rem)} onChange={(e) => handleDurationChange('phases.rem', e.target.value)}/>
+                            <Input type="time" placeholder="Ligero (hh:mm)" value={formatMinutesToHHMM(formData.phases?.light)} onChange={(e) => handleDurationChange('phases.light', e.target.value)}/>
+                            <Input type="time" placeholder="Profundo (hh:mm)" value={formatMinutesToHHMM(formData.phases?.deep)} onChange={(e) => handleDurationChange('phases.deep', e.target.value)}/>
                         </div>
                     </div>
+
+                    <Separator className="my-6"/>
+                    <h4 className="font-semibold text-primary">❤️‍🩹 Datos fisiológicos</h4>
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <Label>FC Media</Label>
+                            <Input id="avgHeartRate" type="number" placeholder="lpm" value={formData.avgHeartRate ?? ''} onChange={(e) => handleChange('avgHeartRate', e.target.value === '' ? undefined : Number(e.target.value))}/>
+                        </div>
+                        <div>
+                             <Label>FC Mínima</Label>
+                             <Input id="minHeartRate" type="number" placeholder="lpm" value={formData.minHeartRate ?? ''} onChange={(e) => handleChange('minHeartRate', e.target.value === '' ? undefined : Number(e.target.value))}/>
+                        </div>
+                        <div>
+                              <Label>FC Máxima</Label>
+                              <Input id="maxHeartRate" type="number" placeholder="lpm" value={formData.maxHeartRate ?? ''} onChange={(e) => handleChange('maxHeartRate', e.target.value === '' ? undefined : Number(e.target.value))}/>
+                        </div>
+                    </div>
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                         <div>
+                            <Label>LPM al despertar</Label>
+                            <Input id="lpmAlDespertar" type="number" placeholder="lpm" value={formData.lpmAlDespertar ?? ''} onChange={(e) => handleChange('lpmAlDespertar', e.target.value === '' ? undefined : Number(e.target.value))}/>
+                        </div>
+                        <div>
+                             <Label>VFC al dormir</Label>
+                             <Input id="vfcAlDormir" type="number" placeholder="ms" value={formData.vfcAlDormir ?? ''} onChange={(e) => handleChange('vfcAlDormir', e.target.value === '' ? undefined : Number(e.target.value))}/>
+                        </div>
+                        <div>
+                              <Label>VFC al despertar</Label>
+                              <Input id="vfcAlDespertar" type="number" placeholder="ms" value={formData.vfcAlDespertar ?? ''} onChange={(e) => handleChange('vfcAlDespertar', e.target.value === '' ? undefined : Number(e.target.value))}/>
+                        </div>
+                    </div>
+
+                    <Separator className="my-6"/>
                      <div>
-                        <Label>Frecuencia Cardíaca (lpm)</Label>
-                         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-1">
-                            <Input id="avgHeartRate" type="number" placeholder="FC Media" value={formData.avgHeartRate || ''} onChange={(e) => handleChange('avgHeartRate', e.target.value)}/>
-                             <Input id="minHeartRate" type="number" placeholder="FC Mínima" value={formData.minHeartRate || ''} onChange={(e) => handleChange('minHeartRate', e.target.value)}/>
-                              <Input id="maxHeartRate" type="number" placeholder="FC Máxima" value={formData.maxHeartRate || ''} onChange={(e) => handleChange('maxHeartRate', e.target.value)}/>
-                        </div>
-                    </div>
-                    <div>
-                        <Label htmlFor="notes">Notas / Sensaciones</Label>
+                        <Label htmlFor="notes" className="font-semibold text-primary">✍️ Notas / Sensaciones</Label>
                         <Textarea id="notes" value={formData.notes || ''} onChange={(e) => handleChange('notes', e.target.value)} />
                     </div>
+
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
                         <Button type="submit">Guardar</Button>
@@ -361,7 +387,3 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
         </Dialog>
     );
 }
-
-    
-
-    
