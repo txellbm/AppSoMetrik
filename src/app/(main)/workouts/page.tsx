@@ -28,7 +28,7 @@ export default function WorkoutsPage() {
     useEffect(() => {
         setIsLoading(true);
         const userRef = doc(db, "users", userId);
-        const qWorkouts = query(collection(userRef, "workouts"), orderBy("date", "desc"), orderBy("startTime", "desc"));
+        const qWorkouts = query(collection(userRef, "workouts"), orderBy("date", "desc"));
 
         const unsubscribe = onSnapshot(qWorkouts, (snapshot) => {
             const workoutData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as WorkoutData[];
