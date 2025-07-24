@@ -15,8 +15,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dumbbell, Edit, Flame, Heart, Timer, Footprints, ArrowRightLeft } from "lucide-react";
+import { Dumbbell, Edit, Flame, Heart, Timer, Footprints, ArrowRightLeft, ChevronsUpDown, Clock, Zap, Target } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
 
 
 export default function WorkoutsPage() {
@@ -35,7 +36,6 @@ export default function WorkoutsPage() {
         const unsubscribe = onSnapshot(q, (snapshot) => {
             let workoutData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as CalendarEvent[];
             
-            // Sort on the client side
             workoutData.sort((a, b) => {
                 const dateA = a.date + (a.startTime || '00:00');
                 const dateB = b.date + (b.startTime || '00:00');
@@ -85,6 +85,18 @@ export default function WorkoutsPage() {
         }, {} as Record<string, CalendarEvent[]>);
     }, [workouts]);
 
+    const formatZoneName = (zone: string) => {
+        const names: Record<string, string> = {
+            extremo: "Extremo",
+            altaIntensidad: "Alta Intensidad",
+            aptitudFisica: "Aptitud Física",
+            quemaGrasa: "Quema Grasa",
+            salud: "Salud"
+        };
+        return names[zone] || zone;
+    };
+
+
     return (
         <div className="flex flex-col gap-6">
             <Card>
@@ -110,29 +122,68 @@ export default function WorkoutsPage() {
                                             <Card key={workout.id} className="flex flex-col">
                                                 <CardHeader>
                                                     <CardTitle className="text-lg">{workout.description}</CardTitle>
-                                                    <CardDescription>{workout.startTime} - {workout.endTime}</CardDescription>
+                                                    <CardDescription>Planificado: {workout.startTime} - {workout.endTime}</CardDescription>
                                                 </CardHeader>
-                                                <CardContent className="flex-grow space-y-2 text-sm">
-                                                    <div className="flex items-center gap-2">
-                                                        <Timer className="h-4 w-4 text-muted-foreground"/>
-                                                        <span>Duración: {workout.workoutDetails?.realDuration || '-'}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <Flame className="h-4 w-4 text-muted-foreground"/>
-                                                        <span>Calorías: {workout.workoutDetails?.activeCalories || '-'} kcal</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <Heart className="h-4 w-4 text-muted-foreground"/>
-                                                        <span>FC Media: {workout.workoutDetails?.avgHeartRate || '-'} bpm</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <Footprints className="h-4 w-4 text-muted-foreground"/>
-                                                        <span>Pasos: {workout.workoutDetails?.steps || '-'}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <ArrowRightLeft className="h-4 w-4 text-muted-foreground"/>
-                                                        <span>Distancia: {workout.workoutDetails?.distance ? `${(workout.workoutDetails.distance / 1000).toFixed(2)} km` : '-'}</span>
-                                                    </div>
+                                                <CardContent className="flex-grow space-y-3 text-sm">
+                                                    {workout.workoutDetails?.realStartTime && workout.workoutDetails?.realEndTime && (
+                                                         <div className="flex items-center gap-2">
+                                                            <Clock className="h-4 w-4 text-muted-foreground"/>
+                                                            <span>Real: {workout.workoutDetails.realStartTime} - {workout.workoutDetails.realEndTime}</span>
+                                                        </div>
+                                                    )}
+                                                     {workout.workoutDetails?.realDuration && (
+                                                        <div className="flex items-center gap-2">
+                                                            <Timer className="h-4 w-4 text-muted-foreground"/>
+                                                            <span>Duración: {workout.workoutDetails.realDuration}</span>
+                                                        </div>
+                                                    )}
+                                                     {workout.workoutDetails?.activeCalories && (
+                                                        <div className="flex items-center gap-2">
+                                                            <Flame className="h-4 w-4 text-muted-foreground"/>
+                                                            <span>Calorías Activas: {workout.workoutDetails.activeCalories} kcal</span>
+                                                        </div>
+                                                     )}
+                                                     {workout.workoutDetails?.totalCalories && (
+                                                        <div className="flex items-center gap-2">
+                                                            <Zap className="h-4 w-4 text-muted-foreground"/>
+                                                            <span>Calorías Totales: {workout.workoutDetails.totalCalories} kcal</span>
+                                                        </div>
+                                                     )}
+                                                     {workout.workoutDetails?.avgHeartRate && (
+                                                        <div className="flex items-center gap-2">
+                                                            <Heart className="h-4 w-4 text-muted-foreground"/>
+                                                            <span>FC: {workout.workoutDetails.avgHeartRate} lpm (media)</span>
+                                                            {(workout.workoutDetails.minHeartRate || workout.workoutDetails.maxHeartRate) && (
+                                                                <span className="text-muted-foreground text-xs">
+                                                                    ({workout.workoutDetails.minHeartRate || '·'} / {workout.workoutDetails.maxHeartRate || '·'})
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                     )}
+                                                     {workout.workoutDetails?.steps && (
+                                                        <div className="flex items-center gap-2">
+                                                            <Footprints className="h-4 w-4 text-muted-foreground"/>
+                                                            <span>Pasos: {workout.workoutDetails.steps}</span>
+                                                        </div>
+                                                     )}
+                                                     {workout.workoutDetails?.distance && (
+                                                        <div className="flex items-center gap-2">
+                                                            <ArrowRightLeft className="h-4 w-4 text-muted-foreground"/>
+                                                            <span>Distancia: {(workout.workoutDetails.distance / 1000).toFixed(2)} km</span>
+                                                        </div>
+                                                     )}
+
+                                                    {workout.workoutDetails?.zones && Object.values(workout.workoutDetails.zones).some(z => z) && (
+                                                        <div>
+                                                            <h4 className="font-semibold flex items-center gap-2 mt-2"><Target className="h-4 w-4 text-muted-foreground"/> Zonas de FC</h4>
+                                                            <div className="flex flex-wrap gap-x-2 gap-y-1 mt-1">
+                                                                {Object.entries(workout.workoutDetails.zones).map(([zone, value]) => (
+                                                                    value ? <Badge key={zone} variant="secondary">{formatZoneName(zone)}: {value} min</Badge> : null
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
                                                     {workout.workoutDetails?.notes && (
                                                         <p className="pt-2 text-muted-foreground italic">"{workout.workoutDetails.notes}"</p>
                                                     )}
@@ -181,11 +232,9 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
 
     useEffect(() => {
         if (isOpen) {
-            // If details exist for the workout, load them into the form.
-            // Otherwise, start with a blank form.
             setDetails(workout.workoutDetails || {});
         }
-    }, [isOpen, workout]);
+    }, [isOpen, workout.workoutDetails]);
 
 
     useEffect(() => {
