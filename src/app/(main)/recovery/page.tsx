@@ -201,27 +201,26 @@ function RecoveryDialog({ isOpen, onClose, onSave, recovery, userId }: RecoveryD
             
             const sleepSnap = await getDocs(qSleep);
             
+            let hrv: number | undefined = undefined;
             if (!sleepSnap.empty) {
                 const latestSleep = sleepSnap.docs[0].data() as SleepData;
                 if (latestSleep.vfcAlDespertar) {
-                     return latestSleep.vfcAlDespertar;
+                     hrv = latestSleep.vfcAlDespertar;
                 }
             }
-            return undefined;
+            
+            if(recovery) {
+                setFormData({ ...recovery, morningHrv: recovery.morningHrv || hrv });
+            } else {
+                setFormData({ 
+                    symptoms: [],
+                    morningHrv: hrv 
+                });
+            }
         };
 
         if(isOpen) {
-            if(recovery) {
-                setFormData(recovery);
-            } else {
-                // It's a new entry, try to autocomplete
-                fetchLatestHrv().then(hrv => {
-                    setFormData({ 
-                        symptoms: [],
-                        morningHrv: hrv 
-                    });
-                });
-            }
+            fetchLatestHrv();
         }
     }, [isOpen, recovery, userId, today]);
 
@@ -251,10 +250,12 @@ function RecoveryDialog({ isOpen, onClose, onSave, recovery, userId }: RecoveryD
                     <DialogTitle>Registro de Recuperación</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
-                    <div>
-                        <Label htmlFor="morningHrv">VFC Matutina (ms)</Label>
-                        <Input id="morningHrv" type="number" value={formData.morningHrv ?? ''} onChange={e => handleChange('morningHrv', e.target.value === '' ? undefined : Number(e.target.value))} />
-                    </div>
+                    {formData.morningHrv && (
+                         <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
+                            <HeartPulse className="h-5 w-5 text-primary"/>
+                            <p className="text-sm">VFC Matutina (del sueño): <strong>{formData.morningHrv} ms</strong></p>
+                         </div>
+                    )}
                      <div>
                         <Label htmlFor="perceivedRecovery">Recuperación Percibida: {formData.perceivedRecovery || 7.5}/10</Label>
                         <Slider
