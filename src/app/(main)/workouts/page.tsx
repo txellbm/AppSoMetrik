@@ -177,19 +177,20 @@ type WorkoutDetailsDialogProps = {
 };
 
 function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetailsDialogProps) {
-    const [formData, setFormData] = useState<CalendarEvent['workoutDetails']>({});
+    const [details, setDetails] = useState<CalendarEvent['workoutDetails']>({});
 
     useEffect(() => {
-        if (!isOpen) {
-            setFormData({}); // Force state to reset when dialog is closed.
+        // This ensures the form is blank every time it opens.
+        if (isOpen) {
+            setDetails({});
         }
     }, [isOpen]);
 
     useEffect(() => {
-        if (formData?.realStartTime && formData.realEndTime && workout.date) {
+        if (details?.realStartTime && details.realEndTime && workout.date) {
             try {
-                const start = parse(`${workout.date} ${formData.realStartTime}`, 'yyyy-MM-dd HH:mm', new Date());
-                let end = parse(`${workout.date} ${formData.realEndTime}`, 'yyyy-MM-dd HH:mm', new Date());
+                const start = parse(`${workout.date} ${details.realStartTime}`, 'yyyy-MM-dd HH:mm', new Date());
+                let end = parse(`${workout.date} ${details.realEndTime}`, 'yyyy-MM-dd HH:mm', new Date());
 
                 if (end < start) {
                     end = new Date(end.getTime() + 24 * 60 * 60 * 1000); 
@@ -203,27 +204,27 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
                     
                     const pad = (num: number) => num.toString().padStart(2, '0');
                     
-                    setFormData(prev => ({...prev, realDuration: `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`}));
+                    setDetails(prev => ({...prev, realDuration: `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`}));
                 }
             } catch (e) {
                 // Ignore invalid date errors during input
             }
         }
-    }, [formData?.realStartTime, formData?.realEndTime, workout.date]);
+    }, [details?.realStartTime, details?.realEndTime, workout.date]);
 
 
     const handleChange = (field: keyof NonNullable<CalendarEvent['workoutDetails']>, value: any) => {
         if (['realDuration', 'notes', 'realStartTime', 'realEndTime'].includes(field as string)) {
-             setFormData(prev => ({ ...prev, [field]: value }));
+             setDetails(prev => ({ ...prev, [field]: value }));
         } else {
              const numValue = (typeof value === 'string' && value.trim() === '') ? undefined : Number(value);
-             setFormData(prev => ({ ...prev, [field]: numValue }));
+             setDetails(prev => ({ ...prev, [field]: numValue }));
         }
     };
     
     const handleZoneChange = (zone: keyof NonNullable<NonNullable<CalendarEvent['workoutDetails']>['zones']>, value: string) => {
         const numValue = value.trim() === '' ? undefined : Number(value);
-        setFormData(prev => ({ 
+        setDetails(prev => ({ 
             ...prev, 
             zones: {
                 ...(prev?.zones || {}),
@@ -253,8 +254,8 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
                 return newObj;
             };
 
-            const cleanedFormData = cleanupUndefined(formData);
-            onSave(workout.id, cleanedFormData);
+            const cleanedDetails = cleanupUndefined(details);
+            onSave(workout.id, cleanedDetails);
         }
     };
 
@@ -273,67 +274,67 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
                     <div className="grid grid-cols-3 gap-4">
                         <div>
                             <Label htmlFor="realStartTime">Hora Inicio Real</Label>
-                            <Input id="realStartTime" type="time" value={formData?.realStartTime ?? ''} onChange={e => handleChange('realStartTime', e.target.value)} />
+                            <Input id="realStartTime" type="time" value={details?.realStartTime ?? ''} onChange={e => handleChange('realStartTime', e.target.value)} />
                         </div>
                         <div>
                             <Label htmlFor="realEndTime">Hora Fin Real</Label>
-                            <Input id="realEndTime" type="time" value={formData?.realEndTime ?? ''} onChange={e => handleChange('realEndTime', e.target.value)} />
+                            <Input id="realEndTime" type="time" value={details?.realEndTime ?? ''} onChange={e => handleChange('realEndTime', e.target.value)} />
                         </div>
                          <div>
                             <Label htmlFor="realDuration">Duración Real</Label>
-                            <Input id="realDuration" type="text" placeholder="01:07:23" value={formData?.realDuration ?? ''} onChange={e => handleChange('realDuration', e.target.value)} />
+                            <Input id="realDuration" type="text" placeholder="01:07:23" value={details?.realDuration ?? ''} onChange={e => handleChange('realDuration', e.target.value)} />
                         </div>
                     </div>
                      <div className="grid grid-cols-2 gap-4">
                         <div>
                             <Label htmlFor="activeCalories">Calorías activas (kcal)</Label>
-                            <Input id="activeCalories" type="number" placeholder="194" value={formData?.activeCalories ?? ''} onChange={e => handleChange('activeCalories', e.target.value)} />
+                            <Input id="activeCalories" type="number" placeholder="194" value={details?.activeCalories ?? ''} onChange={e => handleChange('activeCalories', e.target.value)} />
                         </div>
                         <div>
                            <Label htmlFor="totalCalories">Calorías totales (kcal)</Label>
-                           <Input id="totalCalories" type="number" placeholder="278" value={formData?.totalCalories ?? ''} onChange={e => handleChange('totalCalories', e.target.value)} />
+                           <Input id="totalCalories" type="number" placeholder="278" value={details?.totalCalories ?? ''} onChange={e => handleChange('totalCalories', e.target.value)} />
                         </div>
                     </div>
                     <div className="grid grid-cols-3 gap-4">
                         <div>
                            <Label htmlFor="avgHeartRate">FC Media (lpm)</Label>
-                           <Input id="avgHeartRate" type="number" placeholder="104" value={formData?.avgHeartRate ?? ''} onChange={e => handleChange('avgHeartRate', e.target.value)} />
+                           <Input id="avgHeartRate" type="number" placeholder="104" value={details?.avgHeartRate ?? ''} onChange={e => handleChange('avgHeartRate', e.target.value)} />
                         </div>
                         <div>
                            <Label htmlFor="maxHeartRate">FC Máxima (lpm)</Label>
-                           <Input id="maxHeartRate" type="number" placeholder="158" value={formData?.maxHeartRate ?? ''} onChange={e => handleChange('maxHeartRate', e.target.value)} />
+                           <Input id="maxHeartRate" type="number" placeholder="158" value={details?.maxHeartRate ?? ''} onChange={e => handleChange('maxHeartRate', e.target.value)} />
                         </div>
                         <div>
                            <Label htmlFor="minHeartRate">FC Mínima (lpm)</Label>
-                           <Input id="minHeartRate" type="number" placeholder="71" value={formData?.minHeartRate ?? ''} onChange={e => handleChange('minHeartRate', e.target.value)} />
+                           <Input id="minHeartRate" type="number" placeholder="71" value={details?.minHeartRate ?? ''} onChange={e => handleChange('minHeartRate', e.target.value)} />
                         </div>
                     </div>
                      <div className="grid grid-cols-2 gap-4">
                         <div>
                            <Label htmlFor="steps">Pasos</Label>
-                           <Input id="steps" type="number" placeholder="2078" value={formData?.steps ?? ''} onChange={e => handleChange('steps', e.target.value)} />
+                           <Input id="steps" type="number" placeholder="2078" value={details?.steps ?? ''} onChange={e => handleChange('steps', e.target.value)} />
                         </div>
                         <div>
                            <Label htmlFor="distance">Distancia (metros)</Label>
-                           <Input id="distance" type="number" placeholder="420" value={formData?.distance ?? ''} onChange={e => handleChange('distance', e.target.value)} />
+                           <Input id="distance" type="number" placeholder="420" value={details?.distance ?? ''} onChange={e => handleChange('distance', e.target.value)} />
                         </div>
                     </div>
 
                     <Accordion type="single" collapsible className="w-full">
                         <AccordionItem value="item-1">
-                            <AccordionTrigger className="text-sm">Zonas de entrenamiento</AccordionTrigger>
+                            <AccordionTrigger className="text-sm font-medium">Zonas de entrenamiento</AccordionTrigger>
                             <AccordionContent className="space-y-3 pt-2">
                                 <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                                     <Label htmlFor="zone-extremo" className="text-right">Zona Extremo (min)</Label>
-                                    <Input id="zone-extremo" type="number" value={formData?.zones?.extremo ?? ''} onChange={e => handleZoneChange('extremo', e.target.value)} />
+                                    <Input id="zone-extremo" type="number" value={details?.zones?.extremo ?? ''} onChange={e => handleZoneChange('extremo', e.target.value)} />
                                     <Label htmlFor="zone-altaIntensidad" className="text-right">Zona Alta Intensidad (min)</Label>
-                                    <Input id="zone-altaIntensidad" type="number" value={formData?.zones?.altaIntensidad ?? ''} onChange={e => handleZoneChange('altaIntensidad', e.target.value)} />
+                                    <Input id="zone-altaIntensidad" type="number" value={details?.zones?.altaIntensidad ?? ''} onChange={e => handleZoneChange('altaIntensidad', e.target.value)} />
                                     <Label htmlFor="zone-aptitudFisica" className="text-right">Zona Aptitud Física (min)</Label>
-                                    <Input id="zone-aptitudFisica" type="number" value={formData?.zones?.aptitudFisica ?? ''} onChange={e => handleZoneChange('aptitudFisica', e.target.value)} />
+                                    <Input id="zone-aptitudFisica" type="number" value={details?.zones?.aptitudFisica ?? ''} onChange={e => handleZoneChange('aptitudFisica', e.target.value)} />
                                     <Label htmlFor="zone-quemaGrasa" className="text-right">Zona Quema Grasa (min)</Label>
-                                    <Input id="zone-quemaGrasa" type="number" value={formData?.zones?.quemaGrasa ?? ''} onChange={e => handleZoneChange('quemaGrasa', e.target.value)} />
+                                    <Input id="zone-quemaGrasa" type="number" value={details?.zones?.quemaGrasa ?? ''} onChange={e => handleZoneChange('quemaGrasa', e.target.value)} />
                                     <Label htmlFor="zone-salud" className="text-right">Zona Salud (min)</Label>
-                                    <Input id="zone-salud" type="number" value={formData?.zones?.salud ?? ''} onChange={e => handleZoneChange('salud', e.target.value)} />
+                                    <Input id="zone-salud" type="number" value={details?.zones?.salud ?? ''} onChange={e => handleZoneChange('salud', e.target.value)} />
                                 </div>
                             </AccordionContent>
                         </AccordionItem>
@@ -341,7 +342,7 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
 
                     <div>
                         <Label htmlFor="notes">Sensaciones / Notas</Label>
-                        <Textarea id="notes" placeholder="Me sentí bien, sin molestias" value={formData?.notes || ''} onChange={e => handleChange('notes', e.target.value)} />
+                        <Textarea id="notes" placeholder="Me sentí bien, sin molestias" value={details?.notes || ''} onChange={e => handleChange('notes', e.target.value)} />
                     </div>
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
@@ -352,7 +353,5 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
         </Dialog>
     );
 }
-
-    
 
     
