@@ -198,7 +198,7 @@ export default function CyclePage() {
                     key: metric.date,
                     cells: [
                         formatDateForTable(metric.date),
-                        dayOfCycle || "-",
+                        <div className="text-center">{dayOfCycle || "-"}</div>,
                         getCyclePhase(dayOfCycle),
                         metric.estadoCiclo === "menstruacion" ? <Badge variant="destructive">Sí</Badge> : "No",
                         metric.sintomas && metric.sintomas.length > 0
@@ -220,7 +220,7 @@ export default function CyclePage() {
             cycleDataRows.forEach(row => {
                 const [date, day, phase, bleeding, symptoms, notes] = row.cells;
                 report += `Fecha: ${date}\n`;
-                report += `Día del Ciclo: ${day}\n`;
+                report += `Día del Ciclo: ${(day as React.ReactElement)?.props.children || '-'}\n`;
                 report += `Fase: ${phase}\n`;
                 report += `Sangrado: ${(bleeding as React.ReactElement)?.props.children === 'Sí' ? 'Sí' : 'No'}\n`;
                 
