@@ -31,6 +31,8 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 
 type View = "day" | "week" | "month";
 type QuickEventType = string;
@@ -84,6 +86,7 @@ export default function CalendarPage() {
         "Pilates": { name: "Pilates", duration: 60, startTime: "09:00", defaultDaysOfWeek: [], type: "entrenamiento" },
         "Flexibilidad": { name: "Flexibilidad", duration: 45, startTime: "18:00", defaultDaysOfWeek: [], type: "entrenamiento" },
         "Fuerza": { name: "Fuerza", duration: 75, startTime: "19:00", defaultDaysOfWeek: [], type: "entrenamiento" },
+        "Nota rápida": { name: "Nota rápida", duration: 0, startTime: "12:00", defaultDaysOfWeek: [], type: "nota"}
     });
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
@@ -275,11 +278,11 @@ export default function CalendarPage() {
         });
     }
 
-    const handleAddNewWorkout = () => {
-        const newName = `Entreno #${Object.keys(quickEventTypes).length}`;
+    const handleAddNewQuickEvent = () => {
+        const newName = `Evento #${Object.keys(quickEventTypes).length + 1}`;
         setQuickEventTypes(prev => ({
             ...prev,
-            [newName]: { name: newName, duration: 60, startTime: "12:00", defaultDaysOfWeek: [], type: 'entrenamiento' }
+            [newName]: { name: newName, duration: 60, startTime: "12:00", defaultDaysOfWeek: [], type: 'nota' }
         }));
     }
 
@@ -356,17 +359,27 @@ export default function CalendarPage() {
         }
     };
     
-    const { workouts, work } = useMemo(() => {
-        const workouts: QuickEventType[] = [];
-        const work: QuickEventType[] = [];
+    const quickEventGroups = useMemo(() => {
+        const groups: Record<CalendarEvent['type'], QuickEventType[]> = {
+            'entrenamiento': [],
+            'trabajo': [],
+            'nota': [],
+            'descanso': [],
+            'vacaciones': []
+        };
         (Object.keys(quickEventTypes) as QuickEventType[]).forEach(key => {
-            if (quickEventTypes[key].type === 'entrenamiento') {
-                workouts.push(key);
-            } else {
-                work.push(key);
+            const type = quickEventTypes[key].type;
+            if (groups[type]) {
+                groups[type].push(key);
             }
         });
-        return { workouts, work };
+        // Create a separate 'other' group for any types not explicitly handled
+        const otherTypes = Object.keys(groups).filter(type => !['entrenamiento', 'trabajo', 'nota', 'descanso', 'vacaciones'].includes(type));
+        if (otherTypes.length > 0) {
+             groups['nota'].push(...otherTypes);
+        }
+        return groups;
+
     }, [quickEventTypes]);
 
 
@@ -437,47 +450,29 @@ export default function CalendarPage() {
                                 <Settings className="h-4 w-4" />
                            </Button>
                         </CardHeader>
-                        <CardContent className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <h4 className="font-semibold text-sm mb-2">Entrenos</h4>
-                                {workouts.map((type) => {
-                                    const config = quickEventTypes[type];
-                                    if (!config) return null;
-                                    const isSelected = selectedQuickEventType === type;
-                                    return (
-                                        <QuickEventCard 
-                                            key={type}
-                                            type={type}
-                                            config={config}
-                                            isSelected={isSelected}
-                                            onSelect={setSelectedQuickEventType}
-                                            onConfigChange={handleQuickEventConfigChange}
-                                            onSchedule={handleScheduleEvent}
-                                            onDayToggle={handleDayToggle}
-                                        />
-                                    )
-                                })}
-                            </div>
-                            <div className="space-y-2">
-                                 <h4 className="font-semibold text-sm mb-2">Trabajo</h4>
-                                 {work.map((type) => {
-                                    const config = quickEventTypes[type];
-                                     if (!config) return null;
-                                    const isSelected = selectedQuickEventType === type;
-                                    return (
-                                        <QuickEventCard 
-                                            key={type}
-                                            type={type}
-                                            config={config}
-                                            isSelected={isSelected}
-                                            onSelect={setSelectedQuickEventType}
-                                            onConfigChange={handleQuickEventConfigChange}
-                                            onSchedule={handleScheduleEvent}
-                                            onDayToggle={handleDayToggle}
-                                        />
-                                    )
-                                })}
-                            </div>
+                        <CardContent className="grid grid-cols-2 gap-x-4 gap-y-6">
+                            {Object.entries(quickEventGroups).map(([groupName, groupEvents]) => {
+                                if (groupEvents.length === 0) return null;
+                                return (
+                                <div key={groupName} className="space-y-2">
+                                    <h4 className="font-semibold text-sm mb-2 capitalize">{groupName === 'nota' ? 'Otros' : groupName}</h4>
+                                    {groupEvents.map((type) => {
+                                        const config = quickEventTypes[type];
+                                        if (!config) return null;
+                                        const isSelected = selectedQuickEventType === type;
+                                        return (
+                                            <QuickEventCard 
+                                                key={type}
+                                                type={type}
+                                                config={config}
+                                                isSelected={isSelected}
+                                                onSelect={setSelectedQuickEventType}
+                                            />
+                                        )
+                                    })}
+                                </div>
+                                )
+                            })}
                         </CardContent>
                     </Card>
                 </aside>
@@ -515,23 +510,63 @@ export default function CalendarPage() {
                     </DialogHeader>
                     <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
                         {Object.keys(quickEventTypes).map(key => (
-                           <div key={key} className="flex items-center gap-2">
-                               <Input 
-                                   defaultValue={key}
-                                   onBlur={(e) => handleQuickEventNameChange(key, e.target.value)}
-                                   className="h-9"
-                                   disabled={quickEventTypes[key].type === 'trabajo'}
-                               />
-                               {quickEventTypes[key].type !== 'trabajo' && (
+                           <div key={key} className="p-2 border rounded-md space-y-3">
+                                <div className="flex items-center gap-2">
+                                   <Input 
+                                       defaultValue={key}
+                                       onBlur={(e) => handleQuickEventNameChange(key, e.target.value)}
+                                       className="h-9 font-semibold"
+                                   />
                                    <Button variant="ghost" size="icon" onClick={() => handleDeleteQuickEvent(key)}>
                                        <Trash2 className="h-4 w-4 text-destructive" />
                                    </Button>
-                               )}
+                               </div>
+                               <div className="flex items-center gap-2">
+                                    <Select value={quickEventTypes[key].type} onValueChange={(v) => handleQuickEventConfigChange(key, 'type', v as CalendarEvent['type'])}>
+                                        <SelectTrigger><SelectValue/></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="entrenamiento">Entrenamiento</SelectItem>
+                                            <SelectItem value="trabajo">Trabajo</SelectItem>
+                                            <SelectItem value="descanso">Descanso</SelectItem>
+                                            <SelectItem value="vacaciones">Vacaciones</SelectItem>
+                                            <SelectItem value="nota">Nota</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    {quickEventTypes[key].type === 'trabajo' ? (
+                                        <>
+                                            <Input type="time" value={quickEventTypes[key].startTime} onChange={(e) => handleQuickEventConfigChange(key, 'startTime', e.target.value)} className="h-9 w-[90px] text-xs px-1"/>
+                                            <Input type="time" value={quickEventTypes[key].endTime || ''} onChange={(e) => handleQuickEventConfigChange(key, 'endTime', e.target.value)} className="h-9 w-[90px] text-xs px-1"/>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Input type="time" value={quickEventTypes[key].startTime} onChange={(e) => handleQuickEventConfigChange(key, 'startTime', e.target.value)} className="h-9 w-[90px] text-xs px-1"/>
+                                            <Input type="number" value={quickEventTypes[key].duration || 0} onChange={(e) => handleQuickEventConfigChange(key, 'duration', parseInt(e.target.value))} className="h-9 w-[60px] text-xs px-1"/>
+                                            <span className="text-xs text-muted-foreground">min</span>
+                                        </>
+                                    )}
+                                </div>
+                                <div className="flex justify-between items-center gap-1">
+                                    <div className="flex justify-around gap-1">
+                                        {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((day, i) => {
+                                            const dayIndex = (i + 1) % 7; // L=1...D=0
+                                            return (
+                                                <Button key={day} size="icon" variant={quickEventTypes[key].defaultDaysOfWeek.includes(dayIndex) ? 'default' : 'outline'} className="h-6 w-6 text-xs" onClick={() => handleDayToggle(key, dayIndex)}>
+                                                    {day}
+                                                </Button>
+                                            )
+                                        })}
+                                    </div>
+                                    {quickEventTypes[key].defaultDaysOfWeek.length > 0 && (
+                                        <Button size="sm" variant="outline" className="h-7" onClick={() => handleScheduleEvent(key)}>
+                                            <PlusCircle className="h-4 w-4 mr-2 text-primary"/> Programar
+                                        </Button>
+                                    )}
+                                </div>
                            </div>
                         ))}
                     </div>
                     <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between">
-                         <Button variant="outline" onClick={handleAddNewWorkout}>Añadir nuevo entreno</Button>
+                         <Button variant="outline" onClick={handleAddNewQuickEvent}>Añadir nuevo evento rápido</Button>
                         <Button onClick={() => setIsSettingsOpen(false)}>Cerrar</Button>
                     </DialogFooter>
                 </DialogContent>
@@ -547,54 +582,20 @@ type QuickEventCardProps = {
     config: QuickEventTypeInfo;
     isSelected: boolean;
     onSelect: (type: QuickEventType | null) => void;
-    onConfigChange: (type: QuickEventType, field: keyof QuickEventTypeInfo, value: any) => void;
-    onSchedule: (type: QuickEventType) => void;
-    onDayToggle: (type: QuickEventType, day: number) => void;
 };
 
-const QuickEventCard = ({ type, config, isSelected, onSelect, onConfigChange, onSchedule, onDayToggle }: QuickEventCardProps) => (
-    <Card 
+const QuickEventCard = ({ type, config, isSelected, onSelect }: QuickEventCardProps) => (
+    <Badge
         className={cn(
-            "p-2 cursor-pointer transition-all", 
-            isSelected ? "ring-2 ring-primary bg-primary/5" : "hover:bg-muted/50"
+            "p-2 cursor-pointer transition-all w-full justify-start", 
+            isSelected ? "ring-2 ring-primary bg-primary/10 text-primary" : "hover:bg-muted/50",
+            `bg-${config.type}-100 text-${config.type}-800 border-${config.type}-300` // Example of dynamic coloring
         )}
+        variant="outline"
         onClick={() => onSelect(isSelected ? null : type)}
     >
-        <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center gap-2">
-                 <Label className="font-semibold text-sm cursor-pointer" onClick={() => onSelect(isSelected ? null : type)}>{type}</Label>
-                 <div className="flex items-center gap-1">
-                     {config.type === 'trabajo' ? (
-                        <>
-                            <Input type="time" value={config.startTime} onChange={(e) => onConfigChange(type, 'startTime', e.target.value)} className="h-7 w-[75px] text-xs px-1"/>
-                            <Input type="time" value={config.endTime || ''} onChange={(e) => onConfigChange(type, 'endTime', e.target.value)} className="h-7 w-[75px] text-xs px-1"/>
-                        </>
-                    ) : (
-                        <>
-                            <Input type="time" value={config.startTime} onChange={(e) => onConfigChange(type, 'startTime', e.target.value)} className="h-7 w-[75px] text-xs px-1"/>
-                            <Input type="number" value={config.duration || 0} onChange={(e) => onConfigChange(type, 'duration', parseInt(e.target.value))} className="h-7 w-[50px] text-xs px-1"/>
-                            <span className="text-xs text-muted-foreground">min</span>
-                        </>
-                    )}
-                    {config.defaultDaysOfWeek.length > 0 && (
-                        <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={() => onSchedule(type)}>
-                            <PlusCircle className="h-4 w-4 text-primary"/>
-                        </Button>
-                    )}
-                 </div>
-            </div>
-             <div className="flex justify-around gap-1">
-                {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((day, i) => {
-                    const dayIndex = (i + 1) % 7; // L=1...D=0
-                    return (
-                        <Button key={day} size="icon" variant={config.defaultDaysOfWeek.includes(dayIndex) ? 'default' : 'outline'} className="h-5 w-5 text-xs" onClick={() => onDayToggle(type, dayIndex)}>
-                            {day}
-                        </Button>
-                    )
-                })}
-            </div>
-        </div>
-    </Card>
+        <Label className="font-semibold text-sm cursor-pointer">{type}</Label>
+    </Badge>
 );
 
     
