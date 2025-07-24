@@ -13,6 +13,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const PersonalizedNotificationsInputSchema = z.object({
+  currentTime: z.string().optional().describe('La hora actual en formato HH:mm para contextualizar las sugerencias.'),
   cycleStatus: z.string().optional().describe('El estado actual del ciclo menstrual del usuario (fase y día).'),
   lastSleep: z.string().optional().describe('Un resumen de los datos de la última sesión de sueño.'),
   todayEvents: z.string().optional().describe('Los eventos programados para hoy en el calendario del usuario.'),
@@ -46,6 +47,7 @@ const prompt = ai.definePrompt({
   prompt: `Eres un asistente de salud y bienestar proactivo, analítico y perspicaz. Tu tarea es analizar el resumen de datos del usuario y generar 2-3 notificaciones cortas, relevantes y accionables para ayudarle en su día. Busca activamente conexiones y patrones entre los diferentes datos proporcionados.
 
   **Instrucciones Clave:**
+  - **Usa la Hora Actual:** La hora actual es {{{currentTime}}}. Usa este dato para dar consejos oportunos. Si un evento ya ha pasado, habla de él en pasado. Si está por venir, anticípalo.
   - **Analiza y Conecta:** No te limites a repetir los datos. Busca correlaciones. Por ejemplo, si durmió mal y tiene un entrenamiento de alta intensidad, sugiérele ajustarlo. Si está en la fase lútea y su recuperación fue baja, dale un consejo para manejarlo. Si no hay datos de sueño, recuérdale que los registre.
   - **Sé Conciso y Directo:** Las notificaciones deben ser fáciles de leer.
   - **Ofrece Consejos Prácticos y Oportunos:** Las recomendaciones deben ser aplicables al día de hoy.
@@ -53,6 +55,7 @@ const prompt = ai.definePrompt({
   - **Gestiona Datos Faltantes:** Si un área no tiene datos, puedes generar un recordatorio amable para registrarlos o dar un consejo más general sobre esa área.
 
   **DATOS DEL USUARIO PARA HOY:**
+  - **Hora Actual:** {{{currentTime}}}
   - **Estado del Ciclo Menstrual:** {{{cycleStatus}}}
   - **Último Sueño Registrado:** {{{lastSleep}}}
   - **Recuperación de Hoy:** {{{lastRecovery}}}

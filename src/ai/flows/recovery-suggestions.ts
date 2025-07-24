@@ -13,6 +13,7 @@ import { z } from 'genkit';
 
 const RecoverySuggestionsInputSchema = z.object({
   recoveryScore: z.number().describe('La puntuación de recuperación del usuario (0-100).'),
+  currentTime: z.string().optional().describe('La hora actual en formato HH:mm para contextualizar las sugerencias.'),
   lastSleep: z.string().optional().describe('Un resumen de los datos de la última sesión de sueño.'),
   cycleStatus: z.string().optional().describe('El estado actual del ciclo menstrual del usuario (fase y día).'),
   todayEvents: z.string().optional().describe('Los eventos programados para hoy en el calendario del usuario.'),
@@ -46,12 +47,14 @@ const prompt = ai.definePrompt({
   prompt: `Eres un coach de salud y bienestar experto. Tu tarea es analizar los datos de recuperación del usuario y proporcionar 3 sugerencias accionables y personalizadas para el día de hoy, una para cada una de las siguientes categorías: Entrenamiento, Descanso y Mindfulness/Nutrición.
 
   **Instrucciones Clave:**
+  - **Usa la Hora Actual:** La hora actual es {{{currentTime}}}. Usa este dato para dar consejos oportunos. Si un evento ya ha pasado, habla de él en pasado. Si está por venir, anticípalo.
   - **Conecta los Datos:** No te limites a la puntuación de recuperación. Cruza la información con el sueño, el ciclo menstrual y la agenda del día.
   - **Sé Específico y Accionable:** Las sugerencias deben ser concretas. En lugar de "descansa bien", sugiere "considera una siesta de 20 minutos por la tarde si tu agenda lo permite".
   - **Tono de Coach:** Usa un tono de apoyo, informativo y motivador.
 
   **Datos del Usuario para Hoy:**
   - **Puntuación de Recuperación:** {{{recoveryScore}}}/100
+  - **Hora Actual:** {{{currentTime}}}
   - **Datos del Último Sueño:** {{{lastSleep}}}
   - **Estado del Ciclo Menstrual:** {{{cycleStatus}}}
   - **Agenda de Hoy:** {{{todayEvents}}}

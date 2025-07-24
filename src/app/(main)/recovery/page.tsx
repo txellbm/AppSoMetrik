@@ -64,14 +64,14 @@ export default function RecoveryPage() {
             let morningHrv: number | undefined = undefined;
 
             if (!sleepSnap.empty) {
-                const sleepSessions = sleepSnap.docs
+                // Find the latest sleep session of the day with a VFC value
+                 const sleepSessions = sleepSnap.docs
                     .map(doc => doc.data() as SleepData)
-                    .sort((a, b) => (b.bedtime || "00:00").localeCompare(a.bedtime || "00:00"));
+                    .filter(s => s.vfcAlDespertar !== undefined)
+                    .sort((a, b) => (b.wakeUpTime || "00:00").localeCompare(a.wakeUpTime || "00:00"));
                 
-                const latestSleepWithHrv = sleepSessions.find(s => s.vfcAlDespertar !== undefined);
-
-                if (latestSleepWithHrv) {
-                     morningHrv = latestSleepWithHrv.vfcAlDespertar;
+                if (sleepSessions.length > 0) {
+                     morningHrv = sleepSessions[0].vfcAlDespertar;
                 }
             }
 
@@ -197,6 +197,7 @@ function RecoveryDialog({ isOpen, onClose, onSave, recovery }: RecoveryDialogPro
                 });
             } else {
                  setFormData({
+                    perceivedRecovery: 7.5,
                     symptoms: []
                 });
             }
@@ -317,6 +318,7 @@ function SuggestionsCard({ recoveryScore, userId, today }: { recoveryScore: numb
 
                 const input = {
                     recoveryScore,
+                    currentTime: format(new Date(), "HH:mm"),
                     lastSleep: lastSleep ? `Duración: ${lastSleep.sleepTime} min, Eficiencia: ${lastSleep.efficiency}%, VFC al despertar: ${lastSleep.vfcAlDespertar} ms` : 'No hay datos de sueño.',
                     cycleStatus: `Fase: ${currentPhase}, Día: ${dayOfCycle || 'N/A'}.`,
                     todayEvents: todayEvents.length > 0 ? todayEvents.map(e => `${e.description} de ${e.startTime} a ${e.endTime}`).join('; ') : 'No hay eventos programados.'

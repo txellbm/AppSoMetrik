@@ -103,6 +103,7 @@ export default function NotificationsWidget() {
 
                 // 3. Build structured input for the AI
                 const input: PersonalizedNotificationsInput = {
+                    currentTime: format(new Date(), "HH:mm"),
                     cycleStatus: `Fase: ${currentPhase}, Día: ${dayOfCycle || 'N/A'}.`,
                     lastSleep: lastSleep ? `Duración: ${lastSleep.sleepTime} min, Eficiencia: ${lastSleep.efficiency}%, VFC al despertar: ${lastSleep.vfcAlDespertar} ms` : 'No hay datos de sueño.',
                     todayEvents: todayEvents.length > 0 ? todayEvents.map(e => `${e.description} de ${e.startTime} a ${e.endTime}`).join('; ') : 'No hay eventos programados.',
