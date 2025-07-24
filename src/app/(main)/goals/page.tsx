@@ -9,10 +9,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Target, Save, FileText, Copy } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 const goalOptions = [
     "Mejorar la composición corporal (perder grasa / ganar músculo)",
@@ -24,7 +25,7 @@ const goalOptions = [
 ];
 
 export default function GoalsPage() {
-    const [goals, setGoals] = useState<Partial<UserGoalsData>>({});
+    const [goals, setGoals] = useState<Partial<UserGoalsData>>({ primaryGoals: [] });
     const [isLoading, setIsLoading] = useState(true);
     const { toast } = useToast();
     const userId = "user_test_id";
@@ -38,15 +39,19 @@ export default function GoalsPage() {
 
         const unsubscribe = onSnapshot(docRef, (doc) => {
             if (doc.exists()) {
-                setGoals(doc.data() as UserGoalsData);
+                const data = doc.data() as UserGoalsData;
+                setGoals({
+                    primaryGoals: data.primaryGoals || [],
+                    specifics: data.specifics || ''
+                });
             } else {
-                setGoals({});
+                setGoals({ primaryGoals: [] });
             }
             setIsLoading(false);
         }, (error) => {
             console.error("Error loading goals data:", error);
             setIsLoading(false);
-            setGoals({});
+            setGoals({ primaryGoals: [] });
         });
 
         return () => unsubscribe();
@@ -63,6 +68,16 @@ export default function GoalsPage() {
         }
     };
 
+    const handleGoalToggle = (goal: string) => {
+        setGoals(prev => {
+            const currentGoals = prev.primaryGoals || [];
+            const newGoals = currentGoals.includes(goal)
+                ? currentGoals.filter(g => g !== goal)
+                : [...currentGoals, goal];
+            return { ...prev, primaryGoals: newGoals };
+        });
+    };
+
     const handleChange = (field: keyof UserGoalsData, value: string) => {
         setGoals(prev => ({ ...prev, [field]: value }));
     };
@@ -71,10 +86,10 @@ export default function GoalsPage() {
         let report = "Informe de Objetivos Personales\n";
         report += "==============================\n\n";
 
-        if (!goals.primaryGoal) {
-            report += "No has definido un objetivo principal todavía.";
+        if (!goals.primaryGoals || goals.primaryGoals.length === 0) {
+            report += "No has definido ningún objetivo principal todavía.";
         } else {
-            report += `**Objetivo Principal:**\n${goals.primaryGoal}\n\n`;
+            report += `**Objetivos Principales:**\n${goals.primaryGoals.map(g => `- ${g}`).join('\n')}\n\n`;
             report += `**Detalles y Notas Específicas:**\n${goals.specifics || 'No hay notas adicionales.'}\n`;
         }
 
@@ -107,30 +122,34 @@ export default function GoalsPage() {
                 <CardContent className="space-y-6">
                     {isLoading ? (
                         <div className="space-y-4">
-                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-24 w-full" />
                             <Skeleton className="h-24 w-full" />
                         </div>
                     ) : (
                         <>
                             <div>
-                                <label className="text-sm font-medium">Objetivo Principal</label>
-                                <Select
-                                    value={goals.primaryGoal || ""}
-                                    onValueChange={(value) => handleChange('primaryGoal', value)}
-                                >
-                                    <SelectTrigger className="mt-1">
-                                        <SelectValue placeholder="Selecciona tu meta principal..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {goalOptions.map(option => (
-                                            <SelectItem key={option} value={option}>{option}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Label className="text-base font-medium">Objetivos Principales</Label>
+                                <div className="space-y-2 mt-2">
+                                    {goalOptions.map(option => (
+                                        <div key={option} className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id={option}
+                                                checked={(goals.primaryGoals || []).includes(option)}
+                                                onCheckedChange={() => handleGoalToggle(option)}
+                                            />
+                                            <label
+                                                htmlFor={option}
+                                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                            >
+                                                {option}
+                                            </label>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
 
                             <div>
-                                <label htmlFor="specifics" className="text-sm font-medium">
+                                <label htmlFor="specifics" className="text-base font-medium">
                                     Detalles y Notas Específicas
                                 </label>
                                 <Textarea
@@ -182,3 +201,4 @@ export default function GoalsPage() {
         </div>
     );
 }
+

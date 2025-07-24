@@ -109,7 +109,7 @@ export type DashboardData = {
 export const CalculatedCycleDataSchema = z.object({
     currentPhase: z.string().describe("La fase del ciclo menstrual (ej. Folicular, Lútea, Menstruación).").default("No disponible"),
     currentDay: z.number().describe("El día actual dentro del ciclo menstrual.").default(0),
-    symptoms: z.array(z.string()).describe("Una lista de síntomas registrados.").default([]),
+    sintomas: z.array(z.string()).describe("Una lista de síntomas registrados.").default([]),
 });
 export type CalculatedCycleData = z.infer<typeof CalculatedCycleDataSchema>;
 
@@ -194,7 +194,8 @@ export const MindfulnessDataSchema = z.object({
 export type MindfulnessData = z.infer<typeof MindfulnessDataSchema>;
 
 export const UserGoalsSchema = z.object({
-    primaryGoal: z.string().optional().describe("El objetivo principal de bienestar del usuario."),
-    specifics: z.string().optional().describe("Detalles o notas específicas sobre el objetivo principal."),
+    primaryGoals: z.array(z.string()).optional().describe("Una lista de los principales objetivos de bienestar del usuario."),
+    specifics: z.string().optional().describe("Detalles o notas específicas sobre los objetivos."),
 });
 export type UserGoalsData = z.infer<typeof UserGoalsSchema>;
+

@@ -325,7 +325,7 @@ function SuggestionsCard({ recoveryScore, userId, today }: { recoveryScore: numb
                     cycleStatus: `Fase: ${currentPhase}, Día: ${dayOfCycle || 'N/A'}.`,
                     todayEvents: todayEvents.length > 0 ? todayEvents.map(e => `${e.description} de ${e.startTime} a ${e.endTime}`).join('; ') : 'No hay eventos programados.',
                     stressAndMood: todayMindfulness ? `Estrés: ${todayMindfulness.stressLevel}/10, Ánimo: ${todayMindfulness.mood}.` : 'No hay datos de ánimo/estrés.',
-                    userGoals: userGoals ? `Objetivo: ${userGoals.primaryGoal}. Detalles: ${userGoals.specifics}.` : 'No hay objetivos definidos.'
+                    userGoals: userGoals ? `Objetivos: ${(userGoals.primaryGoals || []).join(', ')}. Detalles: ${userGoals.specifics}.` : 'No hay objetivos definidos.'
                 };
 
                 const result = await generateRecoverySuggestions(input);
@@ -373,3 +373,4 @@ function SuggestionsCard({ recoveryScore, userId, today }: { recoveryScore: numb
         </Card>
     );
 }
+

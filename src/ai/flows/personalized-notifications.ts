@@ -21,7 +21,7 @@ const PersonalizedNotificationsInputSchema = z.object({
   lastRecovery: z.string().optional().describe('Los datos de recuperación más recientes.'),
   lastActivity: z.string().optional().describe('Los datos de actividad más recientes.'),
   stressAndMood: z.string().optional().describe('El nivel de estrés y estado de ánimo reportados hoy.'),
-  userGoals: z.string().optional().describe('El objetivo principal de bienestar del usuario.'),
+  userGoals: z.string().optional().describe('Los objetivos principales de bienestar del usuario.'),
 });
 export type PersonalizedNotificationsInput = z.infer<
   typeof PersonalizedNotificationsInputSchema
@@ -58,7 +58,7 @@ const prompt = ai.definePrompt({
 
   **DATOS DEL USUARIO PARA HOY:**
   - **Hora Actual:** {{{currentTime}}}
-  - **Objetivo Principal:** {{{userGoals}}}
+  - **Objetivos Principales:** {{{userGoals}}}
   - **Agenda de Hoy (CLAVE):** {{{todayEvents}}}
   - **Estado del Ciclo Menstrual:** {{{cycleStatus}}}
   - **Nivel de Estrés y Ánimo de Hoy:** {{{stressAndMood}}}
@@ -81,3 +81,4 @@ const personalizedNotificationsFlow = ai.defineFlow(
     return output!;
   }
 );
+

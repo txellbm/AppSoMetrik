@@ -117,7 +117,7 @@ export default function NotificationsWidget() {
                     lastRecovery: lastRecovery ? `Percepción: ${lastRecovery.perceivedRecovery}/10, VFC matutina: ${lastRecovery.morningHrv}ms, Síntomas: ${(lastRecovery.symptoms || []).join(', ')}` : 'No hay datos de recuperación de hoy.',
                     lastActivity: lastActivity ? `Pasos: ${lastActivity.steps}, Calorías: ${lastActivity.totalCalories}, Tiempo activo: ${lastActivity.activeTime} min.` : 'No hay datos de actividad de ayer.',
                     stressAndMood: todayMindfulness ? `Estrés: ${todayMindfulness.stressLevel}/10, Ánimo: ${todayMindfulness.mood}.` : 'No hay datos de ánimo/estrés.',
-                    userGoals: userGoals ? `Objetivo: ${userGoals.primaryGoal}. Detalles: ${userGoals.specifics}.` : 'No hay objetivos definidos.'
+                    userGoals: userGoals ? `Objetivos: ${(userGoals.primaryGoals || []).join(', ')}. Detalles: ${userGoals.specifics}.` : 'No hay objetivos definidos.'
                 };
                 
                 // 4. Call the AI flow
@@ -174,3 +174,4 @@ export default function NotificationsWidget() {
         </Card>
     );
 }
+

@@ -19,7 +19,7 @@ const RecoverySuggestionsInputSchema = z.object({
   cycleStatus: z.string().optional().describe('El estado actual del ciclo menstrual del usuario (fase y día).'),
   todayEvents: z.string().optional().describe('Los eventos programados para hoy (trabajo, entrenamientos, etc.). Esta es información clave para adaptar las sugerencias.'),
   stressAndMood: z.string().optional().describe('El nivel de estrés y estado de ánimo reportados hoy.'),
-  userGoals: z.string().optional().describe('El objetivo principal de bienestar del usuario.'),
+  userGoals: z.string().optional().describe('Los objetivos principales de bienestar del usuario.'),
 });
 export type RecoverySuggestionsInput = z.infer<typeof RecoverySuggestionsInputSchema>;
 
@@ -58,7 +58,7 @@ const prompt = ai.definePrompt({
   **Datos del Usuario para Hoy:**
   - **Puntuación de Recuperación:** {{{recoveryScore}}}/100
   - **Hora Actual:** {{{currentTime}}}
-  - **Objetivo Principal:** {{{userGoals}}}
+  - **Objetivos Principales:** {{{userGoals}}}
   - **Agenda de Hoy (CLAVE):** {{{todayEvents}}}
   - **Datos del Último Sueño:** {{{lastSleep}}}
   - **Estado del Ciclo Menstrual:** {{{cycleStatus}}}
@@ -78,3 +78,4 @@ const recoverySuggestionsFlow = ai.defineFlow(
     return output!;
   }
 );
+

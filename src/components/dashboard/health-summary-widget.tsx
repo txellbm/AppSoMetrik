@@ -189,7 +189,7 @@ export default function HealthSummaryWidget() {
                 foodIntakeData: formatForAI('Alimentación e Hidratación', foodData as FoodIntakeData[]),
                 calendarData: formatForAI('Otros Eventos del Calendario', otherEvents),
                 mindfulnessData: formatForAI('Estrés y Estado de Ánimo', mindfulnessData),
-                userGoals: formatForAI('Objetivos del Usuario', userGoals),
+                userGoals: userGoals ? `Objetivos: ${(userGoals.primaryGoals || []).join(', ')}. Detalles: ${userGoals.specifics}.` : 'No hay objetivos definidos.'
             };
 
             const result = await generateHealthSummary(aiInput);
@@ -215,8 +215,8 @@ export default function HealthSummaryWidget() {
 
             // User Goals
             report += "### Objetivos Personales\n";
-            if (userGoals) {
-                report += `- Objetivo Principal: ${userGoals.primaryGoal || 'No definido'}\n`;
+            if (userGoals && userGoals.primaryGoals && userGoals.primaryGoals.length > 0) {
+                report += `- Objetivos Principales: ${(userGoals.primaryGoals).join(', ')}\n`;
                 if (userGoals.specifics) report += `- Detalles: ${userGoals.specifics}\n`;
             } else {
                 report += "No se han definido objetivos.\n";
@@ -425,3 +425,4 @@ export default function HealthSummaryWidget() {
         </Card>
     );
 }
+

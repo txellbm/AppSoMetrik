@@ -1,5 +1,4 @@
 
-
 'use server';
 
 /**
@@ -48,6 +47,8 @@ const prompt = ai.definePrompt({
 - **Suplementos**: {{{supplementData}}}
 - **Alimentación e Hidratación**: {{{foodIntakeData}}}
 - **Calendario (eventos como trabajo, vacaciones, descanso)**: {{{calendarData}}}
+- **Bienestar Mental (Estrés y Ánimo)**: {{{mindfulnessData}}}
+- **Objetivos del Usuario**: {{{userGoals}}}
 
 Genera el informe detallado en formato Markdown.`,
 });
@@ -63,4 +64,4 @@ const generateHealthSummaryFlow = ai.defineFlow(
     return output!;
   }
 );
-    
+
