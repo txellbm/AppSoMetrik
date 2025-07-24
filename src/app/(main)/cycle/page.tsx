@@ -3,16 +3,16 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { DailyMetric } from "@/ai/schemas";
-import { collection, onSnapshot, query, doc, setDoc, getDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, doc, setDoc, getDoc, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { format, startOfDay } from 'date-fns';
+import { format, startOfDay, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/dashboard/data-table";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
-import { Stethoscope, Calendar as CalendarIcon, Save, Droplet, Wind, Shield, Zap, NotepadText } from "lucide-react";
+import { Stethoscope, Calendar as CalendarIcon, Droplet, Wind, Shield, Zap, NotepadText, Activity } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -31,6 +31,15 @@ const allSymptoms = [
     { id: 'dolor_piernas', label: 'Dolor de piernas' },
 ];
 
+const getCyclePhase = (dayOfCycle: number | null): string => {
+    if (dayOfCycle === null) return "N/A";
+    if (dayOfCycle <= 5) return "Menstrual";
+    if (dayOfCycle <= 14) return "Folicular";
+    // Ovulation around day 14, can be considered part of follicular or luteal
+    return "Lútea";
+};
+
+
 export default function CyclePage() {
     const [dailyMetrics, setDailyMetrics] = useState<DailyMetric[]>([]);
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -46,7 +55,7 @@ export default function CyclePage() {
     // Fetch all metrics to initialize calendar and for the history table
     useEffect(() => {
         const userRef = doc(db, "users", userId);
-        const qDailyMetrics = query(collection(userRef, "dailyMetrics"));
+        const qDailyMetrics = query(collection(userRef, "dailyMetrics"), orderBy("date", "desc"));
 
         const unsubscribe = onSnapshot(qDailyMetrics, (snapshot) => {
             const metrics = snapshot.docs.map(doc => ({ ...doc.data(), date: doc.id })) as DailyMetric[];
@@ -74,6 +83,33 @@ export default function CyclePage() {
         };
         fetchDayData();
     }, [selectedDateStr, userId]);
+    
+    const { cycleStartDay, currentDayOfCycle } = useMemo(() => {
+        const sortedMenstruationDays = dailyMetrics
+            .filter(m => m.estadoCiclo === 'menstruacion')
+            .map(m => startOfDay(new Date(m.date + "T00:00:00")))
+            .sort((a, b) => b.getTime() - a.getTime());
+
+        if (sortedMenstruationDays.length === 0) {
+            return { cycleStartDay: null, currentDayOfCycle: null };
+        }
+
+        let cycleStartDay = sortedMenstruationDays[0];
+        for (let i = 1; i < sortedMenstruationDays.length; i++) {
+            const diff = differenceInDays(sortedMenstruationDays[i-1], sortedMenstruationDays[i]);
+            if (diff > 1) { // Gap found, so the previous day was the start of a new cycle
+                break;
+            }
+            cycleStartDay = sortedMenstruationDays[i];
+        }
+        
+        const currentDayOfCycle = differenceInDays(selectedDate || new Date(), cycleStartDay) + 1;
+
+        return { cycleStartDay, currentDayOfCycle: currentDayOfCycle > 0 ? currentDayOfCycle : null };
+
+    }, [dailyMetrics, selectedDate]);
+    
+    const currentPhase = getCyclePhase(currentDayOfCycle);
     
     const menstruationDays = useMemo(() => {
         return dailyMetrics
@@ -103,26 +139,42 @@ export default function CyclePage() {
     }, [selectedDateStr, selectedDayMetric, userId, toast, selectedDate]);
 
 
-    const sortedMetrics = useMemo(() => {
-        return [...dailyMetrics].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [dailyMetrics]);
-
     const cycleDataRows = useMemo(() => {
-        return sortedMetrics
+        if (!cycleStartDay) {
+             return dailyMetrics
+                .filter(m => m.estadoCiclo || (m.sintomas && m.sintomas.length > 0) || m.notas)
+                .map(metric => ({
+                    key: metric.date,
+                    cells: [
+                        format(new Date(metric.date + "T00:00:00"), 'dd/MM/yyyy'),
+                        "N/A",
+                        metric.estadoCiclo === "menstruacion" ? <Badge variant="destructive">Sí</Badge> : "No",
+                        metric.sintomas && metric.sintomas.length > 0
+                            ? <div className="flex flex-wrap gap-1">{metric.sintomas.map((s, i) => <Badge key={i} variant="secondary">{s}</Badge>)}</div>
+                            : "Ninguno",
+                        metric.notas || "-",
+                    ],
+                }));
+        }
+
+        return dailyMetrics
             .filter(m => m.estadoCiclo || (m.sintomas && m.sintomas.length > 0) || m.notas)
-            .map(metric => ({
-                key: metric.date,
-                cells: [
-                    format(new Date(metric.date + "T00:00:00"), 'dd/MM/yyyy'),
-                    "N/A", // Fase no disponible aún
-                    metric.estadoCiclo === "menstruacion" ? <Badge variant="destructive">Sí</Badge> : "No",
-                    metric.sintomas && metric.sintomas.length > 0
-                        ? <div className="flex flex-wrap gap-1">{metric.sintomas.map((s, i) => <Badge key={i} variant="secondary">{s}</Badge>)}</div>
-                        : "Ninguno",
-                    metric.notas || "-",
-                ],
-            }));
-    }, [sortedMetrics]);
+            .map(metric => {
+                const dayOfCycle = differenceInDays(new Date(metric.date + "T00:00:00"), cycleStartDay) + 1;
+                return {
+                    key: metric.date,
+                    cells: [
+                        format(new Date(metric.date + "T00:00:00"), 'dd/MM/yyyy'),
+                        getCyclePhase(dayOfCycle > 0 ? dayOfCycle : null),
+                        metric.estadoCiclo === "menstruacion" ? <Badge variant="destructive">Sí</Badge> : "No",
+                        metric.sintomas && metric.sintomas.length > 0
+                            ? <div className="flex flex-wrap gap-1">{metric.sintomas.map((s, i) => <Badge key={i} variant="secondary">{s}</Badge>)}</div>
+                            : "Ninguno",
+                        metric.notas || "-",
+                    ],
+                }
+            });
+    }, [dailyMetrics, cycleStartDay]);
 
 
     return (
@@ -164,6 +216,19 @@ export default function CyclePage() {
                         <CardDescription>Añade los detalles de tu ciclo para el día seleccionado.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
+                        
+                        <div className="flex justify-around items-center p-4 bg-muted rounded-lg text-center">
+                            <div>
+                                <p className="text-sm text-muted-foreground">Fase Actual</p>
+                                <p className="text-xl font-bold text-primary">{currentPhase}</p>
+                            </div>
+                            <div className="border-l h-10"></div>
+                            <div>
+                                <p className="text-sm text-muted-foreground">Día del Ciclo</p>
+                                <p className="text-xl font-bold text-primary">{currentDayOfCycle || '-'}</p>
+                            </div>
+                        </div>
+
                         <div className="flex items-center space-x-2">
                             <Switch
                                 id="menstruation-day"
@@ -238,3 +303,5 @@ export default function CyclePage() {
         </div>
     );
 }
+
+    
