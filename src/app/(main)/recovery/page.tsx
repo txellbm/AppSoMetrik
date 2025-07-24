@@ -22,6 +22,7 @@ export default function RecoveryPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const userId = "user_test_id";
     const today = format(new Date(), "yyyy-MM-dd");
+    const { toast } = useToast();
 
     useEffect(() => {
         setIsLoading(true);
@@ -41,15 +42,43 @@ export default function RecoveryPage() {
         return () => unsubscribe();
     }, [userId, today]);
 
-    const handleSaveRecovery = async (data: Omit<RecoveryData, 'id'>) => {
+    const handleSaveRecovery = async (data: Omit<RecoveryData, 'id' | 'morningHrv'>) => {
         try {
+            const userRef = doc(db, "users", userId);
+            const qSleep = query(
+                collection(userRef, "sleep_manual"),
+                where("date", "==", today),
+                orderBy("bedtime", "desc"),
+                limit(1)
+            );
+            
+            const sleepSnap = await getDocs(qSleep);
+            let morningHrv: number | undefined = undefined;
+
+            if (!sleepSnap.empty) {
+                const latestSleep = sleepSnap.docs[0].data() as SleepData;
+                if (latestSleep.vfcAlDespertar) {
+                     morningHrv = latestSleep.vfcAlDespertar;
+                }
+            }
+
             const docRef = doc(db, "users", userId, "recovery", today);
-            await setDoc(docRef, { ...data, date: today }, { merge: true });
-             useToast().toast({ title: "Datos de recuperación guardados" });
+            
+            const dataToSave: Partial<RecoveryData> = {
+                ...data,
+                date: today
+            };
+
+            if (morningHrv !== undefined) {
+                dataToSave.morningHrv = morningHrv;
+            }
+
+            await setDoc(docRef, dataToSave, { merge: true });
+            toast({ title: "Datos de recuperación guardados" });
             setIsDialogOpen(false);
         } catch (error) {
             console.error("Error saving recovery data:", error);
-            useToast().toast({ variant: "destructive", title: "Error", description: "No se pudieron guardar los datos." });
+            toast({ variant: "destructive", title: "Error", description: "No se pudieron guardar los datos." });
         }
     };
     
@@ -128,7 +157,6 @@ export default function RecoveryPage() {
                 onClose={() => setIsDialogOpen(false)}
                 onSave={handleSaveRecovery}
                 recovery={recoveryData}
-                userId={userId}
             />
 
              <Card className="w-full max-w-2xl">
@@ -180,51 +208,30 @@ export default function RecoveryPage() {
 type RecoveryDialogProps = {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (data: Omit<RecoveryData, 'id'>) => void;
+    onSave: (data: Omit<RecoveryData, 'id' | 'date' | 'morningHrv'>) => void;
     recovery: RecoveryData | null;
-    userId: string;
 }
 
-function RecoveryDialog({ isOpen, onClose, onSave, recovery, userId }: RecoveryDialogProps) {
-    const [formData, setFormData] = useState<Partial<RecoveryData>>({});
-    const today = format(new Date(), "yyyy-MM-dd");
+function RecoveryDialog({ isOpen, onClose, onSave, recovery }: RecoveryDialogProps) {
+    const [formData, setFormData] = useState<Partial<Omit<RecoveryData, 'id' | 'date' | 'morningHrv'>>>({});
     
     useEffect(() => {
-        const fetchLatestHrv = async () => {
-            const userRef = doc(db, "users", userId);
-            const qSleep = query(
-                collection(userRef, "sleep_manual"),
-                where("date", "==", today),
-                orderBy("bedtime", "desc"),
-                limit(1)
-            );
-            
-            const sleepSnap = await getDocs(qSleep);
-            
-            let hrv: number | undefined = undefined;
-            if (!sleepSnap.empty) {
-                const latestSleep = sleepSnap.docs[0].data() as SleepData;
-                if (latestSleep.vfcAlDespertar) {
-                     hrv = latestSleep.vfcAlDespertar;
-                }
-            }
-            
+        if(isOpen) {
             if(recovery) {
-                setFormData({ ...recovery, morningHrv: recovery.morningHrv || hrv });
+                setFormData({
+                    perceivedRecovery: recovery.perceivedRecovery,
+                    symptoms: recovery.symptoms || [],
+                    notes: recovery.notes
+                });
             } else {
-                setFormData({ 
-                    symptoms: [],
-                    morningHrv: hrv 
+                 setFormData({
+                    symptoms: []
                 });
             }
-        };
-
-        if(isOpen) {
-            fetchLatestHrv();
         }
-    }, [isOpen, recovery, userId, today]);
+    }, [isOpen, recovery]);
 
-    const handleChange = (field: keyof RecoveryData, value: any) => {
+    const handleChange = (field: keyof typeof formData, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
     
@@ -238,7 +245,7 @@ function RecoveryDialog({ isOpen, onClose, onSave, recovery, userId }: RecoveryD
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSave(formData as Omit<RecoveryData, 'id'>);
+        onSave(formData);
     }
     
     if(!isOpen) return null;
@@ -250,12 +257,6 @@ function RecoveryDialog({ isOpen, onClose, onSave, recovery, userId }: RecoveryD
                     <DialogTitle>Registro de Recuperación</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
-                    {formData.morningHrv && (
-                         <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
-                            <HeartPulse className="h-5 w-5 text-primary"/>
-                            <p className="text-sm">VFC Matutina (del sueño): <strong>{formData.morningHrv} ms</strong></p>
-                         </div>
-                    )}
                      <div>
                         <Label htmlFor="perceivedRecovery">Recuperación Percibida: {formData.perceivedRecovery || 7.5}/10</Label>
                         <Slider
@@ -288,3 +289,5 @@ function RecoveryDialog({ isOpen, onClose, onSave, recovery, userId }: RecoveryD
         </Dialog>
     )
 }
+
+    
