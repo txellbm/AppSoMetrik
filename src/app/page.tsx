@@ -8,11 +8,8 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { DashboardData, SleepData, WorkoutData, VitalsData } from "@/ai/schemas";
 import AIChatWidget from "@/components/dashboard/ai-chat-widget";
 import NotificationsWidget from "@/components/dashboard/notifications-widget";
-import { collection, onSnapshot, doc, query, orderBy, limit } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { LayoutDashboard, Moon, Dumbbell, HeartPulse, Stethoscope, Pill, CalendarDays, Flame } from "lucide-react";
 import SleepPage from "./(main)/sleep/page";
 import WorkoutsPage from "./(main)/workouts/page";
@@ -23,45 +20,7 @@ import CalendarPage from "./(main)/calendar/page";
 import ActivityPage from "./(main)/activity/page";
 
 
-const initialDashboardData: DashboardData = {
-  workouts: [],
-  sleepData: [],
-  vitals: []
-};
-
 export default function Home() {
-  const [dashboardData, setDashboardData] = useState<DashboardData>(initialDashboardData);
-  const userId = "user_test_id";
-
-  useEffect(() => {
-    const userRef = doc(db, "users", userId);
-    
-    const qWorkouts = query(collection(userRef, "workouts"), orderBy("date", "desc"), limit(10));
-    const qSleep = query(collection(userRef, "sleep"), orderBy("date", "desc"), limit(10));
-    const qVitals = query(collection(userRef, "vitals"), orderBy("date", "desc"), limit(10));
-
-    const unsubWorkouts = onSnapshot(qWorkouts, (snapshot) => {
-        const workouts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as WorkoutData[];
-        setDashboardData(prev => ({ ...prev, workouts }));
-    }, (error) => console.error("Error al cargar entrenamientos:", error));
-
-    const unsubSleep = onSnapshot(qSleep, (snapshot) => {
-        const sleepData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as SleepData[];
-        setDashboardData(prev => ({ ...prev, sleepData }));
-    }, (error) => console.error("Error al cargar datos de sueño:", error));
-    
-    const unsubVitals = onSnapshot(qVitals, (snapshot) => {
-        const vitals = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as VitalsData[];
-        setDashboardData(prev => ({ ...prev, vitals }));
-    }, (error) => console.error("Error al cargar vitales:", error));
-
-    return () => {
-        unsubWorkouts();
-        unsubSleep();
-        unsubVitals();
-    };
-  }, [userId]);
-
 
   return (
     <>

@@ -10,13 +10,14 @@ import { SleepData } from "@/ai/schemas";
 import { useToast } from "@/hooks/use-toast";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Moon, Plus, Edit, Trash2, Sun } from "lucide-react";
+import { Moon, Plus, Edit, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function SleepPage() {
@@ -30,13 +31,11 @@ export default function SleepPage() {
     useEffect(() => {
         setIsLoading(true);
         const userRef = doc(db, "users", userId);
-        // Simplified query to avoid composite index requirement
         const qSleep = query(collection(userRef, "sleep"), orderBy("date", "desc"));
 
         const unsubscribe = onSnapshot(qSleep, (snapshot) => {
             let data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as SleepData[];
             
-            // Client-side sorting to handle ordering by date and then by bedtime
             data.sort((a, b) => {
                 const dateComparison = b.date.localeCompare(a.date);
                 if (dateComparison !== 0) return dateComparison;
@@ -95,17 +94,11 @@ export default function SleepPage() {
 
     const formatDate = (dateString: string) => {
        try {
-         return format(parseISO(dateString), "PPPP", { locale: es });
+         return format(parseISO(dateString), "P", { locale: es });
        } catch (error) {
          return "Fecha inválida";
        }
     };
-    
-    const groupedSleepData = sleepData.reduce((acc, curr) => {
-        (acc[curr.date] = acc[curr.date] || []).push(curr);
-        return acc;
-    }, {} as Record<string, SleepData[]>);
-
 
     return (
         <div className="flex flex-col gap-6">
@@ -120,67 +113,49 @@ export default function SleepPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {isLoading ? (
-                        <p className="text-center py-8">Cargando datos de sueño...</p>
-                    ) : Object.keys(groupedSleepData).length > 0 ? (
-                        <div className="space-y-6">
-                            {Object.entries(groupedSleepData).map(([date, sessions]) => (
-                                <div key={date}>
-                                    <h3 className="font-semibold mb-2 border-b pb-1">{formatDate(date)}</h3>
-                                    <div className="space-y-4">
-                                        {sessions.map(metric => (
-                                            <Card key={metric.id} className="bg-muted/50">
-                                                <CardContent className="pt-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 items-center">
-                                                    <div className="font-semibold flex items-center gap-2">
-                                                        {metric.type === 'noche' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-                                                        <Badge variant={metric.type === 'noche' ? "default" : "secondary"} className="capitalize">{metric.type}</Badge>
-                                                    </div>
-                                                    <div>
-                                                        <Label className="text-xs">Horario</Label>
-                                                        <p className="font-mono text-sm">{metric.bedtime} - {metric.wakeUpTime}</p>
-                                                    </div>
-                                                     <div>
-                                                        <Label className="text-xs">Duración</Label>
-                                                        <p className="font-mono text-sm">{formatSleepDuration(metric.sleepTime ? Number(metric.sleepTime) : undefined)}</p>
-                                                    </div>
-                                                    <div>
-                                                        <Label className="text-xs">Eficiencia</Label>
-                                                        <p className="font-mono text-sm">{metric.efficiency ? `${metric.efficiency}%` : "-"}</p>
-                                                    </div>
-                                                      <div>
-                                                        <Label className="text-xs">VFC (ms)</Label>
-                                                        <p className="font-mono text-sm">{metric.hrv || "-"}</p>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <Button variant="ghost" size="icon" onClick={() => openDialog(metric)}><Edit className="h-4 w-4"/></Button>
-                                                        <Button variant="ghost" size="icon" onClick={() => metric.id && handleDeleteSleep(metric.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
-                                                    </div>
-                                                </CardContent>
-                                                {(metric.notes || metric.phases) && (
-                                                    <CardFooter className="flex-col items-start gap-2 text-sm pt-0 pb-4">
-                                                        {metric.phases && (
-                                                            <div className="flex gap-4">
-                                                                <p><span className="font-semibold">Profundo:</span> {formatSleepDuration(metric.phases.deep)}</p>
-                                                                <p><span className="font-semibold">Ligero:</span> {formatSleepDuration(metric.phases.light)}</p>
-                                                                <p><span className="font-semibold">REM:</span> {formatSleepDuration(metric.phases.rem)}</p>
-                                                            </div>
-                                                        )}
-                                                        {metric.notes && (
-                                                            <p className="text-muted-foreground italic">"{metric.notes}"</p>
-                                                        )}
-                                                    </CardFooter>
-                                                )}
-                                            </Card>
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                         <div className="text-center h-24 text-muted-foreground flex items-center justify-center">
-                            <p>No hay datos de sueño registrados.</p>
-                        </div>
-                    )}
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Fecha</TableHead>
+                                <TableHead>Tipo</TableHead>
+                                <TableHead>Horario</TableHead>
+                                <TableHead>Duración</TableHead>
+                                <TableHead>Eficiencia</TableHead>
+                                <TableHead>VFC (ms)</TableHead>
+                                <TableHead>Notas</TableHead>
+                                <TableHead></TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {isLoading ? (
+                                <TableRow>
+                                    <TableCell colSpan={8} className="text-center h-24">Cargando datos de sueño...</TableCell>
+                                </TableRow>
+                            ) : sleepData.length > 0 ? (
+                                sleepData.map((session) => (
+                                    <TableRow key={session.id}>
+                                        <TableCell>{formatDate(session.date)}</TableCell>
+                                        <TableCell><Badge variant={session.type === 'noche' ? "default" : "secondary"} className="capitalize">{session.type}</Badge></TableCell>
+                                        <TableCell>{session.bedtime} - {session.wakeUpTime}</TableCell>
+                                        <TableCell>{formatSleepDuration(session.sleepTime ? Number(session.sleepTime) : undefined)}</TableCell>
+                                        <TableCell>{session.efficiency ? `${session.efficiency}%` : "-"}</TableCell>
+                                        <TableCell>{session.hrv || "-"}</TableCell>
+                                        <TableCell className="max-w-xs truncate">{session.notes || "-"}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="icon" onClick={() => openDialog(session)}><Edit className="h-4 w-4"/></Button>
+                                            <Button variant="ghost" size="icon" onClick={() => session.id && handleDeleteSleep(session.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={8} className="text-center h-24 text-muted-foreground">
+                                        No hay datos de sueño registrados.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
                 </CardContent>
                  <CardFooter>
                     <Button onClick={() => openDialog(null)}>
@@ -335,5 +310,3 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
         </Dialog>
     );
 }
-
-    
