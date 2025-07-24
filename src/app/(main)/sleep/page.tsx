@@ -261,15 +261,15 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
     
     const formatMinutesToHHMM = (minutes: number | undefined) => {
         if (minutes === undefined || minutes === null) return '';
-        const h = Math.floor(minutes / 60).toString().padStart(2, '0');
-        const m = (minutes % 60).toString().padStart(2, '0');
-        return `${h}:${m}`;
+        const h = Math.floor(minutes / 60);
+        const m = minutes % 60;
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     }
 
     const handleDurationChange = (field: 'timeAwake' | 'phases.deep' | 'phases.light' | 'phases.rem', value: string) => {
         const [hours, minutes] = value.split(':').map(Number);
         const totalMinutes = (isNaN(hours) ? 0 : hours) * 60 + (isNaN(minutes) ? 0 : minutes);
-        const finalValue = totalMinutes > 0 ? totalMinutes : undefined;
+        const finalValue = totalMinutes > 0 || value === '00:00' ? totalMinutes : undefined;
 
         if (field.startsWith('phases.')) {
             const phase = field.split('.')[1] as 'deep' | 'light' | 'rem';
@@ -315,17 +315,9 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
                         </div>
                     </div>
                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div>
-                           <Label htmlFor="timeToFallAsleep">Me dormí en (min)</Label>
-                           <Input id="timeToFallAsleep" type="number" value={formData.timeToFallAsleep ?? ''} onChange={(e) => handleChange('timeToFallAsleep', e.target.value === '' ? undefined : Number(e.target.value))}/>
-                        </div>
-                        <div>
-                            <Label htmlFor="timeAwake">Tiempo despierto</Label>
-                            <Input id="timeAwake" type="time" placeholder="hh:mm" value={formatMinutesToHHMM(formData.timeAwake)} onChange={(e) => handleDurationChange('timeAwake', e.target.value)} />
-                        </div>
-                        <div>
+                         <div>
                             <Label htmlFor="sleepTime">Duración total</Label>
-                            <Input id="sleepTime" type="time" placeholder="hh:mm" value={formatMinutesToHHMM(formData.sleepTime)} disabled />
+                            <Input id="sleepTime" type="text" placeholder="hh:mm" value={formatMinutesToHHMM(formData.sleepTime)} disabled />
                         </div>
                          <div>
                            <Label htmlFor="efficiency">Eficiencia (%)</Label>
@@ -333,11 +325,28 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
                         </div>
                     </div>
                     <div>
-                        <Label>Fases del sueño</Label>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-1">
-                            <Input type="time" placeholder="REM (hh:mm)" value={formatMinutesToHHMM(formData.phases?.rem)} onChange={(e) => handleDurationChange('phases.rem', e.target.value)}/>
-                            <Input type="time" placeholder="Ligero (hh:mm)" value={formatMinutesToHHMM(formData.phases?.light)} onChange={(e) => handleDurationChange('phases.light', e.target.value)}/>
-                            <Input type="time" placeholder="Profundo (hh:mm)" value={formatMinutesToHHMM(formData.phases?.deep)} onChange={(e) => handleDurationChange('phases.deep', e.target.value)}/>
+                        <Label>Fases y tiempos del sueño</Label>
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mt-1">
+                            <div>
+                                <Label htmlFor="timeToFallAsleep" className="text-xs text-muted-foreground">Me dormí en (min)</Label>
+                                <Input id="timeToFallAsleep" type="number" placeholder="min" value={formData.timeToFallAsleep ?? ''} onChange={(e) => handleChange('timeToFallAsleep', e.target.value === '' ? undefined : Number(e.target.value))}/>
+                            </div>
+                             <div>
+                                <Label htmlFor="timeAwake" className="text-xs text-muted-foreground">Tiempo despierto</Label>
+                                <Input id="timeAwake" type="time" placeholder="hh:mm" value={formatMinutesToHHMM(formData.timeAwake)} onChange={(e) => handleDurationChange('timeAwake', e.target.value)} />
+                            </div>
+                            <div>
+                                <Label htmlFor="rem" className="text-xs text-muted-foreground">REM</Label>
+                                <Input id="rem" type="time" placeholder="hh:mm" value={formatMinutesToHHMM(formData.phases?.rem)} onChange={(e) => handleDurationChange('phases.rem', e.target.value)}/>
+                            </div>
+                             <div>
+                                <Label htmlFor="light" className="text-xs text-muted-foreground">Sueño ligero</Label>
+                                <Input id="light" type="time" placeholder="hh:mm" value={formatMinutesToHHMM(formData.phases?.light)} onChange={(e) => handleDurationChange('phases.light', e.target.value)}/>
+                            </div>
+                            <div>
+                                <Label htmlFor="deep" className="text-xs text-muted-foreground">Sueño profundo</Label>
+                                <Input id="deep" type="time" placeholder="hh:mm" value={formatMinutesToHHMM(formData.phases?.deep)} onChange={(e) => handleDurationChange('phases.deep', e.target.value)}/>
+                            </div>
                         </div>
                     </div>
 
@@ -387,3 +396,6 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
         </Dialog>
     );
 }
+
+
+    
