@@ -10,16 +10,33 @@ import { SleepData } from "@/ai/schemas";
 import { useToast } from "@/hooks/use-toast";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Moon, Plus, Edit, Trash2 } from "lucide-react";
+import { Moon, Plus, Edit, Trash2, BedDouble, Clock, Timer, Percent, Heart, BrainCircuit, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+
+const formatMinutesToHHMM = (minutes: number | undefined | null) => {
+    if (minutes === undefined || minutes === null) return "-";
+    const duration = intervalToDuration({ start: 0, end: minutes * 60 * 1000 });
+    return `${String(duration.hours).padStart(2, '0')}h ${String(duration.minutes).padStart(2, '0')}m`;
+}
+
+const InfoPill = ({ icon, label, value }: { icon: React.ReactNode, label: string, value: string | number | undefined | null }) => (
+    value !== undefined && value !== null && value !== '' &&
+    <div className="flex flex-col items-center justify-center p-2 bg-muted rounded-lg text-center">
+        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            {icon}
+            <span>{label}</span>
+        </div>
+        <span className="text-base font-bold text-primary">{value}</span>
+    </div>
+);
+
 
 export default function SleepPage() {
     const [sleepData, setSleepData] = useState<SleepData[]>([]);
@@ -61,7 +78,8 @@ export default function SleepPage() {
                 await setDoc(docRef, data, { merge: true });
                 toast({ title: "Sesión de sueño actualizada" });
             } else {
-                await addDoc(collectionRef, data);
+                const docRef = await addDoc(collectionRef, data);
+                await updateDoc(docRef, { id: docRef.id });
                 toast({ title: "Sesión de sueño registrada" });
             }
             setIsDialogOpen(false);
@@ -86,84 +104,98 @@ export default function SleepPage() {
         setEditingSleep(sleep);
         setIsDialogOpen(true);
     };
-    
-    const formatSleepDuration = (minutes: number | undefined) => {
-        if(minutes === undefined || minutes === null) return "-";
-        const duration = intervalToDuration({ start: 0, end: minutes * 60 * 1000 });
-        return `${duration.hours || 0}h ${duration.minutes || 0}m`;
-    }
-
-    const formatDate = (dateString: string) => {
-       try {
-         return format(parseISO(dateString), "P", { locale: es });
-       } catch (error) {
-         return "Fecha inválida";
-       }
-    };
 
     return (
         <div className="flex flex-col gap-6">
             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Moon className="text-primary"/>
-                        Registro de Sueño
-                    </CardTitle>
-                    <CardDescription>
-                        Registra manually tus sesiones de sueño para analizar tus patrones de descanso.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Fecha</TableHead>
-                                <TableHead>Tipo</TableHead>
-                                <TableHead>Horario</TableHead>
-                                <TableHead>Duración</TableHead>
-                                <TableHead>Eficiencia</TableHead>
-                                <TableHead>FC Media (lpm)</TableHead>
-                                <TableHead>Notas</TableHead>
-                                <TableHead></TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {isLoading ? (
-                                <TableRow>
-                                    <TableCell colSpan={8} className="text-center h-24">Cargando datos de sueño...</TableCell>
-                                </TableRow>
-                            ) : sleepData.length > 0 ? (
-                                sleepData.map((session) => (
-                                    <TableRow key={session.id}>
-                                        <TableCell>{formatDate(session.date)}</TableCell>
-                                        <TableCell><Badge variant={session.type === 'noche' ? "default" : "secondary"} className="capitalize">{session.type}</Badge></TableCell>
-                                        <TableCell>{session.bedtime} - {session.wakeUpTime}</TableCell>
-                                        <TableCell>{formatSleepDuration(session.sleepTime)}</TableCell>
-                                        <TableCell>{session.efficiency ? `${session.efficiency}%` : "-"}</TableCell>
-                                        <TableCell>{session.avgHeartRate || "-"}</TableCell>
-                                        <TableCell className="max-w-xs truncate">{session.notes || "-"}</TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="ghost" size="icon" onClick={() => openDialog(session)}><Edit className="h-4 w-4"/></Button>
-                                            <Button variant="ghost" size="icon" onClick={() => session.id && handleDeleteSleep(session.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={8} className="text-center h-24 text-muted-foreground">
-                                        No hay datos de sueño registrados.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-                 <CardFooter>
-                    <Button onClick={() => openDialog(null)}>
+                <CardHeader className="flex flex-row justify-between items-start">
+                    <div>
+                        <CardTitle className="flex items-center gap-2">
+                            <Moon className="text-primary"/>
+                            Registro de Sueño
+                        </CardTitle>
+                        <CardDescription>
+                            Registra y analiza tus sesiones de sueño para entender tus patrones de descanso.
+                        </CardDescription>
+                    </div>
+                     <Button onClick={() => openDialog(null)}>
                         <Plus className="mr-2"/>
-                        Añadir Sesión de Sueño
+                        Añadir Sesión
                     </Button>
-                </CardFooter>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                     {isLoading ? (
+                        <div className="text-center py-8">Cargando datos de sueño...</div>
+                    ) : sleepData.length > 0 ? (
+                        sleepData.map((session) => (
+                           <Card key={session.id} className="overflow-hidden">
+                             <CardHeader className="p-4 bg-muted/50 flex flex-row items-center justify-between">
+                                 <div>
+                                    <CardTitle className="text-lg flex items-center gap-2">
+                                        <Badge variant={session.type === 'noche' ? "default" : "secondary"} className="capitalize text-base">{session.type}</Badge>
+                                        <span>{format(parseISO(session.date), "EEEE, d 'de' LLLL", { locale: es })}</span>
+                                    </CardTitle>
+                                    <CardDescription className="mt-1">
+                                        {session.bedtime} - {session.wakeUpTime}
+                                    </CardDescription>
+                                 </div>
+                                 <div className="flex gap-2">
+                                     <Button variant="ghost" size="icon" onClick={() => openDialog(session)}><Edit className="h-4 w-4"/></Button>
+                                     <Button variant="ghost" size="icon" onClick={() => session.id && handleDeleteSleep(session.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                 </div>
+                             </CardHeader>
+                             <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className="space-y-3">
+                                    <h4 className="font-semibold flex items-center gap-2"><BedDouble className="text-primary"/>Sueño</h4>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <InfoPill icon={<Timer className="h-4 w-4"/>} label="Duración Total" value={formatMinutesToHHMM(session.sleepTime)} />
+                                        <InfoPill icon={<Percent className="h-4 w-4"/>} label="Eficiencia" value={session.efficiency ? `${session.efficiency}%` : '-'} />
+                                        <InfoPill icon={<Clock className="h-4 w-4"/>} label="Me dormí en" value={session.timeToFallAsleep !== undefined ? `${session.timeToFallAsleep} min` : '-'} />
+                                        <InfoPill icon={<Clock className="h-4 w-4"/>} label="Tiempo despierto" value={formatMinutesToHHMM(session.timeAwake)} />
+                                    </div>
+                                    <div className="space-y-1 pt-2">
+                                        <Label className="text-xs">Fases</Label>
+                                        <div className="flex justify-around bg-muted p-2 rounded-lg">
+                                            <div className="text-center">
+                                                <p className="font-bold">{formatMinutesToHHMM(session.phases?.rem)}</p>
+                                                <p className="text-xs text-muted-foreground">REM</p>
+                                            </div>
+                                             <div className="text-center">
+                                                <p className="font-bold">{formatMinutesToHHMM(session.phases?.light)}</p>
+                                                <p className="text-xs text-muted-foreground">Ligero</p>
+                                            </div>
+                                             <div className="text-center">
+                                                <p className="font-bold">{formatMinutesToHHMM(session.phases?.deep)}</p>
+                                                <p className="text-xs text-muted-foreground">Profundo</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="space-y-3">
+                                     <h4 className="font-semibold flex items-center gap-2"><Heart className="text-destructive"/>Datos Fisiológicos</h4>
+                                     <div className="grid grid-cols-2 gap-2">
+                                        <InfoPill icon={<Heart className="h-4 w-4"/>} label="FC Media" value={session.avgHeartRate ? `${session.avgHeartRate} lpm` : '-'} />
+                                        <InfoPill icon={<Heart className="h-4 w-4"/>} label="FC Mín-Máx" value={`${session.minHeartRate || '·'}-${session.maxHeartRate || '·'}`} />
+                                        <InfoPill icon={<Heart className="h-4 w-4"/>} label="LPM al despertar" value={session.lpmAlDespertar ? `${session.lpmAlDespertar} lpm` : '-'} />
+                                        <InfoPill icon={<BrainCircuit className="h-4 w-4"/>} label="VFC al despertar" value={session.vfcAlDespertar ? `${session.vfcAlDespertar} ms` : '-'} />
+                                        <InfoPill icon={<BrainCircuit className="h-4 w-4"/>} label="VFC al dormir" value={session.vfcAlDormir ? `${session.vfcAlDormir} ms` : '-'} />
+                                     </div>
+                                </div>
+                                {session.notes && (
+                                    <div className="space-y-3">
+                                         <h4 className="font-semibold flex items-center gap-2"><FileText className="text-primary"/>Notas</h4>
+                                         <p className="text-sm text-muted-foreground p-3 bg-muted rounded-lg italic">"{session.notes}"</p>
+                                    </div>
+                                )}
+                             </CardContent>
+                           </Card>
+                        ))
+                    ) : (
+                         <div className="text-center h-24 text-muted-foreground flex items-center justify-center">
+                            No hay datos de sueño registrados.
+                        </div>
+                    )}
+                </CardContent>
             </Card>
 
             <SleepDialog 
@@ -199,7 +231,7 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
         }
     }, [sleep, isOpen]);
 
-    useEffect(() => {
+     useEffect(() => {
         if (formData.bedtime && formData.wakeUpTime && formData.date) {
             try {
                 const start = parse(`${formData.date} ${formData.bedtime}`, 'yyyy-MM-dd HH:mm', new Date());
@@ -256,6 +288,7 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
         };
 
         const dataToSave = cleanupUndefined({
+            id: formData.id,
             date: formData.date!,
             type: formData.type!,
             bedtime: formData.bedtime!,
@@ -277,7 +310,7 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
         onSave(dataToSave);
     };
     
-    const formatMinutesToHHMM = (minutes: number | undefined) => {
+    const formatMinutesToHHMMInput = (minutes: number | undefined) => {
         if (minutes === undefined || minutes === null) return '';
         const h = Math.floor(minutes / 60);
         const m = minutes % 60;
@@ -335,7 +368,7 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                          <div>
                             <Label htmlFor="sleepTime">Duración total</Label>
-                            <Input id="sleepTime" type="text" placeholder="hh:mm" value={formatMinutesToHHMM(formData.sleepTime)} disabled />
+                            <Input id="sleepTime" type="text" placeholder="hh:mm" value={formatMinutesToHHMMInput(formData.sleepTime)} disabled />
                         </div>
                          <div>
                            <Label htmlFor="efficiency">Eficiencia (%)</Label>
@@ -351,19 +384,19 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
                             </div>
                              <div>
                                 <Label htmlFor="timeAwake" className="text-xs text-muted-foreground">Tiempo despierto</Label>
-                                <Input id="timeAwake" type="time" placeholder="hh:mm" value={formatMinutesToHHMM(formData.timeAwake)} onChange={(e) => handleDurationChange('timeAwake', e.target.value)} />
+                                <Input id="timeAwake" type="time" placeholder="hh:mm" value={formatMinutesToHHMMInput(formData.timeAwake)} onChange={(e) => handleDurationChange('timeAwake', e.target.value)} />
                             </div>
                             <div>
                                 <Label htmlFor="rem" className="text-xs text-muted-foreground">REM</Label>
-                                <Input id="rem" type="time" placeholder="hh:mm" value={formatMinutesToHHMM(formData.phases?.rem)} onChange={(e) => handleDurationChange('phases.rem', e.target.value)}/>
+                                <Input id="rem" type="time" placeholder="hh:mm" value={formatMinutesToHHMMInput(formData.phases?.rem)} onChange={(e) => handleDurationChange('phases.rem', e.target.value)}/>
                             </div>
                              <div>
                                 <Label htmlFor="light" className="text-xs text-muted-foreground">Sueño ligero</Label>
-                                <Input id="light" type="time" placeholder="hh:mm" value={formatMinutesToHHMM(formData.phases?.light)} onChange={(e) => handleDurationChange('phases.light', e.target.value)}/>
+                                <Input id="light" type="time" placeholder="hh:mm" value={formatMinutesToHHMMInput(formData.phases?.light)} onChange={(e) => handleDurationChange('phases.light', e.target.value)}/>
                             </div>
                             <div>
                                 <Label htmlFor="deep" className="text-xs text-muted-foreground">Sueño profundo</Label>
-                                <Input id="deep" type="time" placeholder="hh:mm" value={formatMinutesToHHMM(formData.phases?.deep)} onChange={(e) => handleDurationChange('phases.deep', e.target.value)}/>
+                                <Input id="deep" type="time" placeholder="hh:mm" value={formatMinutesToHHMMInput(formData.phases?.deep)} onChange={(e) => handleDurationChange('phases.deep', e.target.value)}/>
                             </div>
                         </div>
                     </div>
@@ -414,9 +447,3 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
         </Dialog>
     );
 }
-
-
-    
-
-    
-
