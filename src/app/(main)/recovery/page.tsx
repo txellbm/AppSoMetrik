@@ -292,7 +292,7 @@ function SuggestionsCard({ recoveryScore, userId, today }: { recoveryScore: numb
                 const [sleepSnap, dailyMetricsSnap, eventsSnap] = await Promise.all([
                     getDocs(sleepQuery),
                     getDocs(dailyMetricsQuery),
-                    getDocs(eventsSnap),
+                    getDocs(eventsQuery),
                 ]);
 
                 const lastSleep = !sleepSnap.empty ? sleepSnap.docs[0].data() as SleepData : null;
