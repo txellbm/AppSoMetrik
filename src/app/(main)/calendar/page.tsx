@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { addDays, addMonths, endOfMonth, format, startOfMonth, subDays, subMonths, getDay, addWeeks, startOfWeek, isSameDay, parse, endOfWeek } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, PlusCircle, Trash2, Edit, Settings } from "lucide-react";
+import { ChevronLeft, ChevronRight, PlusCircle, Trash2, Edit, Settings, FileText } from "lucide-react";
 import { MonthlyCalendarView } from "@/components/dashboard/monthly-calendar-view";
 import { WeeklyCalendarView } from "@/components/dashboard/weekly-calendar-view";
 import { DailyCalendarView } from "@/components/dashboard/daily-calendar-view";
@@ -28,10 +28,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 
 type View = "day" | "week" | "month";
@@ -100,6 +101,8 @@ export default function CalendarPage() {
     });
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [settingsFilter, setSettingsFilter] = useState<CalendarEvent['type'] | null>(null);
+    const [isReportOpen, setIsReportOpen] = useState(false);
+    const [reportContent, setReportContent] = useState('');
 
 
     const [eventToDelete, setEventToDelete] = useState<string | null>(null);
@@ -128,7 +131,7 @@ export default function CalendarPage() {
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedEvents = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as CalendarEvent[];
-            setEvents(fetchedEvents);
+            setEvents(fetchedEvents.sort((a, b) => (a.startTime || "00:00").localeCompare(b.startTime || "00:00")));
             setIsLoading(false);
         }, (error) => {
             console.error("Error fetching events:", error);
@@ -412,11 +415,51 @@ export default function CalendarPage() {
         if (!settingsFilter) return Object.keys(quickEventTypes);
         return Object.keys(quickEventTypes).filter(key => quickEventTypes[key].type === settingsFilter);
     }, [quickEventTypes, settingsFilter]);
+    
+    const generateReport = () => {
+        let report = `Informe de Calendario - ${viewTitle}\n`;
+        report += "========================================\n\n";
+
+        if (events.length === 0) {
+            report += "No hay eventos en este período.";
+            setReportContent(report);
+            setIsReportOpen(true);
+            return;
+        }
+
+        switch (view) {
+            case 'day':
+                events.forEach(event => {
+                    report += `- ${event.startTime || ''}-${event.endTime || ''}: ${event.description} [${event.type}]\n`;
+                });
+                break;
+            case 'week':
+            case 'month':
+                const groupedEvents = events.reduce((acc, event) => {
+                    const date = event.date;
+                    if (!acc[date]) acc[date] = [];
+                    acc[date].push(event);
+                    return acc;
+                }, {} as Record<string, CalendarEvent[]>);
+
+                Object.keys(groupedEvents).sort().forEach(date => {
+                    report += `**${format(parse(date, "yyyy-MM-dd", new Date()), "EEEE, d 'de' LLLL", { locale: es })}**\n`;
+                    groupedEvents[date].forEach(event => {
+                        report += `- ${event.startTime || ''}-${event.endTime || ''}: ${event.description} [${event.type}]\n`;
+                    });
+                    report += "\n";
+                });
+                break;
+        }
+
+        setReportContent(report);
+        setIsReportOpen(true);
+    };
 
 
     return (
         <div className="flex flex-col h-full">
-            <header className="flex items-center justify-between p-4 border-b">
+            <header className="flex items-center justify-between p-4 border-b flex-wrap gap-2">
                 <div className="flex items-center gap-4">
                     <Button onClick={handleToday} variant="outline">Hoy</Button>
                     <div className="flex items-center gap-2">
@@ -435,6 +478,7 @@ export default function CalendarPage() {
                     <Button variant={view === 'month' ? 'default' : 'outline'} onClick={() => setView('month')}>Mes</Button>
                     <Button variant={view === 'week' ? 'default' : 'outline'} onClick={() => setView('week')}>Semana</Button>
                     <Button variant={view === 'day' ? 'default' : 'outline'} onClick={() => setView('day')}>Día</Button>
+                    <Button variant="outline" onClick={generateReport}><FileText className="mr-2 h-4 w-4"/>Exportar</Button>
                 </div>
             </header>
 
@@ -607,6 +651,27 @@ export default function CalendarPage() {
                 </DialogContent>
             </Dialog>
 
+            <Dialog open={isReportOpen} onOpenChange={setIsReportOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Informe del Calendario</DialogTitle>
+                        <DialogDescription>
+                          Copia este informe para analizarlo con una IA o guardarlo en tus notas.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Textarea
+                            readOnly
+                            value={reportContent}
+                            className="h-64 text-sm font-mono"
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={() => setIsReportOpen(false)}>Cerrar</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
         </div>
     );
 }
@@ -632,3 +697,5 @@ const QuickEventCard = ({ type, config, isSelected, onSelect }: QuickEventCardPr
         <Label className="font-semibold text-sm cursor-pointer">{type}</Label>
     </Badge>
 );
+
+    
