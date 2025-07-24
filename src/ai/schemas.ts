@@ -17,6 +17,8 @@ export const HealthSummaryInputSchema = z.object({
   supplementData: z.string().describe('Resumen de los datos de suplementos.'),
   foodIntakeData: z.string().describe('Resumen de los datos de ingesta de alimentos e hidratación.'),
   calendarData: z.string().describe('Resumen de los datos del calendario.'),
+  mindfulnessData: z.string().describe('Resumen de los datos de estrés y estado de ánimo.'),
+  userGoals: z.string().describe('Los objetivos personales del usuario.'),
 });
 export type HealthSummaryInput = z.infer<typeof HealthSummaryInputSchema>;
 
@@ -161,9 +163,13 @@ export const FoodIntakeSchema = z.object({
     waterIntake: z.number().optional().describe("Agua total bebida en ml."),
     otherDrinks: z.string().optional().describe("Otras bebidas consumidas."),
     breakfast: z.string().optional().describe("Descripción del desayuno."),
+    breakfastTags: z.string().optional().describe("Etiquetas para el desayuno (ej. casero, alto en proteína)."),
     lunch: z.string().optional().describe("Descripción de la comida."),
+    lunchTags: z.string().optional().describe("Etiquetas para la comida."),
     dinner: z.string().optional().describe("Descripción de la cena."),
+    dinnerTags: z.string().optional().describe("Etiquetas para la cena."),
     snacks: z.string().optional().describe("Descripción de snacks o picoteos."),
+    snacksTags: z.string().optional().describe("Etiquetas para los snacks."),
     notes: z.string().optional().describe("Notas generales sobre la alimentación del día."),
 });
 export type FoodIntakeData = z.infer<typeof FoodIntakeSchema>;
@@ -178,4 +184,17 @@ export const RecoveryDataSchema = z.object({
 });
 export type RecoveryData = z.infer<typeof RecoveryDataSchema>;
 
-    
+export const MindfulnessDataSchema = z.object({
+    id: z.string().optional(),
+    date: z.string().describe("Fecha del registro (YYYY-MM-DD)."),
+    stressLevel: z.number().optional().describe("Nivel de estrés percibido (escala 1-10)."),
+    mood: z.string().optional().describe("Estado de ánimo (ej. Contenta, Normal, Irritable, Triste)."),
+    notes: z.string().optional().describe("Notas sobre el estado mental o emocional del día."),
+});
+export type MindfulnessData = z.infer<typeof MindfulnessDataSchema>;
+
+export const UserGoalsSchema = z.object({
+    primaryGoal: z.string().optional().describe("El objetivo principal de bienestar del usuario."),
+    specifics: z.string().optional().describe("Detalles o notas específicas sobre el objetivo principal."),
+});
+export type UserGoalsData = z.infer<typeof UserGoalsSchema>;

@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Salad, GlassWater, Coffee, Sun, Soup, Utensils, Apple, ChevronLeft, ChevronRight, FileText, Copy } from "lucide-react";
+import { Salad, GlassWater, Coffee, Sun, Soup, Utensils, Apple, ChevronLeft, ChevronRight, FileText, Copy, Tags } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { debounce } from "lodash";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -89,10 +89,14 @@ export default function DietPage() {
             report += `- Otras bebidas: ${foodData.otherDrinks || 'No registrado'}\n\n`;
             
             report += `**Comidas**\n`;
-            report += `- Desayuno: ${foodData.breakfast || 'No registrado'} ml\n`;
+            report += `- Desayuno: ${foodData.breakfast || 'No registrado'}\n`;
+            if (foodData.breakfastTags) report += `  - Etiquetas: ${foodData.breakfastTags}\n`;
             report += `- Comida: ${foodData.lunch || 'No registrado'}\n`;
+            if (foodData.lunchTags) report += `  - Etiquetas: ${foodData.lunchTags}\n`;
             report += `- Cena: ${foodData.dinner || 'No registrado'}\n`;
+            if (foodData.dinnerTags) report += `  - Etiquetas: ${foodData.dinnerTags}\n`;
             report += `- Snacks: ${foodData.snacks || 'No registrado'}\n\n`;
+            if (foodData.snacksTags) report += `  - Etiquetas: ${foodData.snacksTags}\n`;
 
             report += `**Notas Generales**\n`;
             report += `${foodData.notes || 'No se han añadido notas.'}\n`;
@@ -200,10 +204,10 @@ export default function DietPage() {
                             <div>
                                 <h3 className="text-xl font-semibold mb-4 text-center">Comidas del Día</h3>
                                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">
-                                <MealCard icon={<Sun size={20}/>} title="Desayuno" value={foodData.breakfast || ''} onChange={(v) => handleChange('breakfast', v)} />
-                                <MealCard icon={<Soup size={20}/>} title="Comida" value={foodData.lunch || ''} onChange={(v) => handleChange('lunch', v)} />
-                                <MealCard icon={<Utensils size={20}/>} title="Cena" value={foodData.dinner || ''} onChange={(v) => handleChange('dinner', v)} />
-                                <MealCard icon={<Apple size={20}/>} title="Snacks / Otros" value={foodData.snacks || ''} onChange={(v) => handleChange('snacks', v)} />
+                                <MealCard icon={<Sun size={20}/>} title="Desayuno" description={foodData.breakfast || ''} tags={foodData.breakfastTags || ''} onDescriptionChange={(v) => handleChange('breakfast', v)} onTagsChange={(v) => handleChange('breakfastTags', v)} />
+                                <MealCard icon={<Soup size={20}/>} title="Comida" description={foodData.lunch || ''} tags={foodData.lunchTags || ''} onDescriptionChange={(v) => handleChange('lunch', v)} onTagsChange={(v) => handleChange('lunchTags', v)} />
+                                <MealCard icon={<Utensils size={20}/>} title="Cena" description={foodData.dinner || ''} tags={foodData.dinnerTags || ''} onDescriptionChange={(v) => handleChange('dinner', v)} onTagsChange={(v) => handleChange('dinnerTags', v)} />
+                                <MealCard icon={<Apple size={20}/>} title="Snacks / Otros" description={foodData.snacks || ''} tags={foodData.snacksTags || ''} onDescriptionChange={(v) => handleChange('snacks', v)} onTagsChange={(v) => handleChange('snacksTags', v)} />
                                 </div>
                             </div>
                         </>
@@ -243,11 +247,13 @@ export default function DietPage() {
 type MealCardProps = {
     icon: React.ReactNode;
     title: string;
-    value: string;
-    onChange: (value: string) => void;
+    description: string;
+    tags: string;
+    onDescriptionChange: (value: string) => void;
+    onTagsChange: (value: string) => void;
 };
 
-function MealCard({ icon, title, value, onChange }: MealCardProps) {
+function MealCard({ icon, title, description, tags, onDescriptionChange, onTagsChange }: MealCardProps) {
     return (
         <Card className="flex flex-col">
             <CardHeader>
@@ -255,13 +261,22 @@ function MealCard({ icon, title, value, onChange }: MealCardProps) {
                     {icon} {title}
                 </CardTitle>
             </CardHeader>
-            <CardContent className="flex-grow">
+            <CardContent className="flex-grow flex flex-col gap-2">
                 <Textarea
                     placeholder={`¿Qué has comido para ${title.toLowerCase()}? Puedes pegar recetas aquí.`}
-                    value={value}
-                    onChange={(e) => onChange(e.target.value)}
+                    value={description}
+                    onChange={(e) => onDescriptionChange(e.target.value)}
                     className="h-full min-h-[150px] resize-none"
                 />
+                 <div className="relative">
+                    <Tags className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Etiquetas (ej: casero, rápido)"
+                        value={tags}
+                        onChange={(e) => onTagsChange(e.target.value)}
+                        className="pl-8 text-xs"
+                    />
+                </div>
             </CardContent>
         </Card>
     );
@@ -290,5 +305,3 @@ function DietSkeleton() {
         </div>
     )
 }
-
-    

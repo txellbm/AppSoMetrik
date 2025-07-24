@@ -10,9 +10,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Bot, Clipboard, Loader2, FileDown } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, orderBy, getDoc } from "firebase/firestore";
-import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, parseISO, differenceInDays } from 'date-fns';
+import { format, startOfDay, endOfDay, startOfWeek, endOfMonth, addDays, parseISO, differenceInDays, startOfMonth, endOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ActivityData, CalendarEvent, DailyMetric, SleepData, FoodIntakeData } from "@/ai/schemas";
+import { ActivityData, CalendarEvent, DailyMetric, SleepData, FoodIntakeData, MindfulnessData, UserGoalsData } from "@/ai/schemas";
 
 type Period = 'Diario' | 'Semanal' | 'Mensual';
 
@@ -95,7 +95,9 @@ export default function HealthSummaryWidget() {
             eventData,
             activityData,
             supplementData,
-            foodData
+            foodData,
+            mindfulnessData,
+            goalsData,
         ] = await Promise.all([
             getDocs(query(collection(userRef, "dailyMetrics"), orderBy('date', 'desc'))).then(snap => snap.docs.map(d => ({ ...d.data(), id: d.id }) as DailyMetric[])),
             fetchDataInPeriodByDate('sleep_manual'),
@@ -103,9 +105,13 @@ export default function HealthSummaryWidget() {
             fetchDataInPeriodByDate('activity'),
             fetchSupplementsInPeriod(),
             fetchDataInPeriodByDate('food_intake'),
+            fetchDataInPeriodByDate('mindfulness'),
+            getDoc(doc(userRef, "goals", "main")),
         ]);
 
-        return { allDailyMetrics, sleepData, eventData, activityData, supplementData, foodData, startDate, endDate, now };
+        const userGoals = goalsData.exists() ? goalsData.data() as UserGoalsData : null;
+
+        return { allDailyMetrics, sleepData, eventData, activityData, supplementData, foodData, mindfulnessData, userGoals, startDate, endDate, now };
     };
 
     const handleGenerateSummary = async () => {
@@ -113,10 +119,11 @@ export default function HealthSummaryWidget() {
         setSummary('');
 
         try {
-            const { allDailyMetrics, sleepData, eventData, activityData, supplementData, foodData, startDate, endDate, now } = await fetchAllDataForPeriod(period);
+            const { allDailyMetrics, sleepData, eventData, activityData, supplementData, foodData, mindfulnessData, userGoals, startDate, endDate, now } = await fetchAllDataForPeriod(period);
             
-            const formatForAI = (title: string, data: any[]) => {
-                if(data.length === 0) return `No hay datos de ${title} para este período.`;
+            const formatForAI = (title: string, data: any[] | any) => {
+                if (!data || (Array.isArray(data) && data.length === 0)) return `No hay datos de ${title} para este período.`;
+                if (!Array.isArray(data)) return `${title}: ${JSON.stringify(data)}`;
                 return `${title}:\n${data.map(d => `- ${JSON.stringify(d)}`).join('\n')}\n`;
             }
 
@@ -181,6 +188,8 @@ export default function HealthSummaryWidget() {
                 supplementData: formatForAI('Suplementos', supplementData),
                 foodIntakeData: formatForAI('Alimentación e Hidratación', foodData as FoodIntakeData[]),
                 calendarData: formatForAI('Otros Eventos del Calendario', otherEvents),
+                mindfulnessData: formatForAI('Estrés y Estado de Ánimo', mindfulnessData),
+                userGoals: formatForAI('Objetivos del Usuario', userGoals),
             };
 
             const result = await generateHealthSummary(aiInput);
@@ -199,10 +208,32 @@ export default function HealthSummaryWidget() {
         setSummary('');
 
         try {
-            const { sleepData, eventData, activityData, allDailyMetrics, supplementData, foodData, startDate, endDate, now } = await fetchAllDataForPeriod(period);
+            const { sleepData, eventData, activityData, allDailyMetrics, supplementData, foodData, mindfulnessData, userGoals, startDate, endDate } = await fetchAllDataForPeriod(period);
             
             let report = `INFORME DE DATOS - Período: ${format(startDate, 'P', {locale: es})} - ${format(endDate, 'P', {locale: es})}\n`;
             report += "========================================\n\n";
+
+            // User Goals
+            report += "### Objetivos Personales\n";
+            if (userGoals) {
+                report += `- Objetivo Principal: ${userGoals.primaryGoal || 'No definido'}\n`;
+                if (userGoals.specifics) report += `- Detalles: ${userGoals.specifics}\n`;
+            } else {
+                report += "No se han definido objetivos.\n";
+            }
+            report += "\n";
+
+            // Mindfulness Data
+            report += "### Bienestar Mental (Estrés y Ánimo)\n";
+            if (mindfulnessData.length > 0) {
+                (mindfulnessData as MindfulnessData[]).forEach(m => {
+                    report += `- Fecha: ${m.date}, Estrés: ${m.stressLevel}/10, Ánimo: ${m.mood}\n`;
+                    if (m.notes) report += `  - Notas: "${m.notes}"\n`;
+                });
+            } else {
+                report += "No hay datos de bienestar mental registrados para este período.\n";
+            }
+            report += "\n";
 
             // Sleep Data
             report += "### Sueño\n";
@@ -291,7 +322,7 @@ export default function HealthSummaryWidget() {
                     report += `- ${day.id}:\n`;
                     Object.entries(day).forEach(([key, value]) => {
                         if (key !== 'id' && Array.isArray(value) && value.length > 0) {
-                            report += `  - ${key}: ${value.map(sup => `${sup.name} (${sup.dose})`).join(', ')}\n`;
+                            report += `  - ${key}: ${value.map((sup: any) => `${sup.name} (${sup.dose})`).join(', ')}\n`;
                         }
                     });
                 });
@@ -306,7 +337,10 @@ export default function HealthSummaryWidget() {
                 (foodData as FoodIntakeData[]).forEach(f => {
                     report += `- Fecha: ${f.date}\n`;
                     report += `  - Hidratación: Agua ${f.waterIntake || 0}ml, Otras Bebidas: ${f.otherDrinks || 'ninguna'}\n`;
-                    report += `  - Comidas: Desayuno: ${f.breakfast || 'ninguno'}; Comida: ${f.lunch || 'ninguna'}; Cena: ${f.dinner || 'ninguna'}; Snacks: ${f.snacks || 'ninguno'}\n`;
+                    report += `  - Desayuno: ${f.breakfast || 'ninguno'}. (Etiquetas: ${f.breakfastTags || 'ninguna'})\n`;
+                    report += `  - Comida: ${f.lunch || 'ninguna'}. (Etiquetas: ${f.lunchTags || 'ninguna'})\n`;
+                    report += `  - Cena: ${f.dinner || 'ninguna'}. (Etiquetas: ${f.dinnerTags || 'ninguna'})\n`;
+                    report += `  - Snacks: ${f.snacks || 'ninguno'}. (Etiquetas: ${f.snacksTags || 'ninguna'})\n`;
                     if (f.notes) report += `  - Notas: ${f.notes}\n`;
                 });
             } else {

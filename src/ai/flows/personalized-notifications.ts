@@ -20,6 +20,8 @@ const PersonalizedNotificationsInputSchema = z.object({
   recentWorkouts: z.string().optional().describe('Un resumen de los entrenamientos más recientes.'),
   lastRecovery: z.string().optional().describe('Los datos de recuperación más recientes.'),
   lastActivity: z.string().optional().describe('Los datos de actividad más recientes.'),
+  stressAndMood: z.string().optional().describe('El nivel de estrés y estado de ánimo reportados hoy.'),
+  userGoals: z.string().optional().describe('El objetivo principal de bienestar del usuario.'),
 });
 export type PersonalizedNotificationsInput = z.infer<
   typeof PersonalizedNotificationsInputSchema
@@ -44,11 +46,11 @@ const prompt = ai.definePrompt({
   name: 'personalizedNotificationsPrompt',
   input: {schema: PersonalizedNotificationsInputSchema},
   output: {schema: PersonalizedNotificationsOutputSchema},
-  prompt: `Eres un asistente de salud y bienestar proactivo, analítico y perspicaz. Tu tarea es analizar el resumen de datos del usuario y generar 2-3 notificaciones cortas, relevantes y accionables para ayudarle en su día. Busca activamente conexiones y patrones entre los diferentes datos proporcionados, especialmente la agenda del día.
+  prompt: `Eres un asistente de salud y bienestar proactivo, analítico y perspicaz. Tu tarea es analizar el resumen de datos del usuario y generar 2-3 notificaciones cortas, relevantes y accionables para ayudarle en su día. Busca activamente conexiones y patrones entre los diferentes datos proporcionados, especialmente la agenda del día y los objetivos del usuario.
 
   **Instrucciones Clave:**
   - **Usa la Hora Actual:** La hora actual es {{{currentTime}}}. Usa este dato para dar consejos oportunos. Si un evento ya ha pasado, habla de él en pasado. Si está por venir, anticípalo.
-  - **Analiza y Conecta (Prioriza la Agenda):** No te limites a repetir los datos. La agenda del día es clave. Si tiene un día de trabajo largo, enfoca los consejos en manejar el estrés o la energía. Si tiene un entrenamiento, relaciona el sueño y la recuperación con ese entreno. Si es un día de descanso, sugiere formas de optimizarlo.
+  - **Analiza y Conecta (Prioriza la Agenda y Objetivos):** No te limites a repetir los datos. La agenda del día y los objetivos del usuario son clave. Si tiene un día de trabajo largo, enfoca los consejos en manejar el estrés o la energía. Si tiene un entrenamiento, relaciona el sueño y la recuperación con ese entreno. Si su objetivo es perder peso, adapta las sugerencias a ello.
   - **Sé Conciso y Directo:** Las notificaciones deben ser fáciles de leer.
   - **Ofrece Consejos Prácticos y Oportunos:** Las recomendaciones deben ser aplicables al día de hoy.
   - **Tono de Apoyo:** Usa un tono alentador y empático.
@@ -56,14 +58,16 @@ const prompt = ai.definePrompt({
 
   **DATOS DEL USUARIO PARA HOY:**
   - **Hora Actual:** {{{currentTime}}}
+  - **Objetivo Principal:** {{{userGoals}}}
   - **Agenda de Hoy (CLAVE):** {{{todayEvents}}}
   - **Estado del Ciclo Menstrual:** {{{cycleStatus}}}
+  - **Nivel de Estrés y Ánimo de Hoy:** {{{stressAndMood}}}
   - **Último Sueño Registrado:** {{{lastSleep}}}
   - **Recuperación de Hoy:** {{{lastRecovery}}}
   - **Actividad de Ayer:** {{{lastActivity}}}
   - **Entrenamientos Recientes:** {{{recentWorkouts}}}
   
-  Genera las notificaciones analizando y conectando la información disponible. Si faltan datos clave (como el sueño o la recuperación), una de las notificaciones debe ser un recordatorio amable para registrarlos. Da prioridad a la agenda del día para que los consejos sean coherentes con si es un día de trabajo, de entreno o de descanso.`,
+  Genera las notificaciones analizando y conectando la información disponible. Si faltan datos clave (como el sueño o la recuperación), una de las notificaciones debe ser un recordatorio amable para registrarlos. Da prioridad a la agenda del día y los objetivos del usuario para que los consejos sean coherentes.`,
 });
 
 const personalizedNotificationsFlow = ai.defineFlow(

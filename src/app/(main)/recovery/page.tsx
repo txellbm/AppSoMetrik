@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { RecoveryData, SleepData, DailyMetric, CalendarEvent } from "@/ai/schemas";
+import { RecoveryData, SleepData, DailyMetric, CalendarEvent, MindfulnessData, UserGoalsData } from "@/ai/schemas";
 import { collection, onSnapshot, query, doc, setDoc, getDocs, orderBy, limit, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -55,16 +55,12 @@ export default function RecoveryPage() {
     const handleSaveRecovery = async (data: Omit<RecoveryData, 'id' | 'date' | 'morningHrv'>) => {
         try {
             const userRef = doc(db, "users", userId);
-            const qSleep = query(
-                collection(userRef, "sleep_manual"),
-                where("date", "==", today)
-            );
-            
+            const qSleep = query(collection(userRef, "sleep_manual"), where("date", "==", today));
             const sleepSnap = await getDocs(qSleep);
+            
             let morningHrv: number | undefined = undefined;
 
             if (!sleepSnap.empty) {
-                // Find the latest sleep session of the day with a VFC value
                  const sleepSessions = sleepSnap.docs
                     .map(doc => doc.data() as SleepData)
                     .filter(s => s.vfcAlDespertar !== undefined)
@@ -218,7 +214,7 @@ function RecoveryDialog({ isOpen, onClose, onSave, recovery }: RecoveryDialogPro
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSave(formData);
+        onSave(formData as Omit<RecoveryData, 'id' | 'date' | 'morningHrv'>);
     }
     
     if(!isOpen) return null;
@@ -289,16 +285,22 @@ function SuggestionsCard({ recoveryScore, userId, today }: { recoveryScore: numb
                 const sleepQuery = query(collection(userRef, "sleep_manual"), where("date", "==", today));
                 const dailyMetricsQuery = query(collection(userRef, "dailyMetrics"), orderBy("date", "desc"));
                 const eventsQuery = query(collection(userRef, "events"), where("date", "==", today));
+                const mindfulnessQuery = query(collection(userRef, "mindfulness"), where("date", "==", today));
+                const goalsQuery = doc(userRef, "goals", "main");
                 
-                const [sleepSnap, dailyMetricsSnap, eventsSnap] = await Promise.all([
+                const [sleepSnap, dailyMetricsSnap, eventsSnap, mindfulnessSnap, goalsSnap] = await Promise.all([
                     getDocs(sleepQuery),
                     getDocs(dailyMetricsQuery),
                     getDocs(eventsQuery),
+                    getDocs(mindfulnessQuery),
+                    getDoc(goalsQuery),
                 ]);
 
                 const lastSleep = !sleepSnap.empty ? sleepSnap.docs[0].data() as SleepData : null;
                 const dailyMetrics = dailyMetricsSnap.docs.map(d => ({...d.data(), id: d.id})) as DailyMetric[];
                 const todayEvents = eventsSnap.docs.map(d => d.data()) as CalendarEvent[];
+                const todayMindfulness = !mindfulnessSnap.empty ? mindfulnessSnap.docs[0].data() as MindfulnessData : null;
+                const userGoals = goalsSnap.exists() ? goalsSnap.data() as UserGoalsData : null;
 
                 const sortedMenstruationDays = dailyMetrics
                     .filter(m => m.estadoCiclo === 'menstruacion')
@@ -321,7 +323,9 @@ function SuggestionsCard({ recoveryScore, userId, today }: { recoveryScore: numb
                     currentTime: format(new Date(), "HH:mm"),
                     lastSleep: lastSleep ? `Duración: ${lastSleep.sleepTime} min, Eficiencia: ${lastSleep.efficiency}%, VFC al despertar: ${lastSleep.vfcAlDespertar} ms` : 'No hay datos de sueño.',
                     cycleStatus: `Fase: ${currentPhase}, Día: ${dayOfCycle || 'N/A'}.`,
-                    todayEvents: todayEvents.length > 0 ? todayEvents.map(e => `${e.description} de ${e.startTime} a ${e.endTime}`).join('; ') : 'No hay eventos programados.'
+                    todayEvents: todayEvents.length > 0 ? todayEvents.map(e => `${e.description} de ${e.startTime} a ${e.endTime}`).join('; ') : 'No hay eventos programados.',
+                    stressAndMood: todayMindfulness ? `Estrés: ${todayMindfulness.stressLevel}/10, Ánimo: ${todayMindfulness.mood}.` : 'No hay datos de ánimo/estrés.',
+                    userGoals: userGoals ? `Objetivo: ${userGoals.primaryGoal}. Detalles: ${userGoals.specifics}.` : 'No hay objetivos definidos.'
                 };
 
                 const result = await generateRecoverySuggestions(input);

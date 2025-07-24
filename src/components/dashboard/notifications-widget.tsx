@@ -6,9 +6,9 @@ import { generatePersonalizedNotifications, PersonalizedNotificationsInput } fro
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bell, Calendar, Moon, Heart, Dumbbell } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, doc, orderBy, limit } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, orderBy, limit, getDoc } from "firebase/firestore";
 import { format, startOfDay, differenceInDays, parseISO, subDays } from 'date-fns';
-import { DailyMetric, SleepData, CalendarEvent, RecoveryData, ActivityData } from "@/ai/schemas";
+import { DailyMetric, SleepData, CalendarEvent, RecoveryData, ActivityData, MindfulnessData, UserGoalsData } from "@/ai/schemas";
 
 type Notification = {
     icon: React.ReactNode;
@@ -35,7 +35,7 @@ const getIconForNotification = (text: string) => {
     const lowerText = text.toLowerCase();
     if (lowerText.includes('ciclo') || lowerText.includes('período') || lowerText.includes('folicular') || lowerText.includes('lútea') || lowerText.includes('menstrua')) return iconMap.cycle;
     if (lowerText.includes('sueño') || lowerText.includes('descanso')) return iconMap.sleep;
-    if (lowerText.includes('ánimo') || lowerText.includes('energía') || lowerText.includes('sientes')) return iconMap.mood;
+    if (lowerText.includes('ánimo') || lowerText.includes('energía') || lowerText.includes('sientes') || lowerText.includes('estrés')) return iconMap.mood;
     if (lowerText.includes('entrenamiento') || lowerText.includes('ejercicio') || lowerText.includes('pilates') || lowerText.includes('gimnasio') || lowerText.includes('fuerza')) return iconMap.workout;
     return iconMap.default;
 };
@@ -61,15 +61,19 @@ export default function NotificationsWidget() {
                 const recentWorkoutsQuery = query(collection(userRef, "events"), where("type", "==", "entrenamiento"));
                 const recoveryQuery = query(collection(userRef, "recovery"), orderBy("date", "desc"), limit(1));
                 const activityQuery = query(collection(userRef, "activity"), where("date", "==", yesterdayStr));
+                const mindfulnessQuery = query(collection(userRef, "mindfulness"), where("date", "==", todayStr));
+                const goalsQuery = doc(userRef, "goals", "main");
 
 
-                const [dailyMetricsSnap, sleepSnap, eventsSnap, recentWorkoutsSnap, recoverySnap, activitySnap] = await Promise.all([
+                const [dailyMetricsSnap, sleepSnap, eventsSnap, recentWorkoutsSnap, recoverySnap, activitySnap, mindfulnessSnap, goalsSnap] = await Promise.all([
                     getDocs(dailyMetricsQuery),
                     getDocs(sleepQuery),
                     getDocs(eventsQuery),
                     getDocs(recentWorkoutsQuery),
                     getDocs(recoveryQuery),
                     getDocs(activityQuery),
+                    getDocs(mindfulnessQuery),
+                    getDoc(goalsQuery),
                 ]);
 
                 // 2. Process data
@@ -81,6 +85,8 @@ export default function NotificationsWidget() {
                   .slice(0, 5);
                 const lastRecovery = recoverySnap.docs.length > 0 ? recoverySnap.docs[0].data() as RecoveryData : null;
                 const lastActivity = activitySnap.docs.length > 0 ? activitySnap.docs[0].data() as ActivityData : null;
+                const todayMindfulness = !mindfulnessSnap.empty ? mindfulnessSnap.docs[0].data() as MindfulnessData : null;
+                const userGoals = goalsSnap.exists() ? goalsSnap.data() as UserGoalsData : null;
 
 
                 // --- Cycle Calculation ---
@@ -109,7 +115,9 @@ export default function NotificationsWidget() {
                     todayEvents: todayEvents.length > 0 ? todayEvents.map(e => `${e.description} de ${e.startTime} a ${e.endTime}`).join('; ') : 'No hay eventos programados.',
                     recentWorkouts: recentWorkouts.length > 0 ? recentWorkouts.map(w => `${w.description} (${w.date})`).join(', ') : 'No hay entrenamientos recientes.',
                     lastRecovery: lastRecovery ? `Percepción: ${lastRecovery.perceivedRecovery}/10, VFC matutina: ${lastRecovery.morningHrv}ms, Síntomas: ${(lastRecovery.symptoms || []).join(', ')}` : 'No hay datos de recuperación de hoy.',
-                    lastActivity: lastActivity ? `Pasos: ${lastActivity.steps}, Calorías: ${lastActivity.totalCalories}, Tiempo activo: ${lastActivity.activeTime} min.` : 'No hay datos de actividad de ayer.'
+                    lastActivity: lastActivity ? `Pasos: ${lastActivity.steps}, Calorías: ${lastActivity.totalCalories}, Tiempo activo: ${lastActivity.activeTime} min.` : 'No hay datos de actividad de ayer.',
+                    stressAndMood: todayMindfulness ? `Estrés: ${todayMindfulness.stressLevel}/10, Ánimo: ${todayMindfulness.mood}.` : 'No hay datos de ánimo/estrés.',
+                    userGoals: userGoals ? `Objetivo: ${userGoals.primaryGoal}. Detalles: ${userGoals.specifics}.` : 'No hay objetivos definidos.'
                 };
                 
                 // 4. Call the AI flow
