@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Flame, Plus, Edit, Trash2, FileText, Copy } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function ActivityPage() {
     const [activityData, setActivityData] = useState<ActivityData[]>([]);
@@ -311,3 +312,4 @@ function ActivityDialog({ isOpen, onClose, onSave, activity }: ActivityDialogPro
         </Dialog>
     );
 }
+

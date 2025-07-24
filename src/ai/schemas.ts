@@ -150,6 +150,8 @@ export const DailyMetricSchema = z.object({
   estadoCiclo: z.string().optional().describe("Estado del ciclo, ej. 'menstruacion'"),
   sintomas: z.array(z.string()).optional().describe("Lista de síntomas."),
   notas: z.string().optional().describe("Notas generales del día."),
+  dayOfCycle: z.number().optional().describe("Día del ciclo."),
+  phase: z.string().optional().describe("Fase del ciclo."),
 });
 export type DailyMetric = z.infer<typeof DailyMetricSchema>;
 
@@ -165,3 +167,13 @@ export const FoodIntakeSchema = z.object({
     notes: z.string().optional().describe("Notas generales sobre la alimentación del día."),
 });
 export type FoodIntakeData = z.infer<typeof FoodIntakeSchema>;
+
+export const RecoveryDataSchema = z.object({
+    id: z.string().optional(),
+    date: z.string().describe("Fecha del registro (YYYY-MM-DD)."),
+    morningHrv: z.number().optional().describe("VFC matutina (ms)."),
+    perceivedRecovery: z.number().optional().describe("Recuperación percibida (escala 1-10)."),
+    symptoms: z.array(z.string()).optional().describe("Síntomas relacionados a la recuperación."),
+    notes: z.string().optional().describe("Observaciones sobre la recuperación."),
+});
+export type RecoveryData = z.infer<typeof RecoveryDataSchema>;

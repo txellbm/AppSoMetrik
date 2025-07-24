@@ -22,7 +22,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 const getCyclePhase = (dayOfCycle: number | null): string => {
     if (dayOfCycle === null || dayOfCycle < 1) return "N/A";
     if (dayOfCycle <= 5) return "Menstrual";
-    if (dayOfCycle <= 14) return "Folicular";
+    if (dayOfCycle > 5 && dayOfCycle < 13) return "Folicular";
+    if (dayOfCycle >=13 && dayOfCycle <= 15) return "Ovulación";
     return "Lútea";
 };
 
@@ -406,3 +407,4 @@ export default function CyclePage() {
         </div>
     );
 }
+
