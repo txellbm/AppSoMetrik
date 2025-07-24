@@ -60,6 +60,7 @@ export function MonthlyCalendarView({ month, onMonthChange, events, selected, on
                                 getEventColorClass(event)
                             )}
                         >
+                            {event.startTime && <span className="font-bold mr-1">{event.startTime}</span>}
                             {event.description}
                         </div>
                     ))}
@@ -101,3 +102,5 @@ export function MonthlyCalendarView({ month, onMonthChange, events, selected, on
         />
     );
 }
+
+    

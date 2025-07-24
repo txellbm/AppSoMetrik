@@ -60,10 +60,20 @@ const eventColors: Record<string, string> = {
 };
 
 const getEventColorClass = (event: CalendarEvent): string => {
-    if (event.type === 'entrenamiento') {
-        return eventColors[event.description] || eventColors.default_entrenamiento;
+    // Check for specific workout descriptions first
+    if (eventColors[event.description]) {
+        return eventColors[event.description];
     }
-    return eventColors[event.type] || eventColors.default;
+    // Then check for event type
+    if (eventColors[event.type]) {
+        return eventColors[event.type];
+    }
+    // Fallback for general training
+    if (event.type === 'entrenamiento') {
+        return eventColors.default_entrenamiento;
+    }
+    // Default fallback
+    return eventColors.default;
 };
 
 
@@ -274,6 +284,11 @@ export default function CalendarPage() {
                     newQuickEvents[key] = prev[key];
                 }
             }
+            // Also update the color mapping if it exists
+            if (eventColors[oldName]) {
+                eventColors[newName] = eventColors[oldName];
+                delete eventColors[oldName];
+            }
             return newQuickEvents;
         });
     }
@@ -373,12 +388,16 @@ export default function CalendarPage() {
                 groups[type].push(key);
             }
         });
-        // Create a separate 'other' group for any types not explicitly handled
-        const otherTypes = Object.keys(groups).filter(type => !['entrenamiento', 'trabajo', 'nota', 'descanso', 'vacaciones'].includes(type));
-        if (otherTypes.length > 0) {
-             groups['nota'].push(...otherTypes);
-        }
-        return groups;
+        // This is to ensure consistent ordering
+        const orderedGroups: {name: string, events: QuickEventType[]}[] = [
+            { name: 'entrenamiento', events: groups.entrenamiento},
+            { name: 'trabajo', events: groups.trabajo},
+            { name: 'nota', events: groups.nota},
+            { name: 'descanso', events: groups.descanso},
+            { name: 'vacaciones', events: groups.vacaciones},
+        ];
+
+        return orderedGroups;
 
     }, [quickEventTypes]);
 
@@ -451,12 +470,12 @@ export default function CalendarPage() {
                            </Button>
                         </CardHeader>
                         <CardContent className="grid grid-cols-2 gap-x-4 gap-y-6">
-                            {Object.entries(quickEventGroups).map(([groupName, groupEvents]) => {
-                                if (groupEvents.length === 0) return null;
+                            {quickEventGroups.map(({name, events}) => {
+                                if (events.length === 0) return null;
                                 return (
-                                <div key={groupName} className="space-y-2">
-                                    <h4 className="font-semibold text-sm mb-2 capitalize">{groupName === 'nota' ? 'Otros' : groupName}</h4>
-                                    {groupEvents.map((type) => {
+                                <div key={name} className="space-y-2">
+                                    <h4 className="font-semibold text-sm mb-2 capitalize">{name === 'nota' ? 'Otros' : name}</h4>
+                                    {events.map((type) => {
                                         const config = quickEventTypes[type];
                                         if (!config) return null;
                                         const isSelected = selectedQuickEventType === type;
@@ -490,7 +509,7 @@ export default function CalendarPage() {
             <AlertDialog open={!!eventToDelete} onOpenChange={(open) => !open && setEventToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                    <AlertDialogTitle>¿Estás absolutely seguro?</AlertDialogTitle>
+                    <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
                     <AlertDialogDescription>
                         Esta acción no se puede deshacer. Esto eliminará permanentemente el evento
                         de tus registros.
@@ -589,13 +608,15 @@ const QuickEventCard = ({ type, config, isSelected, onSelect }: QuickEventCardPr
         className={cn(
             "p-2 cursor-pointer transition-all w-full justify-start", 
             isSelected ? "ring-2 ring-primary bg-primary/10 text-primary" : "hover:bg-muted/50",
-            `bg-${config.type}-100 text-${config.type}-800 border-${config.type}-300` // Example of dynamic coloring
+            getEventColorClass({ type: config.type, description: type } as CalendarEvent)
         )}
-        variant="outline"
+        variant={isSelected ? 'default' : 'outline'}
         onClick={() => onSelect(isSelected ? null : type)}
     >
         <Label className="font-semibold text-sm cursor-pointer">{type}</Label>
     </Badge>
 );
+
+    
 
     
