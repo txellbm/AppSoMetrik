@@ -71,14 +71,23 @@ export default function HealthSummaryWidget() {
                     dates.push(format(d, 'yyyy-MM-dd'));
                  }
                 if(dates.length === 0) return [];
+                 if (dates.length > 30) {
+                    console.warn("Querying for too many supplement dates, this may be slow or hit Firestore limits.");
+                    // Fallback or chunking might be needed for larger ranges in a real app
+                }
                 const q = query(collection(userRef, 'supplements'), where(documentId(), 'in', dates));
                 return (await getDocs(q)).docs.map(d => ({id: d.id, ...d.data()}));
             }
             
-            // We need all historical menstruation data to calculate current cycle day/phase
-            const allMenstruationMetricsQuery = query(collection(userRef, "dailyMetrics"), where("estadoCiclo", "==", "menstruacion"), orderBy("date", "desc"));
-            const allMenstruationMetricsSnap = await getDocs(allMenstruationMetricsQuery);
-            const allMenstruationDays = allMenstruationMetricsSnap.docs.map(d => startOfDay(parseISO(d.id))).sort((a,b) => b.getTime() - a.getTime());
+            // Fetch all daily metrics to calculate cycle phase correctly without a composite index
+            const allDailyMetricsQuery = query(collection(userRef, "dailyMetrics"), orderBy("date", "desc"));
+            const allDailyMetricsSnap = await getDocs(allDailyMetricsQuery);
+            const allDailyMetrics = allDailyMetricsSnap.docs.map(d => ({ ...d.data(), id: d.id })) as DailyMetric[];
+
+            const allMenstruationDays = allDailyMetrics
+                .filter(m => m.estadoCiclo === 'menstruacion')
+                .map(m => startOfDay(parseISO(m.date)))
+                .sort((a,b) => b.getTime() - a.getTime());
 
             let cycleStartDay: Date | null = null;
             if (allMenstruationDays.length > 0) {
@@ -94,13 +103,17 @@ export default function HealthSummaryWidget() {
             const dayOfCycle = cycleStartDay ? differenceInDays(startOfDay(now), cycleStartDay) + 1 : null;
             const currentPhase = getCyclePhase(dayOfCycle);
 
-            const [sleepData, exerciseData, cycleDataInPeriod, supplementData, activityData] = await Promise.all([
+            const [sleepData, exerciseData, supplementData, activityData] = await Promise.all([
                 fetchDataInPeriod('sleep_manual'),
                 fetchDataInPeriod('events'), // Also includes workouts
-                fetchDataInPeriod('dailyMetrics'),
                 fetchSupplements(),
                 fetchDataInPeriod('activity'),
             ]);
+
+            const cycleDataInPeriod = allDailyMetrics.filter(m => {
+                const metricDate = parseISO(m.date);
+                return metricDate >= startDate && metricDate <= endDate;
+            });
             
             // Format data for AI
             const formatForAI = (title: string, data: any[]) => {
