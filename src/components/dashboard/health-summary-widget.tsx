@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Bot, Clipboard, Loader2 } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, doc, documentId, orderBy, startAt, getDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, orderBy } from "firebase/firestore";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, parseISO, differenceInDays } from 'date-fns';
 import { ActivityData, CalendarEvent, DailyMetric, SleepData, FoodIntakeData } from "@/ai/schemas";
 
@@ -70,13 +70,20 @@ export default function HealthSummaryWidget() {
                 for (let d = new Date(startDate); d <= endDate; d = addDays(d, 1)) {
                     dates.push(format(d, 'yyyy-MM-dd'));
                 }
+                
                 if (dates.length === 0) return [];
-                if (dates.length > 30) {
-                    // Firestore 'in' query limit is 30
-                    console.warn(`Querying for more than 30 days in ${colName}, this may be slow or fail.`);
+
+                const results: any[] = [];
+                // Firestore 'in' query limit is 30, so batch if necessary
+                for (let i = 0; i < dates.length; i += 30) {
+                    const dateChunk = dates.slice(i, i + 30);
+                    if (dateChunk.length > 0) {
+                        const q = query(collection(userRef, colName), where('date', 'in', dateChunk));
+                        const snapshot = await getDocs(q);
+                        results.push(...snapshot.docs.map(d => ({id: d.id, ...d.data()})));
+                    }
                 }
-                const q = query(collection(userRef, colName), where(documentId(), 'in', dates));
-                return (await getDocs(q)).docs.map(d => ({id: d.id, ...d.data()}));
+                return results;
             }
             
             // Fetch all daily metrics to calculate cycle phase correctly
@@ -126,20 +133,34 @@ export default function HealthSummaryWidget() {
                 return `${title}:\n${data.map(d => `- ${JSON.stringify(d)}`).join('\n')}\n`;
             }
 
-             const heartRateSummaryLines = [];
             const allSleepData = sleepData as SleepData[];
             const allActivityData = activityData as ActivityData[];
 
+            let heartRateSummaryLines: string[] = [];
             allSleepData.forEach(s => {
-                if(s.avgHeartRate) heartRateSummaryLines.push(`Sueño (${s.date}): FC media ${s.avgHeartRate} lpm, VFC al despertar ${s.vfcAlDespertar || 'N/A'} ms.`);
+                let sleepSummary = `Sueño (${s.date}):`;
+                const parts = [];
+                if (s.avgHeartRate) parts.push(`FC media ${s.avgHeartRate} lpm`);
+                if (s.vfcAlDespertar) parts.push(`VFC al despertar ${s.vfcAlDespertar} ms`);
+                if (s.respiratoryRate) parts.push(`Frec. Resp. ${s.respiratoryRate} rpm`);
+                if (parts.length > 0) {
+                    heartRateSummaryLines.push(`${sleepSummary} ${parts.join(', ')}.`);
+                }
             });
-             allActivityData.forEach(a => {
-                if(a.avgDayHeartRate) heartRateSummaryLines.push(`Actividad (${a.date}): FC media ${a.avgDayHeartRate} lpm, FC en reposo ${a.restingHeartRate || 'N/A'} lpm.`);
+
+            allActivityData.forEach(a => {
+                let activitySummary = `Actividad (${a.date}):`;
+                const parts = [];
+                if (a.avgDayHeartRate) parts.push(`FC media ${a.avgDayHeartRate} lpm`);
+                if (a.restingHeartRate) parts.push(`FC en reposo ${a.restingHeartRate} lpm`);
+                if (parts.length > 0) {
+                    heartRateSummaryLines.push(`${activitySummary} ${parts.join(', ')}.`);
+                }
             });
-            const heartRateSummary = heartRateSummaryLines.length > 0 ? heartRateSummaryLines.join(' ') : "No hay datos de frecuencia cardíaca o VFC registrados.";
+
+            const heartRateSummary = heartRateSummaryLines.length > 0 ? heartRateSummaryLines.join('\n') : "No hay datos de frecuencia cardíaca o VFC registrados.";
             
             const menstruationSummary = `Fase actual: ${currentPhase}, Día del ciclo: ${dayOfCycle || 'N/A'}. Síntomas y notas del período: \n${formatForAI('Datos del ciclo', cycleDataInPeriod as DailyMetric[])}`;
-
 
             const allCalendarEvents = (eventData as CalendarEvent[]).sort((a,b) => a.date.localeCompare(b.date));
             const workouts = allCalendarEvents.filter(e => e.type === 'entrenamiento');
