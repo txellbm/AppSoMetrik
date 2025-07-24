@@ -202,8 +202,8 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
     useEffect(() => {
         if (formData.bedtime && formData.wakeUpTime && formData.date) {
             try {
-                const start = parse(`${formData.date}T${formData.bedtime}`, 'yyyy-MM-dd HH:mm', new Date());
-                let end = parse(`${formData.date}T${formData.wakeUpTime}`, 'yyyy-MM-dd HH:mm', new Date());
+                const start = parse(`${formData.date} ${formData.bedtime}`, 'yyyy-MM-dd HH:mm', new Date());
+                let end = parse(`${formData.date} ${formData.wakeUpTime}`, 'yyyy-MM-dd HH:mm', new Date());
 
                 if (end <= start) {
                     end = new Date(end.getTime() + 24 * 60 * 60 * 1000); // Add a day if wake up is next day
@@ -419,3 +419,4 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
     
 
     
+
