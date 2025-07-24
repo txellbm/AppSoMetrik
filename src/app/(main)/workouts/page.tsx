@@ -180,11 +180,13 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
     const [details, setDetails] = useState<CalendarEvent['workoutDetails']>({});
 
     useEffect(() => {
-        // This ensures the form is blank every time it opens.
         if (isOpen) {
-            setDetails({});
+            // If details exist for the workout, load them into the form.
+            // Otherwise, start with a blank form.
+            setDetails(workout.workoutDetails || {});
         }
-    }, [isOpen]);
+    }, [isOpen, workout]);
+
 
     useEffect(() => {
         if (details?.realStartTime && details.realEndTime && workout.date) {
@@ -282,41 +284,41 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
                         </div>
                          <div>
                             <Label htmlFor="realDuration">Duración Real</Label>
-                            <Input id="realDuration" type="text" placeholder="01:07:23" value={details?.realDuration ?? ''} onChange={e => handleChange('realDuration', e.target.value)} />
+                            <Input id="realDuration" type="text" placeholder="hh:mm:ss" value={details?.realDuration ?? ''} onChange={e => handleChange('realDuration', e.target.value)} />
                         </div>
                     </div>
                      <div className="grid grid-cols-2 gap-4">
                         <div>
                             <Label htmlFor="activeCalories">Calorías activas (kcal)</Label>
-                            <Input id="activeCalories" type="number" placeholder="194" value={details?.activeCalories ?? ''} onChange={e => handleChange('activeCalories', e.target.value)} />
+                            <Input id="activeCalories" type="number" value={details?.activeCalories ?? ''} onChange={e => handleChange('activeCalories', e.target.value)} />
                         </div>
                         <div>
                            <Label htmlFor="totalCalories">Calorías totales (kcal)</Label>
-                           <Input id="totalCalories" type="number" placeholder="278" value={details?.totalCalories ?? ''} onChange={e => handleChange('totalCalories', e.target.value)} />
+                           <Input id="totalCalories" type="number" value={details?.totalCalories ?? ''} onChange={e => handleChange('totalCalories', e.target.value)} />
                         </div>
                     </div>
                     <div className="grid grid-cols-3 gap-4">
                         <div>
                            <Label htmlFor="avgHeartRate">FC Media (lpm)</Label>
-                           <Input id="avgHeartRate" type="number" placeholder="104" value={details?.avgHeartRate ?? ''} onChange={e => handleChange('avgHeartRate', e.target.value)} />
+                           <Input id="avgHeartRate" type="number" value={details?.avgHeartRate ?? ''} onChange={e => handleChange('avgHeartRate', e.target.value)} />
                         </div>
                         <div>
                            <Label htmlFor="maxHeartRate">FC Máxima (lpm)</Label>
-                           <Input id="maxHeartRate" type="number" placeholder="158" value={details?.maxHeartRate ?? ''} onChange={e => handleChange('maxHeartRate', e.target.value)} />
+                           <Input id="maxHeartRate" type="number" value={details?.maxHeartRate ?? ''} onChange={e => handleChange('maxHeartRate', e.target.value)} />
                         </div>
                         <div>
                            <Label htmlFor="minHeartRate">FC Mínima (lpm)</Label>
-                           <Input id="minHeartRate" type="number" placeholder="71" value={details?.minHeartRate ?? ''} onChange={e => handleChange('minHeartRate', e.target.value)} />
+                           <Input id="minHeartRate" type="number" value={details?.minHeartRate ?? ''} onChange={e => handleChange('minHeartRate', e.target.value)} />
                         </div>
                     </div>
                      <div className="grid grid-cols-2 gap-4">
                         <div>
                            <Label htmlFor="steps">Pasos</Label>
-                           <Input id="steps" type="number" placeholder="2078" value={details?.steps ?? ''} onChange={e => handleChange('steps', e.target.value)} />
+                           <Input id="steps" type="number" value={details?.steps ?? ''} onChange={e => handleChange('steps', e.target.value)} />
                         </div>
                         <div>
                            <Label htmlFor="distance">Distancia (metros)</Label>
-                           <Input id="distance" type="number" placeholder="420" value={details?.distance ?? ''} onChange={e => handleChange('distance', e.target.value)} />
+                           <Input id="distance" type="number" value={details?.distance ?? ''} onChange={e => handleChange('distance', e.target.value)} />
                         </div>
                     </div>
 
@@ -353,5 +355,3 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
         </Dialog>
     );
 }
-
-    
