@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Pill, Plus, X, Coffee, Sun, Moon, Dumbbell, Edit, Trash2, BookMarked, Info } from "lucide-react";
+import { Pill, Plus, X, Coffee, Sun, Moon, Dumbbell, Edit, Trash2, BookMarked, Info, Repeat } from "lucide-react";
 import { format } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -26,6 +26,7 @@ type SupplementDefinition = {
     name: string;
     ingredients: string[];
     notes?: string;
+    recommendedDose?: string;
 }
 
 const supplementSections: { id: SupplementMoment, title: string, icon: React.ReactNode }[] = [
@@ -198,6 +199,12 @@ export default function SupplementsPage() {
                                         <CardTitle className="text-lg">{sup.name}</CardTitle>
                                     </CardHeader>
                                     <CardContent className="flex-grow space-y-3">
+                                        {sup.recommendedDose && (
+                                            <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                                                <Repeat className="h-4 w-4 mt-0.5 shrink-0" />
+                                                <p>{sup.recommendedDose}</p>
+                                            </div>
+                                        )}
                                         <div>
                                             <Label className="text-xs font-semibold">Ingredientes</Label>
                                             <div className="flex flex-wrap gap-1 mt-1">
@@ -307,23 +314,26 @@ function SupplementDialog({ isOpen, onClose, onSave, supplement }: SupplementDia
     const [name, setName] = useState('');
     const [ingredients, setIngredients] = useState('');
     const [notes, setNotes] = useState('');
+    const [recommendedDose, setRecommendedDose] = useState('');
 
     useEffect(() => {
         if (supplement) {
             setName(supplement.name);
             setIngredients(supplement.ingredients.join(', '));
             setNotes(supplement.notes || '');
+            setRecommendedDose(supplement.recommendedDose || '');
         } else {
             setName('');
             setIngredients('');
             setNotes('');
+            setRecommendedDose('');
         }
     }, [supplement]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const ingredientsArray = ingredients.split(',').map(s => s.trim()).filter(Boolean);
-        onSave({ name, ingredients: ingredientsArray, notes });
+        onSave({ name, ingredients: ingredientsArray, notes, recommendedDose });
     };
 
     if (!isOpen) return null;
@@ -338,6 +348,10 @@ function SupplementDialog({ isOpen, onClose, onSave, supplement }: SupplementDia
                     <div>
                         <Label htmlFor="sup-name">Nombre del Suplemento</Label>
                         <Input id="sup-name" value={name} onChange={e => setName(e.target.value)} required />
+                    </div>
+                     <div>
+                        <Label htmlFor="sup-dose">Tomas diarias recomendadas</Label>
+                        <Input id="sup-dose" value={recommendedDose} onChange={e => setRecommendedDose(e.target.value)} placeholder="Ej: 1 cápsula con la comida" />
                     </div>
                      <div>
                         <Label htmlFor="sup-ingredients">Ingredientes (separados por comas)</Label>
