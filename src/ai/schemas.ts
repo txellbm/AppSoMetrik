@@ -43,6 +43,7 @@ export const SleepDataSchema = z.object({
     lpmAlDespertar: z.number().optional().describe("LPM al despertar."),
     vfcAlDormir: z.number().optional().describe("VFC al dormir (ms)."),
     vfcAlDespertar: z.number().optional().describe("VFC al despertar (ms)."),
+    respiratoryRate: z.number().optional().describe("Frecuencia respiratoria media durante el sueño (rpm)."),
     phases: z.object({
         deep: z.number().optional().describe("Tiempo en sueño profundo (minutos)."),
         light: z.number().optional().describe("Tiempo en sueño ligero (minutos)."),

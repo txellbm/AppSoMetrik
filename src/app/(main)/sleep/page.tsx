@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Moon, Plus, Edit, Trash2, BedDouble, Clock, Timer, Percent, Heart, BrainCircuit, FileText, Copy } from "lucide-react";
+import { Moon, Plus, Edit, Trash2, BedDouble, Clock, Timer, Percent, Heart, BrainCircuit, FileText, Copy, Wind } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
@@ -81,27 +81,7 @@ export default function SleepPage() {
             const collectionRef = collection(db, "users", userId, "sleep_manual");
             
              const dataToSave = {
-                id: data.id,
-                date: data.date,
-                type: data.type,
-                bedtime: data.bedtime,
-                wakeUpTime: data.wakeUpTime,
-                sleepTime: data.sleepTime,
-                timeToFallAsleep: data.timeToFallAsleep,
-                timeAwake: data.timeAwake,
-                efficiency: data.efficiency,
-                avgHeartRate: data.avgHeartRate,
-                minHeartRate: data.minHeartRate,
-                maxHeartRate: data.maxHeartRate,
-                lpmAlDespertar: data.lpmAlDespertar,
-                vfcAlDormir: data.vfcAlDormir,
-                vfcAlDespertar: data.vfcAlDespertar,
-                phases: {
-                    rem: data.phases?.rem,
-                    light: data.phases?.light,
-                    deep: data.phases?.deep,
-                },
-                notes: data.notes
+                ...data
             };
 
             const finalData: { [key: string]: any } = {};
@@ -198,6 +178,7 @@ export default function SleepPage() {
                 report += `  - LPM al despertar: ${session.lpmAlDespertar ? `${session.lpmAlDespertar} lpm` : '-'}\n`;
                 report += `  - VFC al dormir: ${session.vfcAlDormir ? `${session.vfcAlDormir} ms` : '-'}\n`;
                 report += `  - VFC al despertar: ${session.vfcAlDespertar ? `${session.vfcAlDespertar} ms` : '-'}\n`;
+                 report += `  - Frec. Respiratoria: ${session.respiratoryRate ? `${session.respiratoryRate} rpm` : '-'}\n`;
                 if(session.notes) {
                     report += `Notas: ${session.notes}\n`;
                 }
@@ -295,6 +276,7 @@ export default function SleepPage() {
                                         <InfoPill icon={<Heart className="h-4 w-4"/>} label="LPM al despertar" value={session.lpmAlDespertar ? `${session.lpmAlDespertar} lpm` : '-'} />
                                         <InfoPill icon={<BrainCircuit className="h-4 w-4"/>} label="VFC al despertar" value={session.vfcAlDespertar ? `${session.vfcAlDespertar} ms` : '-'} />
                                         <InfoPill icon={<BrainCircuit className="h-4 w-4"/>} label="VFC al dormir" value={session.vfcAlDormir ? `${session.vfcAlDormir} ms` : '-'} />
+                                        <InfoPill icon={<Wind className="h-4 w-4"/>} label="Frec. Resp." value={session.respiratoryRate ? `${session.respiratoryRate} rpm` : '-'} />
                                      </div>
                                 </div>
                                 {session.notes && (
@@ -425,6 +407,7 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
             lpmAlDespertar: formData.lpmAlDespertar,
             vfcAlDormir: formData.vfcAlDormir,
             vfcAlDespertar: formData.vfcAlDespertar,
+            respiratoryRate: formData.respiratoryRate,
             phases: {
                 rem: formData.phases?.rem,
                 light: formData.phases?.light,
@@ -529,7 +512,7 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
 
                     <Separator className="my-6"/>
                     <h4 className="font-semibold text-primary">❤️‍🩹 Datos fisiológicos</h4>
-                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div>
                             <Label>FC Media</Label>
                             <Input id="avgHeartRate" type="number" placeholder="lpm" value={formData.avgHeartRate ?? ''} onChange={(e) => handleChange('avgHeartRate', e.target.value === '' ? undefined : Number(e.target.value))}/>
@@ -541,6 +524,10 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
                         <div>
                               <Label>FC Máxima</Label>
                               <Input id="maxHeartRate" type="number" placeholder="lpm" value={formData.maxHeartRate ?? ''} onChange={(e) => handleChange('maxHeartRate', e.target.value === '' ? undefined : Number(e.target.value))}/>
+                        </div>
+                        <div>
+                              <Label>Frec. Respiratoria</Label>
+                              <Input id="respiratoryRate" type="number" step="0.1" placeholder="rpm" value={formData.respiratoryRate ?? ''} onChange={(e) => handleChange('respiratoryRate', e.target.value === '' ? undefined : Number(e.target.value))}/>
                         </div>
                     </div>
                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -573,3 +560,5 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
         </Dialog>
     );
 }
+
+    
