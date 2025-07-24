@@ -94,25 +94,13 @@ export default function CyclePage() {
             
             try {
                 const docSnap = await getDoc(docRef);
-                let newStatusIsSet = false;
 
                 if (docSnap.exists() && docSnap.data().estadoCiclo === 'menstruacion') {
                     // Day exists and is marked, so we unmark it.
                     await updateDoc(docRef, { estadoCiclo: deleteField() });
-                    toast({
-                        title: "Día desmarcado",
-                        description: `${format(day, 'PPP', { locale: es })} ya no está marcado como día de menstruación.`,
-                        duration: 2000,
-                    });
                 } else {
                     // Day doesn't exist or is not marked, so we mark it.
                     await setDoc(docRef, { estadoCiclo: 'menstruacion' }, { merge: true });
-                    newStatusIsSet = true;
-                     toast({
-                        title: "Día marcado",
-                        description: `${format(day, 'PPP', { locale: es })} ha sido marcado como día de menstruación.`,
-                        duration: 2000,
-                    });
                 }
             } catch (error) {
                  console.error("Error toggling menstruation day:", error);
@@ -171,7 +159,7 @@ export default function CyclePage() {
                          variant={isMarkingMode ? 'destructive' : 'outline'}
                          className="w-full"
                         >
-                         {isMarkingMode ? 'Desactivar Modo Marcador' : 'Marcar/Desmarcar Días'}
+                         {isMarkingMode ? 'Desactivar Modo Marcado' : 'Marcar Sangrado'}
                        </Button>
                        <Calendar
                             mode="single"
