@@ -57,18 +57,21 @@ export default function NotificationsWidget() {
                 const dailyMetricsQuery = query(collection(userRef, "dailyMetrics"), orderBy("date", "desc"));
                 const sleepQuery = query(collection(userRef, "sleep_manual"), orderBy("date", "desc"), limit(1));
                 const eventsQuery = query(collection(userRef, "events"), where("date", "==", todayStr));
+                const recentWorkoutsQuery = query(collection(userRef, "events"), where("type", "==", "entrenamiento"), orderBy("date", "desc"), limit(5));
 
-                const [dailyMetricsSnap, sleepSnap, eventsSnap] = await Promise.all([
+
+                const [dailyMetricsSnap, sleepSnap, eventsSnap, recentWorkoutsSnap] = await Promise.all([
                     getDocs(dailyMetricsQuery),
                     getDocs(sleepQuery),
                     getDocs(eventsQuery),
+                    getDocs(recentWorkoutsQuery)
                 ]);
 
                 // 2. Process data
                 const dailyMetrics = dailyMetricsSnap.docs.map(d => ({...d.data(), date: d.id})) as DailyMetric[];
                 const lastSleep = sleepSnap.docs.length > 0 ? sleepSnap.docs[0].data() as SleepData : null;
                 const todayEvents = eventsSnap.docs.map(d => d.data()) as CalendarEvent[];
-                const todayWorkouts = todayEvents.filter(e => e.type === 'entrenamiento');
+                const recentWorkouts = recentWorkoutsSnap.docs.map(d => d.data()) as CalendarEvent[];
 
                 // --- Cycle Calculation ---
                 const sortedMenstruationDays = dailyMetrics
@@ -100,8 +103,8 @@ export default function NotificationsWidget() {
                 } else {
                     summaryLines.push("Sueño: No hay datos de sueño de anoche.");
                 }
-                if (todayWorkouts.length > 0) {
-                    summaryLines.push(`Entrenamientos planeados para hoy: ${todayWorkouts.map(w => w.description).join(', ')}.`);
+                if (recentWorkouts.length > 0) {
+                    summaryLines.push(`Entrenamientos recientes: ${recentWorkouts.map(w => `${w.description} (${w.date})`).join(', ')}.`);
                 }
                  if (todayEvents.length > 0) {
                      summaryLines.push(`Agenda de hoy: ${todayEvents.map(e => `${e.description} de ${e.startTime} a ${e.endTime}`).join('; ')}.`);
@@ -166,5 +169,3 @@ export default function NotificationsWidget() {
         </Card>
     );
 }
-
-    
