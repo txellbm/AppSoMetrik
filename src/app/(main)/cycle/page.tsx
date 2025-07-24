@@ -35,6 +35,7 @@ export default function CyclePage() {
 
     useEffect(() => {
         setIsLoading(true);
+        if (!userId) return;
         const userRef = doc(db, "users", userId);
         const qDailyMetrics = query(collection(userRef, "dailyMetrics"), orderBy("date", "desc"));
 
@@ -110,8 +111,14 @@ export default function CyclePage() {
     };
 
     const cycleDataRows = useMemo(() => {
-        const formatDateForTable = (dateString: string) => format(parseISO(dateString), 'dd/MM/yyyy');
-        
+        const formatDateForTable = (dateString: string) => {
+            try {
+                return format(parseISO(dateString), 'dd/MM/yyyy');
+            } catch (e) {
+                return dateString;
+            }
+        };
+
         const allRelevantMetrics = dailyMetrics
             .filter(m => m.estadoCiclo || (m.sintomas && m.sintomas.length > 0) || m.notas)
             .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -172,7 +179,8 @@ export default function CyclePage() {
                             modifiersStyles={{
                                 menstruation: { 
                                     backgroundColor: 'hsl(var(--destructive))', 
-                                    color: 'hsl(var(--destructive-foreground))' 
+                                    color: 'hsl(var(--destructive-foreground))',
+                                    borderRadius: '100%',
                                 },
                             }}
                         />
