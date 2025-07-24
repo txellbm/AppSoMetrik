@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState } from "react";
 import { collection, onSnapshot, query, doc, orderBy, addDoc, updateDoc, deleteDoc, setDoc } from "firebase/firestore";
-import { format, parse, parseISO, differenceInMinutes, intervalToDuration, addDays } from "date-fns";
+import { format, parse, parseISO, differenceInMinutes, intervalToDuration, addDays, subDays } from "date-fns";
 import { es } from 'date-fns/locale';
 import { db } from "@/lib/firebase";
 import { SleepData } from "@/ai/schemas";
@@ -137,19 +137,30 @@ export default function SleepPage() {
     };
     
     const formatSleepDate = (session: SleepData) => {
-        const startDate = parseISO(session.date);
-        
-        if (session.type === 'noche' && session.bedtime && session.wakeUpTime) {
-             const bedtime = parse(session.bedtime, 'HH:mm', new Date());
-             const wakeUpTime = parse(session.wakeUpTime, 'HH:mm', new Date());
-
-             if (wakeUpTime < bedtime) { // Spans across midnight
+        if (!session.date || !session.bedtime || !session.wakeUpTime) {
+            return format(parseISO(session.date), "EEEE, d 'de' LLLL", { locale: es });
+        }
+    
+        if (session.type === 'noche') {
+            let startDate = parseISO(session.date);
+            const bedtime = parse(session.bedtime, 'HH:mm', new Date());
+            
+            // Si la hora de dormir es antes de las 4 AM, se considera de la noche anterior.
+            if (bedtime.getHours() < 4) {
+                startDate = subDays(startDate, 1);
+            }
+    
+            const wakeUpTime = parse(session.wakeUpTime, 'HH:mm', new Date());
+            
+            // Si la hora de despertarse es antes que la de dormir, abarca la medianoche.
+            if (wakeUpTime < bedtime) {
                 const endDate = addDays(startDate, 1);
                 return `${format(startDate, 'eeee d', {locale: es})} al ${format(endDate, 'eeee d \'de\' LLLL', {locale: es})}`;
-             }
+            }
         }
         
-        return format(startDate, "EEEE, d 'de' LLLL", { locale: es });
+        // Para siestas o noches que no cruzan la medianoche
+        return format(parseISO(session.date), "EEEE, d 'de' LLLL", { locale: es });
     };
 
     return (
@@ -480,5 +491,3 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
         </Dialog>
     );
 }
-
-    
