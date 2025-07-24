@@ -2,14 +2,14 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
-import { collection, onSnapshot, query, where, doc, updateDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, where, doc, updateDoc, orderBy } from "firebase/firestore";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { db } from "@/lib/firebase";
 import { CalendarEvent } from "@/ai/schemas";
 import { useToast } from "@/hooks/use-toast";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -28,18 +28,14 @@ export default function WorkoutsPage() {
     useEffect(() => {
         setIsLoading(true);
         const eventsColRef = collection(db, "users", userId, "events");
-        const q = query(eventsColRef, where("type", "==", "entrenamiento"), where("date", ">=", format(new Date(), "yyyy-MM-dd")));
+        const q = query(eventsColRef, where("type", "==", "entrenamiento"), orderBy("date", "desc"));
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const workoutData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as CalendarEvent[];
-            // Sort client-side
-            workoutData.sort((a, b) => {
-                const dateA = new Date(a.date);
-                const dateB = new Date(b.date);
-                if (dateA > dateB) return 1;
-                if (dateA < dateB) return -1;
-                return (a.startTime || "").localeCompare(b.startTime || "");
-            });
+            
+            // Sort client-side by time within each day
+            workoutData.sort((a, b) => (a.startTime || "").localeCompare(b.startTime || ""));
+            
             setWorkouts(workoutData);
             setIsLoading(false);
         }, (error) => {
@@ -231,3 +227,5 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
         </Dialog>
     );
 }
+
+    
