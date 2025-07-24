@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Bot, Clipboard, Loader2 } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, doc, orderBy } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, orderBy, getDoc } from "firebase/firestore";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, parseISO, differenceInDays } from 'date-fns';
 import { ActivityData, CalendarEvent, DailyMetric, SleepData, FoodIntakeData } from "@/ai/schemas";
 
@@ -65,7 +65,7 @@ export default function HealthSummaryWidget() {
                  return (await getDocs(q)).docs.map(d => ({id: d.id, ...d.data()}));
             }
             
-            const fetchCollectionInPeriod = async (colName: string) => {
+            const fetchCollectionByDocId = async (colName: string) => {
                 const dates: string[] = [];
                 for (let d = new Date(startDate); d <= endDate; d = addDays(d, 1)) {
                     dates.push(format(d, 'yyyy-MM-dd'));
@@ -74,13 +74,11 @@ export default function HealthSummaryWidget() {
                 if (dates.length === 0) return [];
 
                 const results: any[] = [];
-                // Firestore 'in' query limit is 30, so batch if necessary
-                for (let i = 0; i < dates.length; i += 30) {
-                    const dateChunk = dates.slice(i, i + 30);
-                    if (dateChunk.length > 0) {
-                        const q = query(collection(userRef, colName), where('date', 'in', dateChunk));
-                        const snapshot = await getDocs(q);
-                        results.push(...snapshot.docs.map(d => ({id: d.id, ...d.data()})));
+                for (const date of dates) {
+                    const docRef = doc(userRef, colName, date);
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists()) {
+                        results.push({ id: docSnap.id, ...docSnap.data() });
                     }
                 }
                 return results;
@@ -113,9 +111,9 @@ export default function HealthSummaryWidget() {
             const [sleepData, eventData, supplementData, activityData, foodData] = await Promise.all([
                 fetchDataInPeriod('sleep_manual'),
                 fetchDataInPeriod('events'), // Also includes workouts
-                fetchCollectionInPeriod('supplements'),
+                fetchCollectionByDocId('supplements'),
                 fetchDataInPeriod('activity'),
-                fetchCollectionInPeriod('food_intake'),
+                fetchCollectionByDocId('food_intake'),
             ]);
 
             const cycleDataInPeriod = allDailyMetrics.filter(m => {
@@ -246,3 +244,4 @@ export default function HealthSummaryWidget() {
         </Card>
     );
 }
+
