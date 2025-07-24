@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dumbbell, Edit, Flame, Heart, Timer } from "lucide-react";
+import { Dumbbell, Edit, Flame, Heart, Timer, Footprints, ArrowRightLeft } from "lucide-react";
 
 export default function WorkoutsPage() {
     const [workouts, setWorkouts] = useState<CalendarEvent[]>([]);
@@ -33,7 +33,6 @@ export default function WorkoutsPage() {
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const workoutData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as CalendarEvent[];
             
-            // Sort client-side to avoid composite indexes
             workoutData.sort((a, b) => {
                 const dateComparison = b.date.localeCompare(a.date);
                 if (dateComparison !== 0) return dateComparison;
@@ -113,15 +112,23 @@ export default function WorkoutsPage() {
                                                 <CardContent className="flex-grow space-y-2 text-sm">
                                                     <div className="flex items-center gap-2">
                                                         <Timer className="h-4 w-4 text-muted-foreground"/>
-                                                        <span>Duración: {workout.workoutDetails?.duration || '-'} min</span>
+                                                        <span>Duración: {workout.workoutDetails?.duration || '-'}</span>
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <Flame className="h-4 w-4 text-muted-foreground"/>
-                                                        <span>Calorías: {workout.workoutDetails?.calories || '-'} kcal</span>
+                                                        <span>Calorías: {workout.workoutDetails?.activeCalories || '-'} kcal</span>
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <Heart className="h-4 w-4 text-muted-foreground"/>
                                                         <span>FC Media: {workout.workoutDetails?.avgHeartRate || '-'} bpm</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Footprints className="h-4 w-4 text-muted-foreground"/>
+                                                        <span>Pasos: {workout.workoutDetails?.steps || '-'}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <ArrowRightLeft className="h-4 w-4 text-muted-foreground"/>
+                                                        <span>Distancia: {workout.workoutDetails?.distance ? `${(workout.workoutDetails.distance / 1000).toFixed(2)} km` : '-'}</span>
                                                     </div>
                                                     {workout.workoutDetails?.notes && (
                                                         <p className="pt-2 text-muted-foreground italic">"{workout.workoutDetails.notes}"</p>
@@ -176,7 +183,12 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
     }, [workout]);
     
     const handleChange = (field: keyof NonNullable<CalendarEvent['workoutDetails']>, value: string | number) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
+        const numValue = (typeof value === 'string' && value.trim() === '') ? undefined : Number(value);
+        if (['duration', 'notes'].includes(field)) {
+             setFormData(prev => ({ ...prev, [field]: value }));
+        } else {
+             setFormData(prev => ({ ...prev, [field]: numValue }));
+        }
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -190,7 +202,7 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Detalles de: {workout.description}</DialogTitle>
                     <DialogDescription>
@@ -199,28 +211,48 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
                     <div className="grid grid-cols-2 gap-4">
-                         <div>
-                            <Label htmlFor="duration">Duración Real (min)</Label>
-                            <Input id="duration" type="number" value={formData?.duration || ''} onChange={e => handleChange('duration', Number(e.target.value))} />
+                        <div>
+                            <Label htmlFor="duration">Duración real (hh:mm:ss)</Label>
+                            <Input id="duration" type="text" placeholder="01:07:23" value={formData?.duration || ''} onChange={e => handleChange('duration', e.target.value)} />
                         </div>
                         <div>
-                            <Label htmlFor="calories">Calorías</Label>
-                            <Input id="calories" type="number" value={formData?.calories || ''} onChange={e => handleChange('calories', Number(e.target.value))} />
+                            <Label htmlFor="activeCalories">Calorías activas (kcal)</Label>
+                            <Input id="activeCalories" type="number" placeholder="194" value={formData?.activeCalories || ''} onChange={e => handleChange('activeCalories', e.target.value)} />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                           <Label htmlFor="totalCalories">Calorías totales (kcal)</Label>
+                           <Input id="totalCalories" type="number" placeholder="278 (opcional)" value={formData?.totalCalories || ''} onChange={e => handleChange('totalCalories', e.target.value)} />
+                        </div>
+                         <div>
+                           <Label htmlFor="avgHeartRate">FC Media (lpm)</Label>
+                           <Input id="avgHeartRate" type="number" placeholder="104" value={formData?.avgHeartRate || ''} onChange={e => handleChange('avgHeartRate', e.target.value)} />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                           <Label htmlFor="maxHeartRate">FC Máxima (lpm)</Label>
+                           <Input id="maxHeartRate" type="number" placeholder="158" value={formData?.maxHeartRate || ''} onChange={e => handleChange('maxHeartRate', e.target.value)} />
+                        </div>
+                        <div>
+                           <Label htmlFor="minHeartRate">FC Mínima (lpm)</Label>
+                           <Input id="minHeartRate" type="number" placeholder="71 (opcional)" value={formData?.minHeartRate || ''} onChange={e => handleChange('minHeartRate', e.target.value)} />
                         </div>
                     </div>
                      <div className="grid grid-cols-2 gap-4">
                         <div>
-                           <Label htmlFor="avgHeartRate">FC Media</Label>
-                           <Input id="avgHeartRate" type="number" value={formData?.avgHeartRate || ''} onChange={e => handleChange('avgHeartRate', Number(e.target.value))} />
+                           <Label htmlFor="steps">Pasos</Label>
+                           <Input id="steps" type="number" placeholder="2078 (opcional)" value={formData?.steps || ''} onChange={e => handleChange('steps', e.target.value)} />
                         </div>
-                         <div>
-                           <Label htmlFor="maxHeartRate">FC Máxima</Label>
-                           <Input id="maxHeartRate" type="number" value={formData?.maxHeartRate || ''} onChange={e => handleChange('maxHeartRate', Number(e.target.value))} />
+                        <div>
+                           <Label htmlFor="distance">Distancia (metros)</Label>
+                           <Input id="distance" type="number" placeholder="420 (opcional)" value={formData?.distance || ''} onChange={e => handleChange('distance', e.target.value)} />
                         </div>
                     </div>
                     <div>
                         <Label htmlFor="notes">Sensaciones / Notas</Label>
-                        <Textarea id="notes" value={formData?.notes || ''} onChange={e => handleChange('notes', e.target.value)} />
+                        <Textarea id="notes" placeholder="Me sentí bien, sin molestias" value={formData?.notes || ''} onChange={e => handleChange('notes', e.target.value)} />
                     </div>
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>

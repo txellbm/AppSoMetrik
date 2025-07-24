@@ -109,10 +109,14 @@ export const CalendarEventSchema = z.object({
     endTime: z.string().optional().describe("Hora de fin (HH:mm)."),
     // Workout specific data can be nested
     workoutDetails: z.object({
-        duration: z.number().optional().describe("Duración real en minutos."),
-        calories: z.number().optional().describe("Calorías quemadas."),
+        duration: z.string().optional().describe("Duración real en formato hh:mm:ss."),
+        activeCalories: z.number().optional().describe("Calorías activas quemadas."),
+        totalCalories: z.number().optional().describe("Calorías totales quemadas."),
         avgHeartRate: z.number().optional().describe("FC media."),
         maxHeartRate: z.number().optional().describe("FC máxima."),
+        minHeartRate: z.number().optional().describe("FC mínima."),
+        steps: z.number().optional().describe("Pasos durante el entreno."),
+        distance: z.number().optional().describe("Distancia recorrida en metros."),
         notes: z.string().optional().describe("Sensaciones o notas post-entreno."),
     }).optional(),
 });
