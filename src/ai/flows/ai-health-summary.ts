@@ -47,7 +47,7 @@ const prompt = ai.definePrompt({
 - **Ciclo Menstrual**: {{{menstruationData}}}
 - **Suplementos**: {{{supplementData}}}
 - **Alimentación e Hidratación**: {{{foodIntakeData}}}
-- **Calendario**: {{{calendarData}}}
+- **Calendario (eventos no deportivos)**: {{{calendarData}}}
 
 Genera el informe detallado en formato Markdown.`,
 });

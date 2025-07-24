@@ -57,12 +57,13 @@ export default function HealthSummaryWidget() {
             const startDateStr = format(startDate, 'yyyy-MM-dd');
             const endDateStr = format(endDate, 'yyyy-MM-dd');
 
-            // Fetch data
+            // --- Helper Functions to fetch data ---
             const userRef = doc(db, "users", userId);
-            
-            const fetchDataInPeriod = async (colName: string) => {
+
+            const fetchDataInPeriodByDate = async (colName: string) => {
                  const q = query(collection(userRef, colName), where('date', '>=', startDateStr), where('date', '<=', endDateStr));
-                 return (await getDocs(q)).docs.map(d => ({id: d.id, ...d.data()}));
+                 const snapshot = await getDocs(q);
+                 return snapshot.docs.map(d => ({id: d.id, ...d.data()}));
             }
             
             const fetchCollectionByDocId = async (colName: string) => {
@@ -71,24 +72,41 @@ export default function HealthSummaryWidget() {
                     dates.push(format(d, 'yyyy-MM-dd'));
                 }
                 
-                if (dates.length === 0) return [];
-
                 const results: any[] = [];
                 for (const date of dates) {
-                    const docRef = doc(userRef, colName, date);
-                    const docSnap = await getDoc(docRef);
-                    if (docSnap.exists()) {
-                        results.push({ id: docSnap.id, ...docSnap.data() });
+                    try {
+                        const docRef = doc(userRef, colName, date);
+                        const docSnap = await getDoc(docRef);
+                        if (docSnap.exists()) {
+                            results.push({ id: docSnap.id, ...docSnap.data() });
+                        }
+                    } catch (e) {
+                        console.error(`Error fetching doc ${colName}/${date}`, e);
                     }
                 }
                 return results;
             }
-            
-            // Fetch all daily metrics to calculate cycle phase correctly
-            const allDailyMetricsQuery = query(collection(userRef, "dailyMetrics"), orderBy('date', 'desc'));
-            const allDailyMetricsSnap = await getDocs(allDailyMetricsQuery);
-            const allDailyMetrics = allDailyMetricsSnap.docs.map(d => ({ ...d.data(), id: d.id })) as DailyMetric[];
 
+            // --- Fetch all necessary data in parallel ---
+            const [
+                allDailyMetrics,
+                sleepData,
+                eventData,
+                activityData,
+                supplementData,
+                foodData
+            ] = await Promise.all([
+                getDocs(query(collection(userRef, "dailyMetrics"), orderBy('date', 'desc'))).then(snap => snap.docs.map(d => ({ ...d.data(), id: d.id }) as DailyMetric[])),
+                fetchDataInPeriodByDate('sleep_manual'),
+                fetchDataInPeriodByDate('events'),
+                fetchDataInPeriodByDate('activity'),
+                fetchCollectionByDocId('supplements'),
+                fetchCollectionByDocId('food_intake'),
+            ]);
+
+            // --- Process and Format Data for AI ---
+
+            // 1. Cycle Data
             const allMenstruationDays = allDailyMetrics
                 .filter(m => m.estadoCiclo === 'menstruacion')
                 .map(m => startOfDay(parseISO(m.date)))
@@ -107,72 +125,54 @@ export default function HealthSummaryWidget() {
             
             const dayOfCycle = cycleStartDay ? differenceInDays(startOfDay(now), cycleStartDay) + 1 : null;
             const currentPhase = getCyclePhase(dayOfCycle);
-
-            const [sleepData, eventData, supplementData, activityData, foodData] = await Promise.all([
-                fetchDataInPeriod('sleep_manual'),
-                fetchDataInPeriod('events'), // Also includes workouts
-                fetchCollectionByDocId('supplements'),
-                fetchDataInPeriod('activity'),
-                fetchCollectionByDocId('food_intake'),
-            ]);
-
             const cycleDataInPeriod = allDailyMetrics.filter(m => {
-                try {
+                 try {
                     const metricDate = parseISO(m.date);
                     return metricDate >= startDate && metricDate <= endDate;
-                } catch {
-                    return false;
-                }
+                } catch { return false; }
             });
+            const menstruationSummary = `Fase actual: ${currentPhase}, Día del ciclo: ${dayOfCycle || 'N/A'}. Historial del período: \n${formatForAI('Datos del ciclo', cycleDataInPeriod)}`;
             
-            // Format data for AI
+            // 2. Heart Rate and Vitals Data
+            let heartRateSummaryLines: string[] = [];
+            (sleepData as SleepData[]).forEach(s => {
+                let sleepSummary = `Del sueño (${s.date}):`;
+                const parts = [];
+                if (s.avgHeartRate) parts.push(`FC media ${s.avgHeartRate} lpm`);
+                if (s.vfcAlDespertar) parts.push(`VFC al despertar ${s.vfcAlDespertar} ms`);
+                if (s.respiratoryRate) parts.push(`Frec. Resp. ${s.respiratoryRate} rpm`);
+                if (parts.length > 0) heartRateSummaryLines.push(`${sleepSummary} ${parts.join(', ')}.`);
+            });
+            (activityData as ActivityData[]).forEach(a => {
+                let activitySummary = `De la actividad (${a.date}):`;
+                const parts = [];
+                if (a.avgDayHeartRate) parts.push(`FC media diaria ${a.avgDayHeartRate} lpm`);
+                if (a.restingHeartRate) parts.push(`FC en reposo ${a.restingHeartRate} lpm`);
+                if (parts.length > 0) heartRateSummaryLines.push(`${activitySummary} ${parts.join(', ')}.`);
+            });
+            const heartRateSummary = heartRateSummaryLines.length > 0 ? heartRateSummaryLines.join('\n') : "No hay datos de frecuencia cardíaca o VFC registrados.";
+
+            // 3. Calendar and Workout Data
+            const allCalendarEvents = (eventData as CalendarEvent[]).sort((a,b) => a.date.localeCompare(b.date));
+            const workouts = allCalendarEvents.filter(e => e.type === 'entrenamiento');
+            const otherEvents = allCalendarEvents.filter(e => e.type !== 'entrenamiento');
+
+            // 4. Format all data for AI
             const formatForAI = (title: string, data: any[]) => {
                 if(data.length === 0) return `No hay datos de ${title} para este período.`;
                 return `${title}:\n${data.map(d => `- ${JSON.stringify(d)}`).join('\n')}\n`;
             }
 
-            const allSleepData = sleepData as SleepData[];
-            const allActivityData = activityData as ActivityData[];
-
-            let heartRateSummaryLines: string[] = [];
-            allSleepData.forEach(s => {
-                let sleepSummary = `Sueño (${s.date}):`;
-                const parts = [];
-                if (s.avgHeartRate) parts.push(`FC media ${s.avgHeartRate} lpm`);
-                if (s.vfcAlDespertar) parts.push(`VFC al despertar ${s.vfcAlDespertar} ms`);
-                if (s.respiratoryRate) parts.push(`Frec. Resp. ${s.respiratoryRate} rpm`);
-                if (parts.length > 0) {
-                    heartRateSummaryLines.push(`${sleepSummary} ${parts.join(', ')}.`);
-                }
-            });
-
-            allActivityData.forEach(a => {
-                let activitySummary = `Actividad (${a.date}):`;
-                const parts = [];
-                if (a.avgDayHeartRate) parts.push(`FC media ${a.avgDayHeartRate} lpm`);
-                if (a.restingHeartRate) parts.push(`FC en reposo ${a.restingHeartRate} lpm`);
-                if (parts.length > 0) {
-                    heartRateSummaryLines.push(`${activitySummary} ${parts.join(', ')}.`);
-                }
-            });
-
-            const heartRateSummary = heartRateSummaryLines.length > 0 ? heartRateSummaryLines.join('\n') : "No hay datos de frecuencia cardíaca o VFC registrados.";
-            
-            const menstruationSummary = `Fase actual: ${currentPhase}, Día del ciclo: ${dayOfCycle || 'N/A'}. Síntomas y notas del período: \n${formatForAI('Datos del ciclo', cycleDataInPeriod as DailyMetric[])}`;
-
-            const allCalendarEvents = (eventData as CalendarEvent[]).sort((a,b) => a.date.localeCompare(b.date));
-            const workouts = allCalendarEvents.filter(e => e.type === 'entrenamiento');
-
             const aiInput: HealthSummaryInput = {
                 periodo: period,
-                sleepData: formatForAI('Sueño', allSleepData),
+                sleepData: formatForAI('Sueño', sleepData as SleepData[]),
                 exerciseData: formatForAI('Entrenamientos', workouts),
-                activityData: formatForAI('Actividad Diaria', allActivityData),
+                activityData: formatForAI('Actividad Diaria', activityData as ActivityData[]),
                 heartRateData: heartRateSummary,
                 menstruationData: menstruationSummary,
                 supplementData: formatForAI('Suplementos', supplementData),
                 foodIntakeData: formatForAI('Alimentación e Hidratación', foodData as FoodIntakeData[]),
-                calendarData: formatForAI('Eventos del Calendario', allCalendarEvents),
+                calendarData: formatForAI('Otros Eventos del Calendario', otherEvents),
             };
 
             const result = await generateHealthSummary(aiInput);
@@ -244,4 +244,3 @@ export default function HealthSummaryWidget() {
         </Card>
     );
 }
-
