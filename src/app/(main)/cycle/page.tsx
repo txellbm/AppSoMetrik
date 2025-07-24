@@ -85,29 +85,30 @@ export default function CyclePage() {
     }, [dailyMetrics]);
 
 
-    const handleDayClick = async (day: Date) => {
+    const handleDayClick = async (day: Date | undefined) => {
+        if (!day) return;
         setSelectedDate(day);
 
         if (!isMarkingMode) return;
-        if (!day) {
-            console.error("Invalid date clicked");
-            return;
-        }
-
+        
         const dateStr = format(day, 'yyyy-MM-dd');
         const docRef = doc(db, "users", userId, "dailyMetrics", dateStr);
 
-        // Find the existing metric in the local state first
         const existingMetric = dailyMetrics.find(m => m.date === dateStr);
         const isCurrentlyMarked = existingMetric?.estadoCiclo === 'menstruacion';
 
         try {
-            if (isCurrentlyMarked) {
-                // Unmark the day
-                await updateDoc(docRef, { estadoCiclo: deleteField() });
+             if (isCurrentlyMarked) {
+                // Unmark the day by removing the field
+                await updateDoc(docRef, {
+                    estadoCiclo: deleteField()
+                });
             } else {
-                // Mark the day
-                await setDoc(docRef, { estadoCiclo: 'menstruacion' }, { merge: true });
+                // Mark the day by setting the field
+                await setDoc(docRef, {
+                    date: dateStr,
+                    estadoCiclo: 'menstruacion'
+                }, { merge: true });
             }
         } catch (error) {
             console.error("Error toggling menstruation day:", error);
@@ -177,7 +178,7 @@ export default function CyclePage() {
                        <Calendar
                             mode="single"
                             selected={selectedDate}
-                            onSelect={(day) => handleDayClick(day || new Date())}
+                            onSelect={handleDayClick}
                             locale={es}
                             className="rounded-md border"
                             disabled={(date) => date > new Date() || date < new Date('2020-01-01')}
@@ -235,3 +236,5 @@ export default function CyclePage() {
         </div>
     );
 }
+
+    
