@@ -180,6 +180,12 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
     const [formData, setFormData] = useState<CalendarEvent['workoutDetails']>({});
 
     useEffect(() => {
+        if (!isOpen) {
+            setFormData({}); // Force state to reset when dialog is closed.
+        }
+    }, [isOpen]);
+
+    useEffect(() => {
         if (formData?.realStartTime && formData.realEndTime && workout.date) {
             try {
                 const start = parse(`${workout.date} ${formData.realStartTime}`, 'yyyy-MM-dd HH:mm', new Date());
@@ -346,5 +352,7 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
         </Dialog>
     );
 }
+
+    
 
     
