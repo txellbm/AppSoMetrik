@@ -84,10 +84,10 @@ export default function CyclePage() {
     }, [dailyMetrics]);
 
 
-    const handleDayClick = async (day: Date) => {
+    const handleDayClick = async (day: Date | undefined) => {
         setSelectedDate(day);
 
-        if (isMarkingMode) {
+        if (isMarkingMode && day) {
             const dateStr = format(day, 'yyyy-MM-dd');
             const docRef = doc(db, "users", userId, "dailyMetrics", dateStr);
             
@@ -99,7 +99,11 @@ export default function CyclePage() {
                     newStatus = null; 
                 }
 
-                await setDoc(docRef, { estadoCiclo: newStatus }, { merge: true });
+                if (newStatus === null) {
+                    await setDoc(docRef, { estadoCiclo: deleteField() }, { merge: true });
+                } else {
+                    await setDoc(docRef, { estadoCiclo: newStatus }, { merge: true });
+                }
                 
                 toast({
                     title: newStatus ? "Día marcado" : "Día desmarcado",
