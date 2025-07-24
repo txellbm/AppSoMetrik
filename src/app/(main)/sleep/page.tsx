@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState } from "react";
 import { collection, onSnapshot, query, doc, orderBy, addDoc, updateDoc, deleteDoc, setDoc } from "firebase/firestore";
-import { format, parse, parseISO, differenceInMinutes, intervalToDuration } from "date-fns";
+import { format, parse, parseISO, differenceInMinutes, intervalToDuration, addDays } from "date-fns";
 import { es } from 'date-fns/locale';
 import { db } from "@/lib/firebase";
 import { SleepData } from "@/ai/schemas";
@@ -75,13 +75,40 @@ export default function SleepPage() {
     const handleSaveSleep = async (data: Omit<SleepData, 'id'> & { id?: string }) => {
         try {
             const collectionRef = collection(db, "users", userId, "sleep_manual");
+            
+            const numberOrUndefined = (val: any) => {
+                const num = Number(val);
+                return isNaN(num) || val === null || val === '' ? undefined : num;
+            }
+
+            const dataToSave = {
+                date: data.date,
+                type: data.type,
+                bedtime: data.bedtime,
+                wakeUpTime: data.wakeUpTime,
+                sleepTime: data.sleepTime,
+                timeToFallAsleep: numberOrUndefined(data.timeToFallAsleep),
+                timeAwake: numberOrUndefined(data.timeAwake),
+                efficiency: numberOrUndefined(data.efficiency),
+                avgHeartRate: numberOrUndefined(data.avgHeartRate),
+                minHeartRate: numberOrUndefined(data.minHeartRate),
+                maxHeartRate: numberOrUndefined(data.maxHeartRate),
+                lpmAlDespertar: numberOrUndefined(data.lpmAlDespertar),
+                vfcAlDormir: numberOrUndefined(data.vfcAlDormir),
+                vfcAlDespertar: numberOrUndefined(data.vfcAlDespertar),
+                phases: {
+                    rem: numberOrUndefined(data.phases?.rem),
+                    light: numberOrUndefined(data.phases?.light),
+                    deep: numberOrUndefined(data.phases?.deep),
+                },
+                notes: data.notes
+            };
+
             if (data.id) {
                 const docRef = doc(collectionRef, data.id);
-                const { id, ...dataToSave } = data;
                 await setDoc(docRef, dataToSave, { merge: true });
                 toast({ title: "Sesión de sueño actualizada" });
             } else {
-                const { id, ...dataToSave } = data;
                 const docRef = await addDoc(collectionRef, dataToSave);
                 await updateDoc(docRef, { id: docRef.id });
                 toast({ title: "Sesión de sueño registrada" });
@@ -107,6 +134,22 @@ export default function SleepPage() {
     const openDialog = (sleep: SleepData | null) => {
         setEditingSleep(sleep);
         setIsDialogOpen(true);
+    };
+    
+    const formatSleepDate = (session: SleepData) => {
+        const startDate = parseISO(session.date);
+        
+        if (session.type === 'noche' && session.bedtime && session.wakeUpTime) {
+             const bedtime = parse(session.bedtime, 'HH:mm', new Date());
+             const wakeUpTime = parse(session.wakeUpTime, 'HH:mm', new Date());
+
+             if (wakeUpTime < bedtime) { // Spans across midnight
+                const endDate = addDays(startDate, 1);
+                return `${format(startDate, 'eeee d', {locale: es})} al ${format(endDate, 'eeee d \'de\' LLLL', {locale: es})}`;
+             }
+        }
+        
+        return format(startDate, "EEEE, d 'de' LLLL", { locale: es });
     };
 
     return (
@@ -137,7 +180,7 @@ export default function SleepPage() {
                                  <div>
                                     <CardTitle className="text-lg flex items-center gap-2">
                                         <Badge variant={session.type === 'noche' ? "default" : "secondary"} className="capitalize text-base">{session.type}</Badge>
-                                        <span>{format(parseISO(session.date), "EEEE, d 'de' LLLL", { locale: es })}</span>
+                                        <span className="capitalize">{formatSleepDate(session)}</span>
                                     </CardTitle>
                                     <CardDescription className="mt-1">
                                         {session.bedtime} - {session.wakeUpTime}
@@ -273,11 +316,6 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         
-        const numberOrUndefined = (val: any) => {
-            const num = Number(val);
-            return isNaN(num) || val === null || val === '' ? undefined : num;
-        }
-
         const dataToSave = {
             id: formData.id,
             date: formData.date,
@@ -285,24 +323,24 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
             bedtime: formData.bedtime,
             wakeUpTime: formData.wakeUpTime,
             sleepTime: formData.sleepTime,
-            timeToFallAsleep: numberOrUndefined(formData.timeToFallAsleep),
-            timeAwake: numberOrUndefined(formData.timeAwake),
-            efficiency: numberOrUndefined(formData.efficiency),
-            avgHeartRate: numberOrUndefined(formData.avgHeartRate),
-            minHeartRate: numberOrUndefined(formData.minHeartRate),
-            maxHeartRate: numberOrUndefined(formData.maxHeartRate),
-            lpmAlDespertar: numberOrUndefined(formData.lpmAlDespertar),
-            vfcAlDormir: numberOrUndefined(formData.vfcAlDormir),
-            vfcAlDespertar: numberOrUndefined(formData.vfcAlDespertar),
+            timeToFallAsleep: formData.timeToFallAsleep,
+            timeAwake: formData.timeAwake,
+            efficiency: formData.efficiency,
+            avgHeartRate: formData.avgHeartRate,
+            minHeartRate: formData.minHeartRate,
+            maxHeartRate: formData.maxHeartRate,
+            lpmAlDespertar: formData.lpmAlDespertar,
+            vfcAlDormir: formData.vfcAlDormir,
+            vfcAlDespertar: formData.vfcAlDespertar,
             phases: {
-                rem: numberOrUndefined(formData.phases?.rem),
-                light: numberOrUndefined(formData.phases?.light),
-                deep: numberOrUndefined(formData.phases?.deep),
+                rem: formData.phases?.rem,
+                light: formData.phases?.light,
+                deep: formData.phases?.deep,
             },
             notes: formData.notes
         };
 
-        onSave(dataToSave);
+        onSave(dataToSave as Omit<SleepData, 'id'> & { id?: string });
     };
     
     const formatMinutesToHHMMInput = (minutes: number | undefined) => {
