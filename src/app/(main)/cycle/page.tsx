@@ -12,7 +12,7 @@ import { DataTable } from "@/components/dashboard/data-table";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
-import { Stethoscope, Calendar as CalendarIcon } from "lucide-react";
+import { Stethoscope, Calendar as CalendarIcon, Droplet } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const getCyclePhase = (dayOfCycle: number | null): string => {
@@ -85,33 +85,33 @@ export default function CyclePage() {
     }, [dailyMetrics]);
 
 
-    const handleDayClick = async (day: Date | undefined) => {
+    const handleDayClick = async (day: Date) => {
         setSelectedDate(day);
 
-        if (isMarkingMode && day) {
-            const dateStr = format(day, 'yyyy-MM-dd');
-            const docRef = doc(db, "users", userId, "dailyMetrics", dateStr);
-            
-            try {
-                const docSnap = await getDoc(docRef);
+        if (!isMarkingMode) return;
+        if (!day) {
+            console.error("Invalid date clicked");
+            return;
+        }
 
-                if (docSnap.exists() && docSnap.data().estadoCiclo === 'menstruacion') {
-                    // Day exists and is marked, so we unmark it.
-                    // If the document has other fields, only remove the cycle state.
-                    if (Object.keys(docSnap.data()).length > 1) {
-                         await updateDoc(docRef, { estadoCiclo: deleteField() });
-                    } else {
-                        // If it only has the cycle state, we can consider deleting it, but update is safer.
-                         await updateDoc(docRef, { estadoCiclo: deleteField() });
-                    }
-                } else {
-                    // Day doesn't exist or is not marked, so we mark it.
-                    await setDoc(docRef, { estadoCiclo: 'menstruacion' }, { merge: true });
-                }
-            } catch (error) {
-                 console.error("Error toggling menstruation day:", error);
-                 toast({ variant: "destructive", title: "Error", description: "No se pudo actualizar el día." });
+        const dateStr = format(day, 'yyyy-MM-dd');
+        const docRef = doc(db, "users", userId, "dailyMetrics", dateStr);
+
+        // Find the existing metric in the local state first
+        const existingMetric = dailyMetrics.find(m => m.date === dateStr);
+        const isCurrentlyMarked = existingMetric?.estadoCiclo === 'menstruacion';
+
+        try {
+            if (isCurrentlyMarked) {
+                // Unmark the day
+                await updateDoc(docRef, { estadoCiclo: deleteField() });
+            } else {
+                // Mark the day
+                await setDoc(docRef, { estadoCiclo: 'menstruacion' }, { merge: true });
             }
+        } catch (error) {
+            console.error("Error toggling menstruation day:", error);
+            toast({ variant: "destructive", title: "Error", description: "No se pudo actualizar el día." });
         }
     };
 
@@ -171,18 +171,19 @@ export default function CyclePage() {
                          variant={isMarkingMode ? 'destructive' : 'outline'}
                          className="w-full"
                         >
+                            <Droplet className="mr-2 h-4 w-4" />
                          {isMarkingMode ? 'Desactivar Modo Marcado' : 'Marcar Sangrado'}
                        </Button>
                        <Calendar
                             mode="single"
                             selected={selectedDate}
-                            onSelect={handleDayClick}
+                            onSelect={(day) => handleDayClick(day || new Date())}
                             locale={es}
                             className="rounded-md border"
                             disabled={(date) => date > new Date() || date < new Date('2020-01-01')}
                             modifiers={{ menstruation: menstruationDays }}
                             modifiersClassNames={{
-                                menstruation: 'bg-destructive text-destructive-foreground rounded-full',
+                                menstruation: 'bg-destructive/80 text-destructive-foreground rounded-full',
                             }}
                         />
                     </CardContent>
@@ -234,5 +235,3 @@ export default function CyclePage() {
         </div>
     );
 }
-
-    
