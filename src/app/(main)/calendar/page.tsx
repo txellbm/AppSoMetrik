@@ -41,7 +41,7 @@ type QuickEventTypes = Record<QuickEventType, QuickEventTypeInfo>;
 
 export default function CalendarPage() {
     const [currentMonth, setCurrentMonth] = useState(new Date());
-    const [date, setDate] = useState<Date | undefined>(undefined);
+    const [date, setDate] = useState<Date | undefined>(new Date());
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { toast } = useToast();
@@ -63,13 +63,6 @@ export default function CalendarPage() {
 
     const monthStart = useMemo(() => startOfMonth(currentMonth), [currentMonth]);
     const monthEnd = useMemo(() => endOfMonth(currentMonth), [currentMonth]);
-
-    useEffect(() => {
-        setIsLoading(true);
-        if (typeof window !== 'undefined' && !date) {
-            setDate(new Date());
-        }
-    }, [date]);
 
     useEffect(() => {
         setIsLoading(true);
@@ -96,7 +89,11 @@ export default function CalendarPage() {
 
     const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
     const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
-    const handleToday = () => setCurrentMonth(new Date());
+    const handleToday = () => {
+        const today = new Date();
+        setCurrentMonth(today);
+        setDate(today);
+    };
 
     const openDialog = useCallback((event?: CalendarEvent, date?: Date) => {
         setSelectedEvent(event || null);
@@ -226,7 +223,7 @@ export default function CalendarPage() {
             const weekStart = addWeeks(today, week);
             for (const dayOfWeek of config.defaultDaysOfWeek) {
                 const targetDay = new Date(weekStart);
-                targetDay.setDate(weekStart.getDate() + (dayOfWeek - 1 + 7) % 7);
+                targetDay.setDate(weekStart.getDate() + (dayOfWeek - getDay(weekStart) + 7) % 7);
                 
                 eventsToAdd.push({
                     description: type,
@@ -463,7 +460,7 @@ const QuickEventCard = ({ type, config, isSelected, onSelect, onConfigChange, on
             </div>
              <div className="flex justify-around gap-1">
                 {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((day, i) => {
-                    const dayIndex = (i + 1); // L=1...D=7
+                    const dayIndex = (i + 1) % 7; // L=1...D=0
                     return (
                         <Button key={day} size="icon" variant={config.defaultDaysOfWeek.includes(dayIndex) ? 'default' : 'outline'} className="h-5 w-5 text-xs" onClick={() => onDayToggle(type, dayIndex)}>
                             {day}
