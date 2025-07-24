@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/tabs";
 import AIChatWidget from "@/components/dashboard/ai-chat-widget";
 import NotificationsWidget from "@/components/dashboard/notifications-widget";
+import HealthSummaryWidget from "@/components/dashboard/health-summary-widget";
 import { LayoutDashboard, Moon, Dumbbell, HeartPulse, Stethoscope, Pill, CalendarDays, Flame } from "lucide-react";
 import SleepPage from "./(main)/sleep/page";
 import WorkoutsPage from "./(main)/workouts/page";
@@ -41,8 +42,9 @@ export default function Home() {
         <TabsContent value="dashboard" className="flex-grow p-6">
           <div className="flex flex-col gap-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-2 space-y-6">
                     <AIChatWidget />
+                    <HealthSummaryWidget />
                 </div>
               <div className="lg:col-span-1 space-y-6">
                 <NotificationsWidget />

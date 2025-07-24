@@ -57,7 +57,7 @@ export default function AIChatWidget() {
         </CardTitle>
       </CardHeader>
       <CardContent className="flex-grow flex flex-col gap-4">
-        <ScrollArea className="flex-grow pr-4 h-[26rem]" ref={scrollAreaRef}>
+        <ScrollArea className="flex-grow pr-4 h-[20rem]" ref={scrollAreaRef}>
           <div className="space-y-4">
             <div className="flex items-start gap-3">
               <Avatar className="w-8 h-8 border-2 border-primary">
@@ -114,7 +114,6 @@ function ChatForm({ onNewMessage }: { onNewMessage: (message: Message) => void }
     const eventsQuery = query(collection(userRef, "events"), where("date", "==", todayStr));
     const recentWorkoutsQuery = query(collection(userRef, "events"), where("type", "==", "entrenamiento"));
 
-
     const [dailyMetricsSnap, sleepSnap, eventsSnap, recentWorkoutsSnap] = await Promise.all([
         getDocs(dailyMetricsQuery),
         getDocs(sleepQuery),
@@ -125,10 +124,11 @@ function ChatForm({ onNewMessage }: { onNewMessage: (message: Message) => void }
     const dailyMetrics = dailyMetricsSnap.docs.map(d => ({...d.data(), date: d.id})) as DailyMetric[];
     const lastSleep = sleepSnap.docs.length > 0 ? sleepSnap.docs[0].data() as SleepData : null;
     const todayEvents = eventsSnap.docs.map(d => d.data()) as CalendarEvent[];
-    const recentWorkouts = recentWorkoutsSnap.docs.map(d => d.data() as CalendarEvent)
-      .sort((a, b) => b.date.localeCompare(a.date))
-      .slice(0, 5);
     
+    const recentWorkouts = recentWorkoutsSnap.docs
+        .map(d => d.data() as CalendarEvent)
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .slice(0, 5);
 
     const sortedMenstruationDays = dailyMetrics
         .filter(m => m.estadoCiclo === 'menstruacion')
