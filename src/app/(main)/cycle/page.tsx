@@ -32,7 +32,7 @@ const allSymptoms = [
 ];
 
 const getCyclePhase = (dayOfCycle: number | null): string => {
-    if (dayOfCycle === null) return "N/A";
+    if (dayOfCycle === null || dayOfCycle < 1) return "N/A";
     if (dayOfCycle <= 5) return "Menstrual";
     if (dayOfCycle <= 14) return "Folicular";
     // Ovulation around day 14, can be considered part of follicular or luteal
@@ -87,7 +87,7 @@ export default function CyclePage() {
     const { cycleStartDay, currentDayOfCycle } = useMemo(() => {
         const sortedMenstruationDays = dailyMetrics
             .filter(m => m.estadoCiclo === 'menstruacion')
-            .map(m => startOfDay(new Date(m.date + "T00:00:00")))
+            .map(m => startOfDay(new Date(m.date.replace(/-/g, '/')))) // Use replace for broader compatibility
             .sort((a, b) => b.getTime() - a.getTime());
 
         if (sortedMenstruationDays.length === 0) {
@@ -95,9 +95,11 @@ export default function CyclePage() {
         }
 
         let cycleStartDay = sortedMenstruationDays[0];
+        // Find the actual start of the last cycle
         for (let i = 1; i < sortedMenstruationDays.length; i++) {
-            const diff = differenceInDays(sortedMenstruationDays[i-1], sortedMenstruationDays[i]);
-            if (diff > 1) { // Gap found, so the previous day was the start of a new cycle
+            // Check for a gap of more than one day
+            const diff = differenceInDays(sortedMenstruationDays[i - 1], sortedMenstruationDays[i]);
+            if (diff > 1) { 
                 break;
             }
             cycleStartDay = sortedMenstruationDays[i];
@@ -114,7 +116,7 @@ export default function CyclePage() {
     const menstruationDays = useMemo(() => {
         return dailyMetrics
             .filter(m => m.estadoCiclo === 'menstruacion')
-            .map(m => startOfDay(new Date(m.date + "T00:00:00"))); // Ensure local time
+            .map(m => startOfDay(new Date(m.date.replace(/-/g, '/'))));
     }, [dailyMetrics]);
 
 
@@ -140,32 +142,24 @@ export default function CyclePage() {
 
 
     const cycleDataRows = useMemo(() => {
-        if (!cycleStartDay) {
-             return dailyMetrics
-                .filter(m => m.estadoCiclo || (m.sintomas && m.sintomas.length > 0) || m.notas)
-                .map(metric => ({
-                    key: metric.date,
-                    cells: [
-                        format(new Date(metric.date + "T00:00:00"), 'dd/MM/yyyy'),
-                        "N/A",
-                        metric.estadoCiclo === "menstruacion" ? <Badge variant="destructive">Sí</Badge> : "No",
-                        metric.sintomas && metric.sintomas.length > 0
-                            ? <div className="flex flex-wrap gap-1">{metric.sintomas.map((s, i) => <Badge key={i} variant="secondary">{s}</Badge>)}</div>
-                            : "Ninguno",
-                        metric.notas || "-",
-                    ],
-                }));
-        }
-
-        return dailyMetrics
+        const formatDateForTable = (dateString: string) => format(new Date(dateString.replace(/-/g, '/')), 'dd/MM/yyyy');
+        
+        const allRelevantMetrics = dailyMetrics
             .filter(m => m.estadoCiclo || (m.sintomas && m.sintomas.length > 0) || m.notas)
-            .map(metric => {
-                const dayOfCycle = differenceInDays(new Date(metric.date + "T00:00:00"), cycleStartDay) + 1;
+            .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        return allRelevantMetrics.map(metric => {
+                let dayOfCycle: number | null = null;
+                if (cycleStartDay) {
+                    const diff = differenceInDays(new Date(metric.date.replace(/-/g, '/')), cycleStartDay) + 1;
+                    if (diff > 0) dayOfCycle = diff;
+                }
+
                 return {
                     key: metric.date,
                     cells: [
-                        format(new Date(metric.date + "T00:00:00"), 'dd/MM/yyyy'),
-                        getCyclePhase(dayOfCycle > 0 ? dayOfCycle : null),
+                        formatDateForTable(metric.date),
+                        getCyclePhase(dayOfCycle),
                         metric.estadoCiclo === "menstruacion" ? <Badge variant="destructive">Sí</Badge> : "No",
                         metric.sintomas && metric.sintomas.length > 0
                             ? <div className="flex flex-wrap gap-1">{metric.sintomas.map((s, i) => <Badge key={i} variant="secondary">{s}</Badge>)}</div>
@@ -233,7 +227,7 @@ export default function CyclePage() {
                             <Switch
                                 id="menstruation-day"
                                 checked={selectedDayMetric.estadoCiclo === 'menstruacion'}
-                                onCheckedChange={(checked) => handleUpdateMetric('estadoCiclo', checked ? 'menstruacion' : 'normal')}
+                                onCheckedChange={(checked) => handleUpdateMetric('estadoCiclo', checked ? 'menstruacion' : undefined)}
                             />
                             <Label htmlFor="menstruation-day" className="text-base">¿Día de menstruación?</Label>
                         </div>
@@ -303,5 +297,7 @@ export default function CyclePage() {
         </div>
     );
 }
+
+    
 
     
