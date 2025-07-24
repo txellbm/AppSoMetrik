@@ -49,7 +49,7 @@ export default function CyclePage() {
 
     const selectedDateStr = useMemo(() => selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '', [selectedDate]);
     
-    const [selectedDayMetric, setSelectedDayMetric] = useState<Partial<DailyMetric>>({});
+    const [selectedDayMetric, setSelectedDayMetric] = useState<Partial<DailyMetric>>({ date: selectedDateStr, sintomas: [], notas: '' });
 
 
     // Fetch all metrics to initialize calendar and for the history table
@@ -76,9 +76,9 @@ export default function CyclePage() {
             const docRef = doc(db, "users", userId, "dailyMetrics", selectedDateStr);
             const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
-                setSelectedDayMetric(docSnap.data());
+                setSelectedDayMetric({ date: selectedDateStr, ...docSnap.data()});
             } else {
-                setSelectedDayMetric({ sintomas: [], notas: '' });
+                setSelectedDayMetric({ date: selectedDateStr, estadoCiclo: undefined, sintomas: [], notas: '' });
             }
         };
         fetchDayData();
@@ -105,7 +105,7 @@ export default function CyclePage() {
             cycleStartDay = sortedMenstruationDays[i];
         }
         
-        const currentDayOfCycle = differenceInDays(selectedDate || new Date(), cycleStartDay) + 1;
+        const currentDayOfCycle = differenceInDays(startOfDay(selectedDate || new Date()), cycleStartDay) + 1;
 
         return { cycleStartDay, currentDayOfCycle: currentDayOfCycle > 0 ? currentDayOfCycle : null };
 
@@ -226,8 +226,9 @@ export default function CyclePage() {
                         <div className="flex items-center space-x-2">
                             <Switch
                                 id="menstruation-day"
-                                checked={selectedDayMetric.estadoCiclo === 'menstruacion'}
-                                onCheckedChange={(checked) => handleUpdateMetric('estadoCiclo', checked ? 'menstruacion' : undefined)}
+                                checked={selectedDayMetric?.estadoCiclo === 'menstruacion'}
+                                onCheckedChange={(checked) => handleUpdateMetric('estadoCiclo', checked ? 'menstruacion' : null)}
+                                disabled={!selectedDate}
                             />
                             <Label htmlFor="menstruation-day" className="text-base">¿Día de menstruación?</Label>
                         </div>
@@ -247,6 +248,7 @@ export default function CyclePage() {
                                                     : currentSymptoms.filter(s => s !== symptom.label);
                                                 handleUpdateMetric('sintomas', newSymptoms);
                                             }}
+                                            disabled={!selectedDate}
                                         />
                                         <Label htmlFor={`symptom-${symptom.id}`} className="font-normal flex items-center gap-2">
                                             {symptom.icon} {symptom.label}
@@ -265,6 +267,7 @@ export default function CyclePage() {
                                 onChange={(e) => setSelectedDayMetric(prev => ({...prev, notas: e.target.value}))}
                                 onBlur={(e) => handleUpdateMetric('notas', e.target.value)}
                                 rows={3}
+                                disabled={!selectedDate}
                             />
                         </div>
                     </CardContent>
@@ -296,8 +299,5 @@ export default function CyclePage() {
             </div>
         </div>
     );
-}
-
-    
 
     
