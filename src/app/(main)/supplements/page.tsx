@@ -21,10 +21,15 @@ type DailySupplementData = {
     [key in SupplementMoment]?: string[];
 };
 
+type Ingredient = {
+    name: string;
+    amount: string;
+}
+
 type SupplementDefinition = {
     id: string;
     name: string;
-    ingredients: string[];
+    ingredients: Ingredient[];
     notes?: string;
     recommendedDose?: string;
 }
@@ -208,7 +213,7 @@ export default function SupplementsPage() {
                                         <div>
                                             <Label className="text-xs font-semibold">Ingredientes</Label>
                                             <div className="flex flex-wrap gap-1 mt-1">
-                                                {sup.ingredients.map((ing, i) => <Badge key={i} variant="secondary">{ing}</Badge>)}
+                                                {sup.ingredients?.map((ing, i) => <Badge key={i} variant="secondary">{ing.name}: {ing.amount}</Badge>)}
                                             </div>
                                         </div>
                                         {sup.notes && (
@@ -312,35 +317,50 @@ type SupplementDialogProps = {
 
 function SupplementDialog({ isOpen, onClose, onSave, supplement }: SupplementDialogProps) {
     const [name, setName] = useState('');
-    const [ingredients, setIngredients] = useState('');
+    const [ingredients, setIngredients] = useState<Ingredient[]>([{ name: '', amount: '' }]);
     const [notes, setNotes] = useState('');
     const [recommendedDose, setRecommendedDose] = useState('');
 
     useEffect(() => {
         if (supplement) {
             setName(supplement.name);
-            setIngredients(supplement.ingredients.join(', '));
+            setIngredients(supplement.ingredients?.length > 0 ? supplement.ingredients : [{ name: '', amount: '' }]);
             setNotes(supplement.notes || '');
             setRecommendedDose(supplement.recommendedDose || '');
         } else {
             setName('');
-            setIngredients('');
+            setIngredients([{ name: '', amount: '' }]);
             setNotes('');
             setRecommendedDose('');
         }
     }, [supplement]);
 
+    const handleIngredientChange = (index: number, field: keyof Ingredient, value: string) => {
+        const newIngredients = [...ingredients];
+        newIngredients[index][field] = value;
+        setIngredients(newIngredients);
+    };
+
+    const addIngredientField = () => {
+        setIngredients([...ingredients, { name: '', amount: '' }]);
+    };
+
+    const removeIngredientField = (index: number) => {
+        const newIngredients = ingredients.filter((_, i) => i !== index);
+        setIngredients(newIngredients);
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const ingredientsArray = ingredients.split(',').map(s => s.trim()).filter(Boolean);
-        onSave({ name, ingredients: ingredientsArray, notes, recommendedDose });
+        const finalIngredients = ingredients.filter(ing => ing.name.trim() !== '');
+        onSave({ name, ingredients: finalIngredients, notes, recommendedDose });
     };
 
     if (!isOpen) return null;
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>{supplement ? 'Editar Suplemento' : 'Añadir Suplemento al Inventario'}</DialogTitle>
                 </DialogHeader>
@@ -353,10 +373,33 @@ function SupplementDialog({ isOpen, onClose, onSave, supplement }: SupplementDia
                         <Label htmlFor="sup-dose">Tomas diarias recomendadas</Label>
                         <Input id="sup-dose" value={recommendedDose} onChange={e => setRecommendedDose(e.target.value)} placeholder="Ej: 1 cápsula con la comida" />
                     </div>
-                     <div>
-                        <Label htmlFor="sup-ingredients">Ingredientes (separados por comas)</Label>
-                        <Input id="sup-ingredients" value={ingredients} onChange={e => setIngredients(e.target.value)} />
+                     
+                    <div className="space-y-2">
+                        <Label>Ingredientes</Label>
+                        {ingredients.map((ing, index) => (
+                            <div key={index} className="flex items-center gap-2">
+                                <Input 
+                                    value={ing.name} 
+                                    onChange={(e) => handleIngredientChange(index, 'name', e.target.value)}
+                                    placeholder="Nombre del ingrediente"
+                                    className="flex-grow"
+                                />
+                                <Input 
+                                    value={ing.amount} 
+                                    onChange={(e) => handleIngredientChange(index, 'amount', e.target.value)}
+                                    placeholder="Cantidad (ej: 500mg)"
+                                    className="w-32"
+                                />
+                                <Button type="button" variant="ghost" size="icon" onClick={() => removeIngredientField(index)}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                            </div>
+                        ))}
+                        <Button type="button" variant="outline" size="sm" onClick={addIngredientField}>
+                            <Plus className="mr-2 h-4 w-4" /> Añadir Ingrediente
+                        </Button>
                     </div>
+
                      <div>
                         <Label htmlFor="sup-notes">Notas / Descripción</Label>
                         <Textarea id="sup-notes" value={notes} onChange={e => setNotes(e.target.value)} />
@@ -370,5 +413,8 @@ function SupplementDialog({ isOpen, onClose, onSave, supplement }: SupplementDia
         </Dialog>
     );
 }
+
+    
+
 
     
