@@ -180,10 +180,11 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
     const [formData, setFormData] = useState<CalendarEvent['workoutDetails']>({});
 
     useEffect(() => {
-        if (workout) {
-            setFormData(workout.workoutDetails || {});
+        // Reset form to blank state every time it opens
+        if (isOpen) {
+            setFormData({});
         }
-    }, [workout]);
+    }, [isOpen]);
     
     useEffect(() => {
         if (formData?.realStartTime && formData.realEndTime && workout.date) {
@@ -288,7 +289,7 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
                         </div>
                         <div>
                            <Label htmlFor="totalCalories">Calorías totales (kcal)</Label>
-                           <Input id="totalCalories" type="number" placeholder="278 (opcional)" value={formData?.totalCalories ?? ''} onChange={e => handleChange('totalCalories', e.target.value)} />
+                           <Input id="totalCalories" type="number" placeholder="278" value={formData?.totalCalories ?? ''} onChange={e => handleChange('totalCalories', e.target.value)} />
                         </div>
                     </div>
                     <div className="grid grid-cols-3 gap-4">
@@ -302,23 +303,23 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
                         </div>
                         <div>
                            <Label htmlFor="minHeartRate">FC Mínima (lpm)</Label>
-                           <Input id="minHeartRate" type="number" placeholder="71 (opcional)" value={formData?.minHeartRate ?? ''} onChange={e => handleChange('minHeartRate', e.target.value)} />
+                           <Input id="minHeartRate" type="number" placeholder="71" value={formData?.minHeartRate ?? ''} onChange={e => handleChange('minHeartRate', e.target.value)} />
                         </div>
                     </div>
                      <div className="grid grid-cols-2 gap-4">
                         <div>
                            <Label htmlFor="steps">Pasos</Label>
-                           <Input id="steps" type="number" placeholder="2078 (opcional)" value={formData?.steps ?? ''} onChange={e => handleChange('steps', e.target.value)} />
+                           <Input id="steps" type="number" placeholder="2078" value={formData?.steps ?? ''} onChange={e => handleChange('steps', e.target.value)} />
                         </div>
                         <div>
                            <Label htmlFor="distance">Distancia (metros)</Label>
-                           <Input id="distance" type="number" placeholder="420 (opcional)" value={formData?.distance ?? ''} onChange={e => handleChange('distance', e.target.value)} />
+                           <Input id="distance" type="number" placeholder="420" value={formData?.distance ?? ''} onChange={e => handleChange('distance', e.target.value)} />
                         </div>
                     </div>
 
                     <Accordion type="single" collapsible className="w-full">
                         <AccordionItem value="item-1">
-                            <AccordionTrigger className="text-sm">Zonas de entrenamiento (opcional)</AccordionTrigger>
+                            <AccordionTrigger className="text-sm">Zonas de entrenamiento</AccordionTrigger>
                             <AccordionContent className="space-y-3 pt-2">
                                 <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                                     <Label htmlFor="zone-salud" className="text-right">Zona Salud (min)</Label>
@@ -349,6 +350,3 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
         </Dialog>
     );
 }
-
-
-    
