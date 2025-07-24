@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { RecoveryData, SleepData } from "@/ai/schemas";
-import { collection, onSnapshot, query, doc, setDoc, getDocs, orderBy, limit } from "firebase/firestore";
+import { collection, onSnapshot, query, doc, setDoc, getDocs, orderBy, limit, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { HeartPulse, Wind, Moon, Dumbbell, Plus, Edit } from "lucide-react";
@@ -193,8 +193,9 @@ function RecoveryDialog({ isOpen, onClose, onSave, recovery, userId }: RecoveryD
         const fetchLatestHrv = async () => {
             const userRef = doc(db, "users", userId);
             const qSleep = query(
-                collection(userRef, "sleep_manual"), 
-                orderBy("date", "desc"),
+                collection(userRef, "sleep_manual"),
+                where("date", "==", today),
+                orderBy("bedtime", "desc"),
                 limit(1)
             );
             
@@ -202,8 +203,7 @@ function RecoveryDialog({ isOpen, onClose, onSave, recovery, userId }: RecoveryD
             
             if (!sleepSnap.empty) {
                 const latestSleep = sleepSnap.docs[0].data() as SleepData;
-                // Check if the latest sleep data is for the current day and has HRV data
-                if (latestSleep.date === today && latestSleep.vfcAlDespertar) {
+                if (latestSleep.vfcAlDespertar) {
                      return latestSleep.vfcAlDespertar;
                 }
             }
