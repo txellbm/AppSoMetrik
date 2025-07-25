@@ -31,7 +31,7 @@ export default function Home() {
     <>
       <Tabs defaultValue="dashboard" className="flex-grow flex flex-col">
         <div className="bg-background/95 backdrop-blur-sm sticky top-0 z-10 border-b">
-          <TabsList className="grid w-full grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-11 h-auto p-2">
+          <TabsList className="grid w-full h-auto p-2 grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-11">
             <TabsTrigger value="dashboard"><LayoutDashboard className="mr-2 h-4 w-4"/>Panel</TabsTrigger>
             <TabsTrigger value="calendar"><CalendarDays className="mr-2 h-4 w-4"/>Calendario</TabsTrigger>
             <TabsTrigger value="goals"><Target className="mr-2 h-4 w-4"/>Objetivos</TabsTrigger>
@@ -46,8 +46,8 @@ export default function Home() {
           </TabsList>
         </div>
         
-        <TabsContent value="dashboard" className="flex-grow p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <TabsContent value="dashboard">
+            <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <AIChatWidget />
                 <HealthSummaryWidget />
                 <NotificationsWidget />
@@ -55,43 +55,43 @@ export default function Home() {
             </div>
         </TabsContent>
 
-        <TabsContent value="calendar" className="p-6">
+        <TabsContent value="calendar">
             <CalendarPage />
         </TabsContent>
 
-        <TabsContent value="goals" className="p-6">
+        <TabsContent value="goals">
             <GoalsPage />
         </TabsContent>
         
-        <TabsContent value="cycle" className="p-6">
+        <TabsContent value="cycle">
             <CyclePage />
         </TabsContent>
 
-        <TabsContent value="mind" className="p-6">
+        <TabsContent value="mind">
             <MindfulnessPage />
         </TabsContent>
 
-        <TabsContent value="workouts" className="p-6">
+        <TabsContent value="workouts">
             <WorkoutsPage />
         </TabsContent>
 
-        <TabsContent value="sleep" className="p-6">
+        <TabsContent value="sleep">
            <SleepPage />
         </TabsContent>
 
-        <TabsContent value="recovery" className="p-6">
+        <TabsContent value="recovery">
             <RecoveryPage />
         </TabsContent>
         
-        <TabsContent value="activity" className="p-6">
+        <TabsContent value="activity">
             <ActivityPage />
         </TabsContent>
 
-        <TabsContent value="diet" className="p-6">
+        <TabsContent value="diet">
             <DietPage />
         </TabsContent>
         
-        <TabsContent value="supplements" className="p-6">
+        <TabsContent value="supplements">
             <SupplementsPage />
         </TabsContent>
         
