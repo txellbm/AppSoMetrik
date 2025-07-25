@@ -126,31 +126,29 @@ export default function SleepPage() {
     };
     
     const formatSleepDate = (session: SleepData) => {
-        if (!session.date || !session.bedtime || !session.wakeUpTime) {
-            return format(parseISO(session.date), "EEEE, d 'de' LLLL", { locale: es });
-        }
-    
-        if (session.type === 'noche') {
-            let startDate = parseISO(session.date);
-            const bedtime = parse(session.bedtime, 'HH:mm', new Date());
-            
-            // Si la hora de dormir es antes de las 4 AM, se considera de la noche anterior.
-            if (bedtime.getHours() < 4) {
-                startDate = subDays(startDate, 1);
+        try {
+            if (!session.date || !session.bedtime || !session.wakeUpTime) {
+                return format(parseISO(session.date), "EEEE, d 'de' LLLL", { locale: es });
             }
-    
-            const wakeUpTime = parse(session.wakeUpTime, 'HH:mm', new Date());
-            const endDate = addDays(startDate, 1);
-            
-            // Si la hora de despertarse es antes que la de dormir (abarca medianoche)
-            // O si la hora de dormir es de madrugada (ya se ajustó startDate)
-            if (wakeUpTime < bedtime || bedtime.getHours() < 4) {
-                 return `${format(startDate, 'eeee d', {locale: es})} al ${format(endDate, 'eeee d \'de\' LLLL', {locale: es})}`;
-            }
-        }
         
-        // Para siestas o noches que no cruzan la medianoche
-        return format(parseISO(session.date), "EEEE, d 'de' LLLL", { locale: es });
+            if (session.type === 'noche') {
+                const wakeUpDate = parseISO(session.date);
+                const bedtimeTime = parse(session.bedtime, 'HH:mm', new Date());
+                const wakeUpTime = parse(session.wakeUpTime, 'HH:mm', new Date());
+
+                // If bedtime is on the previous calendar day (e.g., bed at 23:00, wake at 07:00)
+                if (bedtimeTime.getHours() > wakeUpTime.getHours()) {
+                    const startDate = subDays(wakeUpDate, 1);
+                     return `${format(startDate, 'eeee d', {locale: es})} al ${format(wakeUpDate, 'eeee d \'de\' LLLL', {locale: es})}`;
+                }
+            }
+            
+            // For naps or nights that don't cross midnight in a typical way
+            return format(parseISO(session.date), "EEEE, d 'de' LLLL", { locale: es });
+        } catch (error) {
+            console.error("Error formatting sleep date:", error);
+            return "Fecha inválida";
+        }
     };
 
     const generateReport = () => {
@@ -346,6 +344,7 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
                 setFormData(sleep);
             } else {
                 setFormData({
+                    // The 'date' should represent the WAKE UP day.
                     date: format(new Date(), "yyyy-MM-dd"),
                     type: "noche",
                 });
@@ -356,16 +355,27 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
      useEffect(() => {
         if (formData.bedtime && formData.wakeUpTime && formData.date) {
             try {
-                const start = parse(`${formData.date} ${formData.bedtime}`, 'yyyy-MM-dd HH:mm', new Date());
-                let end = parse(`${formData.date} ${formData.wakeUpTime}`, 'yyyy-MM-dd HH:mm', new Date());
+                // The form date is the WAKE UP date.
+                const wakeUpDate = parseISO(formData.date);
+                
+                const bedtime = parse(formData.bedtime, 'HH:mm', new Date());
+                const wakeUpTime = parse(formData.wakeUpTime, 'HH:mm', new Date());
+                
+                // If bedtime hours > wakeup hours, bedtime was on the previous day.
+                const startDate = bedtime.getHours() > wakeUpTime.getHours() ? subDays(wakeUpDate, 1) : wakeUpDate;
+                
+                const startDateTime = new Date(startDate);
+                startDateTime.setHours(bedtime.getHours(), bedtime.getMinutes(), 0, 0);
 
-                if (end <= start) {
-                    end = new Date(end.getTime() + 24 * 60 * 60 * 1000); // Add a day if wake up is next day
-                }
+                const endDateTime = new Date(wakeUpDate);
+                endDateTime.setHours(wakeUpTime.getHours(), wakeUpTime.getMinutes(), 0, 0);
 
-                if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-                    const sleepTime = differenceInMinutes(end, start);
+
+                if (!isNaN(startDateTime.getTime()) && !isNaN(endDateTime.getTime()) && endDateTime > startDateTime) {
+                    const sleepTime = differenceInMinutes(endDateTime, startDateTime);
                     setFormData(prev => ({...prev, sleepTime}));
+                } else {
+                     setFormData(prev => ({...prev, sleepTime: undefined}));
                 }
             } catch (error) {
                 // Ignore parsing errors while user is typing
@@ -446,6 +456,9 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
             <DialogContent className="max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>{sleep ? 'Editar Sesión de Sueño' : 'Registrar Sesión de Sueño'}</DialogTitle>
+                     <DialogDescription>
+                       La fecha seleccionada debe ser el día en que te despiertas.
+                    </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 py-4 max-h-[80vh] overflow-y-auto pr-4">
                     
@@ -462,7 +475,7 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
                             </Select>
                         </div>
                         <div>
-                            <Label htmlFor="date">Fecha</Label>
+                            <Label htmlFor="date">Fecha (día de despertar)</Label>
                             <Input id="date" type="date" value={formData.date || ''} onChange={(e) => handleChange('date', e.target.value)} required/>
                         </div>
                          <div>
