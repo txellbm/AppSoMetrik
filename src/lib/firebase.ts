@@ -8,7 +8,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyCxVPfW9aVFIYAaUu4Jr5Uix-YLIqHl1Xw",
   authDomain: "app-sometrik.firebaseapp.com",
   projectId: "app-sometrik",
-  storageBucket: "app-sometrik.firebasestorage.app",
+  storageBucket: "app-sometrik.appspot.com",
   messagingSenderId: "352482910314",
   appId: "1:352482910314:web:2a9020e50fd6ffcbd4aa13",
   measurementId: "G-D6DQHBNLF9"
