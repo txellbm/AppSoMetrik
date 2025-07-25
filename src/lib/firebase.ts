@@ -5,18 +5,17 @@ import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  "projectId": "sometric-app",
-  "appId": "1:215837564402:web:d9118a48bfd3dd10c49f6b",
-  "storageBucket": "sometric-app.firebasestorage.app",
-  "apiKey": "AIzaSyCzeBmKZaLytR0j6jR8EyTjOYBkE7dTp5k",
-  "authDomain": "sometric-app.firebaseapp.com",
-  "measurementId": "",
-  "messagingSenderId": "215837564402"
+  "projectId": "app-sometrik",
+  "appId": "1:352482910314:web:8c5b6b8c8d1b1c7c9b0e1a",
+  "storageBucket": "app-sometrik.appspot.com",
+  "apiKey": "AIzaSyA_S0m3Th1ngS3cr3t",
+  "authDomain": "app-sometrik.firebaseapp.com",
+  "messagingSenderId": "352482910314"
 };
 
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const db = getFirestore(app);
+const db = getFirestore(app, "main-db");
 
 // Enable offline persistence
 try {
