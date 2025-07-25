@@ -35,36 +35,51 @@ export default function MindfulnessPage() {
 
     // Fetch data for selected day
     useEffect(() => {
-        if (!formattedDate) return;
+        if (!formattedDate || !userId) return;
+        try {
+            const docRef = doc(db, "users", userId, "mindfulness", formattedDate);
+            const unsubscribe = onSnapshot(docRef, (doc) => {
+                if (doc.exists()) {
+                    setDailyData(doc.data());
+                } else {
+                    setDailyData({ stressLevel: 5, mood: "🙂 Normal", notes: "" });
+                }
+            }, (error) => {
+                console.error("Error fetching daily mindfulness data:", error);
+                 if ((error as any).code === 'unavailable') {
+                    console.warn("Firestore is offline. Data will be loaded from cache if available.");
+                }
+            });
 
-        const docRef = doc(db, "users", userId, "mindfulness", formattedDate);
-        const unsubscribe = onSnapshot(docRef, (doc) => {
-            if (doc.exists()) {
-                setDailyData(doc.data());
-            } else {
-                setDailyData({ stressLevel: 5, mood: "🙂 Normal", notes: "" });
-            }
-        }, (error) => {
-            console.error("Error fetching daily mindfulness data:", error);
-        });
-
-        return () => unsubscribe();
+            return () => unsubscribe();
+        } catch (error) {
+            console.error("Error setting up Firestore listener for daily mindfulness:", error);
+        }
     }, [formattedDate, userId]);
 
     // Fetch history
     useEffect(() => {
         setIsLoading(true);
-        const colRef = collection(db, "users", userId, "mindfulness");
-        const q = query(colRef, orderBy("date", "desc"));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as MindfulnessData[];
-            setHistory(data);
+        if(!userId) return;
+        try {
+            const colRef = collection(db, "users", userId, "mindfulness");
+            const q = query(colRef, orderBy("date", "desc"));
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as MindfulnessData[];
+                setHistory(data);
+                setIsLoading(false);
+            }, (error) => {
+                console.error("Error fetching mindfulness history:", error);
+                if ((error as any).code === 'unavailable') {
+                    console.warn("Firestore is offline. Data will be loaded from cache if available.");
+                }
+                setIsLoading(false);
+            });
+            return () => unsubscribe();
+        } catch (error) {
+            console.error("Error setting up Firestore listener for mindfulness history:", error);
             setIsLoading(false);
-        }, (error) => {
-            console.error("Error fetching mindfulness history:", error);
-            setIsLoading(false);
-        });
-        return () => unsubscribe();
+        }
     }, [userId]);
 
     const handleSave = async () => {

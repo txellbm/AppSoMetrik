@@ -35,27 +35,42 @@ export default function GoalsPage() {
 
     useEffect(() => {
         setIsLoading(true);
-        const docRef = doc(db, "users", userId, "goals", "main");
+        if (!userId) {
+            setIsLoading(false);
+            return;
+        }
 
-        const unsubscribe = onSnapshot(docRef, (doc) => {
-            if (doc.exists()) {
-                const data = doc.data() as UserGoalsData;
-                setGoals({
-                    primaryGoals: data.primaryGoals || [],
-                    specifics: data.specifics || ''
-                });
-            } else {
+        try {
+            const docRef = doc(db, "users", userId, "goals", "main");
+
+            const unsubscribe = onSnapshot(docRef, (doc) => {
+                if (doc.exists()) {
+                    const data = doc.data() as UserGoalsData;
+                    setGoals({
+                        primaryGoals: data.primaryGoals || [],
+                        specifics: data.specifics || ''
+                    });
+                } else {
+                    setGoals({ primaryGoals: [] });
+                }
+                setIsLoading(false);
+            }, (error) => {
+                console.error("Error loading goals data:", error);
+                 if ((error as any).code === 'unavailable') {
+                    console.warn("Firestore is offline. Data will be loaded from cache if available.");
+                } else {
+                    toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los objetivos." });
+                }
+                setIsLoading(false);
                 setGoals({ primaryGoals: [] });
-            }
-            setIsLoading(false);
-        }, (error) => {
-            console.error("Error loading goals data:", error);
-            setIsLoading(false);
-            setGoals({ primaryGoals: [] });
-        });
+            });
 
-        return () => unsubscribe();
-    }, [userId]);
+            return () => unsubscribe();
+        } catch (error) {
+             console.error("Error setting up Firestore listener for goals:", error);
+             setIsLoading(false);
+        }
+    }, [userId, toast]);
 
     const handleSave = async () => {
         try {

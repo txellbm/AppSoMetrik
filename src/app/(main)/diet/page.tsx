@@ -33,23 +33,35 @@ export default function DietPage() {
 
     useEffect(() => {
         setIsLoading(true);
-        const docRef = doc(db, "users", userId, "food_intake", formattedDate);
+        if (!userId || !formattedDate) return;
         
-        const unsubscribe = onSnapshot(docRef, (doc) => {
-            if (doc.exists()) {
-                setFoodData(doc.data());
-            } else {
+        try {
+            const docRef = doc(db, "users", userId, "food_intake", formattedDate);
+            
+            const unsubscribe = onSnapshot(docRef, (doc) => {
+                if (doc.exists()) {
+                    setFoodData(doc.data());
+                } else {
+                    setFoodData({ date: formattedDate });
+                }
+                setIsLoading(false);
+            }, (error) => {
+                console.error("Error loading food intake data:", error);
+                 if ((error as any).code === 'unavailable') {
+                    console.warn("Firestore is offline. Data will be loaded from cache if available.");
+                } else {
+                     toast({ variant: "destructive", title: "Error", description: "No se pudo cargar la dieta." });
+                }
+                setIsLoading(false);
                 setFoodData({ date: formattedDate });
-            }
-            setIsLoading(false);
-        }, (error) => {
-            console.error("Error loading food intake data:", error);
-            setIsLoading(false);
-            setFoodData({ date: formattedDate });
-        });
+            });
 
-        return () => unsubscribe();
-    }, [userId, formattedDate]);
+            return () => unsubscribe();
+        } catch(error) {
+            console.error("Error setting up Firestore listener for diet:", error);
+            setIsLoading(false);
+        }
+    }, [userId, formattedDate, toast]);
 
     const debouncedSave = useCallback(
         debounce(async (dataToSave: Partial<FoodIntakeData>) => {

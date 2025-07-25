@@ -30,20 +30,34 @@ export default function ActivityPage() {
 
     useEffect(() => {
         setIsLoading(true);
-        const userRef = doc(db, "users", userId);
-        const qActivity = query(collection(userRef, "activity"), orderBy("date", "desc"));
-
-        const unsubscribe = onSnapshot(qActivity, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as ActivityData[];
-            setActivityData(data);
+        if (!userId) {
             setIsLoading(false);
-        }, (error) => {
-            console.error("Error loading activity data:", error);
-            setIsLoading(false);
-        });
+            return;
+        }
+        try {
+            const userRef = doc(db, "users", userId);
+            const qActivity = query(collection(userRef, "activity"), orderBy("date", "desc"));
 
-        return () => unsubscribe();
-    }, [userId]);
+            const unsubscribe = onSnapshot(qActivity, (snapshot) => {
+                const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as ActivityData[];
+                setActivityData(data);
+                setIsLoading(false);
+            }, (error) => {
+                console.error("Error loading activity data:", error);
+                if ((error as any).code === 'unavailable') {
+                    console.warn("Firestore is offline. Data will be loaded from cache if available.");
+                } else {
+                     toast({ variant: "destructive", title: "Error", description: "No se pudo cargar la actividad." });
+                }
+                setIsLoading(false);
+            });
+
+            return () => unsubscribe();
+        } catch (error) {
+             console.error("Error setting up Firestore listener for activity:", error);
+             setIsLoading(false);
+        }
+    }, [userId, toast]);
 
     const handleSaveActivity = async (data: Omit<ActivityData, 'id'>) => {
         try {

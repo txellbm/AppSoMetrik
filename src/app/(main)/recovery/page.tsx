@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { RecoveryData, SleepData, DailyMetric, CalendarEvent, MindfulnessData, UserGoalsData } from "@/ai/schemas";
-import { collection, onSnapshot, query, doc, setDoc, getDocs, orderBy, limit, where, getDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, doc, setDoc, getDocs, orderBy, limit, where, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { HeartPulse, Wind, Moon, Dumbbell, Plus, Edit, Brain, Utensils } from "lucide-react";
@@ -36,20 +36,29 @@ export default function RecoveryPage() {
 
     useEffect(() => {
         setIsLoading(true);
-        const docRef = doc(db, "users", userId, "recovery", today);
-        const unsubscribe = onSnapshot(docRef, (doc) => {
-            if (doc.exists()) {
-                setRecoveryData({ id: doc.id, ...doc.data() } as RecoveryData);
-            } else {
-                setRecoveryData(null);
-            }
-            setIsLoading(false);
-        }, (error) => {
-            console.error("Error loading recovery data:", error);
-            setIsLoading(false);
-        });
+        if (!userId || !today) return;
+        try {
+            const docRef = doc(db, "users", userId, "recovery", today);
+            const unsubscribe = onSnapshot(docRef, (doc) => {
+                if (doc.exists()) {
+                    setRecoveryData({ id: doc.id, ...doc.data() } as RecoveryData);
+                } else {
+                    setRecoveryData(null);
+                }
+                setIsLoading(false);
+            }, (error) => {
+                console.error("Error loading recovery data:", error);
+                 if ((error as any).code === 'unavailable') {
+                    console.warn("Firestore is offline. Data will be loaded from cache if available.");
+                }
+                setIsLoading(false);
+            });
 
-        return () => unsubscribe();
+            return () => unsubscribe();
+        } catch (error) {
+            console.error("Error setting up Firestore listener for recovery:", error);
+            setIsLoading(false);
+        }
     }, [userId, today]);
 
     const handleSaveRecovery = async (data: Omit<RecoveryData, 'id' | 'date' | 'morningHrv'>) => {
@@ -286,14 +295,14 @@ function SuggestionsCard({ recoveryScore, userId, today }: { recoveryScore: numb
                 const dailyMetricsQuery = query(collection(userRef, "dailyMetrics"), orderBy("date", "desc"));
                 const eventsQuery = query(collection(userRef, "events"), where("date", "==", today));
                 const mindfulnessQuery = query(collection(userRef, "mindfulness"), where("date", "==", today));
-                const goalsQuery = doc(userRef, "goals", "main");
+                const goalsDocRef = doc(userRef, "goals", "main");
                 
                 const [sleepSnap, dailyMetricsSnap, eventsSnap, mindfulnessSnap, goalsSnap] = await Promise.all([
                     getDocs(sleepQuery),
                     getDocs(dailyMetricsQuery),
                     getDocs(eventsQuery),
                     getDocs(mindfulnessQuery),
-                    getDoc(goalsQuery),
+                    getDoc(goalsDocRef),
                 ]);
 
                 const lastSleep = !sleepSnap.empty ? sleepSnap.docs[0].data() as SleepData : null;

@@ -122,24 +122,31 @@ export default function CalendarPage() {
     useEffect(() => {
         setIsLoading(true);
         if (!userId) return;
+        try {
+            const eventsColRef = collection(db, "users", userId, "events");
+            const q = query(eventsColRef, 
+                where("date", ">=", format(viewStart, "yyyy-MM-dd")),
+                where("date", "<=", format(viewEnd, "yyyy-MM-dd"))
+            );
 
-        const eventsColRef = collection(db, "users", userId, "events");
-        const q = query(eventsColRef, 
-            where("date", ">=", format(viewStart, "yyyy-MM-dd")),
-            where("date", "<=", format(viewEnd, "yyyy-MM-dd"))
-        );
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const fetchedEvents = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as CalendarEvent[];
-            setEvents(fetchedEvents.sort((a, b) => (a.startTime || "00:00").localeCompare(b.startTime || "00:00")));
-            setIsLoading(false);
-        }, (error) => {
-            console.error("Error fetching events:", error);
-            setIsLoading(false);
-            toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los eventos." });
-        });
-
-        return () => unsubscribe();
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const fetchedEvents = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as CalendarEvent[];
+                setEvents(fetchedEvents.sort((a, b) => (a.startTime || "00:00").localeCompare(b.startTime || "00:00")));
+                setIsLoading(false);
+            }, (error) => {
+                console.error("Error fetching events:", error);
+                if ((error as any).code === 'unavailable') {
+                    console.warn("Firestore is offline. Data will be loaded from cache if available.");
+                } else {
+                    toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los eventos." });
+                }
+                setIsLoading(false);
+            });
+            return () => unsubscribe();
+        } catch(error) {
+             console.error("Error setting up Firestore listener for calendar:", error);
+             setIsLoading(false);
+        }
     }, [viewStart, viewEnd, userId, toast]);
 
     const handlePrev = () => {

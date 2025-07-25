@@ -68,44 +68,67 @@ export default function SupplementsPage() {
 
     // Fetch daily supplement intake
     useEffect(() => {
-        const docRef = doc(db, "users", userId, "supplements", today);
-        const unsubscribe = onSnapshot(docRef, (doc) => {
-            if (doc.exists()) {
-                setDailySupplements(doc.data() as DailySupplementData);
-            } else {
-                setDailySupplements({});
-            }
-        }, (error) => {
-            console.error("Error loading daily supplements:", error);
-        });
-
-        return () => unsubscribe();
+        if(!userId || !today) return;
+        try {
+            const docRef = doc(db, "users", userId, "supplements", today);
+            const unsubscribe = onSnapshot(docRef, (doc) => {
+                if (doc.exists()) {
+                    setDailySupplements(doc.data() as DailySupplementData);
+                } else {
+                    setDailySupplements({});
+                }
+            }, (error) => {
+                console.error("Error loading daily supplements:", error);
+                if ((error as any).code === 'unavailable') {
+                    console.warn("Firestore is offline. Data will be loaded from cache if available.");
+                }
+            });
+            return () => unsubscribe();
+        } catch (error) {
+            console.error("Error setting up Firestore listener for daily supplements:", error);
+        }
     }, [userId, today]);
 
     // Fetch supplement inventory
     useEffect(() => {
         setIsLoading(true);
-        const inventoryColRef = collection(db, "users", userId, "user_supplements");
-        const unsubscribe = onSnapshot(inventoryColRef, (snapshot) => {
-            const inventory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplementDefinition));
-            setSupplementInventory(inventory);
+        if(!userId) return;
+        try {
+            const inventoryColRef = collection(db, "users", userId, "user_supplements");
+            const unsubscribe = onSnapshot(inventoryColRef, (snapshot) => {
+                const inventory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplementDefinition));
+                setSupplementInventory(inventory);
+                setIsLoading(false);
+            }, (error) => {
+                console.error("Error loading supplement inventory:", error);
+                 if ((error as any).code === 'unavailable') {
+                    console.warn("Firestore is offline. Data will be loaded from cache if available.");
+                }
+                setIsLoading(false);
+            });
+            return () => unsubscribe();
+        } catch (error) {
+            console.error("Error setting up Firestore listener for supplement inventory:", error);
             setIsLoading(false);
-        }, (error) => {
-            console.error("Error loading supplement inventory:", error);
-            setIsLoading(false);
-        });
-
-        return () => unsubscribe();
+        }
     }, [userId]);
 
     // Fetch today's events
     useEffect(() => {
         const fetchTodaysEvents = async () => {
-            const eventsColRef = collection(db, "users", userId, "events");
-            const q = query(eventsColRef, where("date", "==", today));
-            const querySnapshot = await getDocs(q);
-            const events = querySnapshot.docs.map(doc => doc.data() as CalendarEvent).sort((a,b) => (a.startTime || "00:00").localeCompare(b.startTime || "00:00"));
-            setTodaysEvents(events);
+            if(!userId || !today) return;
+            try {
+                const eventsColRef = collection(db, "users", userId, "events");
+                const q = query(eventsColRef, where("date", "==", today));
+                const querySnapshot = await getDocs(q);
+                const events = querySnapshot.docs.map(doc => doc.data() as CalendarEvent).sort((a,b) => (a.startTime || "00:00").localeCompare(b.startTime || "00:00"));
+                setTodaysEvents(events);
+            } catch(error) {
+                console.error("Error fetching today's events:", error);
+                 if ((error as any).code === 'unavailable') {
+                    console.warn("Firestore is offline. Events will not be loaded.");
+                }
+            }
         };
         fetchTodaysEvents();
     }, [userId, today]);

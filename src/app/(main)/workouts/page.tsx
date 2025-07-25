@@ -34,26 +34,35 @@ export default function WorkoutsPage() {
 
     useEffect(() => {
         setIsLoading(true);
-        const eventsColRef = collection(db, "users", userId, "events");
-        const q = query(eventsColRef, where("type", "==", "entrenamiento"));
+        if(!userId) return;
+        try {
+            const eventsColRef = collection(db, "users", userId, "events");
+            const q = query(eventsColRef, where("type", "==", "entrenamiento"));
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            let workoutData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as CalendarEvent[];
-            
-            workoutData.sort((a, b) => {
-                const dateA = a.date + (a.startTime || '00:00');
-                const dateB = b.date + (b.startTime || '00:00');
-                return dateB.localeCompare(dateA);
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                let workoutData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as CalendarEvent[];
+                
+                workoutData.sort((a, b) => {
+                    const dateA = a.date + (a.startTime || '00:00');
+                    const dateB = b.date + (b.startTime || '00:00');
+                    return dateB.localeCompare(dateA);
+                });
+                
+                setWorkouts(workoutData);
+                setIsLoading(false);
+            }, (error) => {
+                console.error("Error loading workouts:", error);
+                 if ((error as any).code === 'unavailable') {
+                    console.warn("Firestore is offline. Data will be loaded from cache if available.");
+                }
+                setIsLoading(false);
             });
-            
-            setWorkouts(workoutData);
-            setIsLoading(false);
-        }, (error) => {
-            console.error("Error loading workouts:", error);
-            setIsLoading(false);
-        });
 
-        return () => unsubscribe();
+            return () => unsubscribe();
+        } catch(error) {
+            console.error("Error setting up Firestore listener for workouts:", error);
+            setIsLoading(false);
+        }
     }, [userId]);
     
     const handleSaveWorkoutDetails = async (id: string, details: CalendarEvent['workoutDetails']) => {

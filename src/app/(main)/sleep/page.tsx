@@ -54,26 +54,35 @@ export default function SleepPage() {
 
     useEffect(() => {
         setIsLoading(true);
-        const userRef = doc(db, "users", userId);
-        const qSleep = query(collection(userRef, "sleep_manual"), orderBy("date", "desc"));
+        if(!userId) return;
+        try {
+            const userRef = doc(db, "users", userId);
+            const qSleep = query(collection(userRef, "sleep_manual"), orderBy("date", "desc"));
 
-        const unsubscribe = onSnapshot(qSleep, (snapshot) => {
-            let data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as SleepData[];
-            
-            data.sort((a, b) => {
-                const dateComparison = b.date.localeCompare(a.date);
-                if (dateComparison !== 0) return dateComparison;
-                return (a.bedtime || "00:00").localeCompare(b.bedtime || "00:00");
+            const unsubscribe = onSnapshot(qSleep, (snapshot) => {
+                let data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as SleepData[];
+                
+                data.sort((a, b) => {
+                    const dateComparison = b.date.localeCompare(a.date);
+                    if (dateComparison !== 0) return dateComparison;
+                    return (a.bedtime || "00:00").localeCompare(b.bedtime || "00:00");
+                });
+
+                setSleepData(data);
+                setIsLoading(false);
+            }, (error) => {
+                console.error("Error loading sleep data:", error);
+                 if ((error as any).code === 'unavailable') {
+                    console.warn("Firestore is offline. Data will be loaded from cache if available.");
+                }
+                setIsLoading(false);
             });
 
-            setSleepData(data);
-            setIsLoading(false);
-        }, (error) => {
-            console.error("Error loading sleep data:", error);
-            setIsLoading(false);
-        });
-
-        return () => unsubscribe();
+            return () => unsubscribe();
+        } catch(error) {
+             console.error("Error setting up Firestore listener for sleep:", error);
+             setIsLoading(false);
+        }
     }, [userId]);
 
     const handleSaveSleep = async (data: Omit<SleepData, 'id'> & { id?: string }) => {
@@ -134,22 +143,22 @@ export default function SleepPage() {
             if (session.type === 'noche') {
                 const wakeUpDate = parseISO(session.date);
                 const bedtimeTime = parse(session.bedtime, 'HH:mm', new Date());
-                const wakeUpTime = parse(session.wakeUpTime, 'HH:mm', new Date());
-
-                // If bedtime is on the previous calendar day (e.g., bed at 23:00, wake at 07:00)
-                if (bedtimeTime.getHours() > wakeUpTime.getHours()) {
+                
+                // If bedtime is late (e.g., 10 PM) or very early (e.g., before 4 AM), it belongs to the previous night
+                if (bedtimeTime.getHours() > 4) {
                     const startDate = subDays(wakeUpDate, 1);
-                     return `${format(startDate, 'eeee d', {locale: es})} al ${format(wakeUpDate, 'eeee d \'de\' LLLL', {locale: es})}`;
+                    return `${format(startDate, 'eeee d', {locale: es})} al ${format(wakeUpDate, 'eeee d \'de\' LLLL', {locale: es})}`;
                 }
             }
             
-            // For naps or nights that don't cross midnight in a typical way
+            // For naps or nights starting after 4 AM
             return format(parseISO(session.date), "EEEE, d 'de' LLLL", { locale: es });
         } catch (error) {
-            console.error("Error formatting sleep date:", error);
+            console.error("Error formatting sleep date:", error, session);
             return "Fecha inválida";
         }
     };
+
 
     const generateReport = () => {
         let report = `Informe de Sueño\n`;

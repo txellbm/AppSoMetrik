@@ -46,20 +46,30 @@ export default function CyclePage() {
     useEffect(() => {
         setIsLoading(true);
         if (!userId) return;
-        const userRef = doc(db, "users", userId);
-        const qDailyMetrics = query(collection(userRef, "dailyMetrics"), orderBy("date", "desc"));
 
-        const unsubscribe = onSnapshot(qDailyMetrics, (snapshot) => {
-            const metrics = snapshot.docs.map(doc => ({ ...doc.data(), date: doc.id })) as DailyMetric[];
-            setDailyMetrics(metrics);
-            setIsLoading(false);
-        }, (error) => {
-            console.error("Error loading daily metrics:", error);
-            setIsLoading(false);
-        });
+        try {
+            const userRef = doc(db, "users", userId);
+            const qDailyMetrics = query(collection(userRef, "dailyMetrics"), orderBy("date", "desc"));
 
-        return () => unsubscribe();
-    }, [userId]);
+            const unsubscribe = onSnapshot(qDailyMetrics, (snapshot) => {
+                const metrics = snapshot.docs.map(doc => ({ ...doc.data(), date: doc.id })) as DailyMetric[];
+                setDailyMetrics(metrics);
+                setIsLoading(false);
+            }, (error) => {
+                console.error("Error loading daily metrics:", error);
+                 if ((error as any).code === 'unavailable') {
+                    console.warn("Firestore is offline. Data will be loaded from cache if available.");
+                } else {
+                    toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar las métricas." });
+                }
+                setIsLoading(false);
+            });
+            return () => unsubscribe();
+        } catch (error) {
+            console.error("Error setting up Firestore listener for cycle:", error);
+            setIsLoading(false);
+        }
+    }, [userId, toast]);
 
     const { cycleStartDay, currentDayOfCycle } = useMemo(() => {
         const sortedMenstruationDays = dailyMetrics
