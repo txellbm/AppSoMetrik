@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { RecoveryData, SleepData, DailyMetric, CalendarEvent, MindfulnessData, UserGoalsData } from "@/ai/schemas";
-import { collection, onSnapshot, query, doc, setDoc, getDocs, orderBy, limit, where } from "firebase/firestore";
+import { collection, onSnapshot, query, doc, setDoc, getDocs, orderBy, limit, where, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { HeartPulse, Wind, Moon, Dumbbell, Plus, Edit, Brain, Utensils } from "lucide-react";
@@ -373,4 +373,3 @@ function SuggestionsCard({ recoveryScore, userId, today }: { recoveryScore: numb
         </Card>
     );
 }
-
