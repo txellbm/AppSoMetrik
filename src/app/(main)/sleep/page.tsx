@@ -96,18 +96,26 @@ export default function SleepPage() {
         try {
             const collectionRef = collection(db, "users", userId, "sleep_manual");
             
-             const dataToSave = {
-                ...data
+            const cleanupObject = (obj: any): any => {
+                const newObj: { [key: string]: any } = {};
+                for (const key in obj) {
+                    const value = obj[key];
+                    if (value === undefined || value === null || value === '') {
+                        continue;
+                    }
+                    if (typeof value === 'object' && !Array.isArray(value)) {
+                        const cleanedSubObj = cleanupObject(value);
+                        if (Object.keys(cleanedSubObj).length > 0) {
+                            newObj[key] = cleanedSubObj;
+                        }
+                    } else {
+                        newObj[key] = value;
+                    }
+                }
+                return newObj;
             };
 
-            const finalData: { [key: string]: any } = {};
-            for (const key in dataToSave) {
-                const value = (dataToSave as any)[key];
-                if (value !== undefined) {
-                    finalData[key] = value;
-                }
-            }
-
+            const finalData = cleanupObject(data);
 
             if (data.id) {
                 const docRef = doc(collectionRef, data.id);
@@ -125,7 +133,7 @@ export default function SleepPage() {
             if ((error as any).code === 'unavailable') {
                 toast({ variant: "destructive", title: "Sin conexión", description: "No se pudo guardar la sesión de sueño. Revisa tu conexión a internet." });
             } else {
-                toast({ variant: "destructive", title: "Error", description: "No se pudo guardar la sesión de sueño." });
+                toast({ variant: "destructive", title: "Error", description: `No se pudo guardar la sesión de sueño: ${(error as Error).message}` });
             }
         }
     };
