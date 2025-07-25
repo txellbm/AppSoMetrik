@@ -9,5 +9,6 @@
     "frameworksBackend": {
       "region": "us-central1"
     }
-  }
+  },
+  "project": "app-sometrik"
 }
