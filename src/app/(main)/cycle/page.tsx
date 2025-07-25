@@ -113,7 +113,7 @@ export default function CyclePage() {
 
 
     const handleDayClick = async (day: Date | undefined) => {
-        if (!day) return;
+        if (!day || !userId) return;
         setSelectedDate(day);
 
         if (!isMarkingMode) return;
@@ -139,12 +139,16 @@ export default function CyclePage() {
             }
         } catch (error) {
             console.error("Error toggling menstruation day:", error);
-            toast({ variant: "destructive", title: "Error", description: "No se pudo actualizar el día." });
+            if ((error as any).code === 'unavailable') {
+                toast({ variant: "destructive", title: "Sin conexión", description: "No se pudo actualizar el día. Revisa tu conexión a internet." });
+            } else {
+                toast({ variant: "destructive", title: "Error", description: "No se pudo actualizar el día." });
+            }
         }
     };
     
     const handleSymptomAction = async (action: 'add' | 'remove', symptom: string) => {
-        if (!selectedDate || !symptom.trim()) return;
+        if (!selectedDate || !symptom.trim() || !userId) return;
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
         const docRef = doc(db, "users", userId, "dailyMetrics", dateStr);
         
@@ -159,7 +163,11 @@ export default function CyclePage() {
             }
 
         } catch (error) {
-             toast({ variant: "destructive", title: "Error", description: "No se pudo actualizar el síntoma." });
+             if ((error as any).code === 'unavailable') {
+                toast({ variant: "destructive", title: "Sin conexión", description: "No se pudo actualizar el síntoma. Revisa tu conexión a internet." });
+            } else {
+                toast({ variant: "destructive", title: "Error", description: "No se pudo actualizar el síntoma." });
+            }
         }
     };
 
@@ -167,14 +175,18 @@ export default function CyclePage() {
         if(notesTimerRef.current) clearTimeout(notesTimerRef.current);
 
         notesTimerRef.current = setTimeout(async () => {
-            if (!selectedDate) return;
+            if (!selectedDate || !userId) return;
             const dateStr = format(selectedDate, 'yyyy-MM-dd');
             const docRef = doc(db, "users", userId, "dailyMetrics", dateStr);
             try {
                 await setDoc(docRef, { date: dateStr, notas: e.target.value }, { merge: true });
                 toast({ title: "Nota guardada", description: `Tus notas para el ${dateStr} han sido guardadas.`});
             } catch (error) {
-                toast({ variant: "destructive", title: "Error", description: "No se pudo guardar la nota." });
+                 if ((error as any).code === 'unavailable') {
+                    toast({ variant: "destructive", title: "Sin conexión", description: "No se pudo guardar la nota. Revisa tu conexión a internet." });
+                } else {
+                    toast({ variant: "destructive", title: "Error", description: "No se pudo guardar la nota." });
+                }
             }
         }, 1000); // Save after 1 second of inactivity
     };

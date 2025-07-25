@@ -15,7 +15,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Flame, Plus, Edit, Trash2, FileText, Copy } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
 
 export default function ActivityPage() {
     const [activityData, setActivityData] = useState<ActivityData[]>([]);
@@ -60,6 +59,10 @@ export default function ActivityPage() {
     }, [userId, toast]);
 
     const handleSaveActivity = async (data: Omit<ActivityData, 'id'>) => {
+        if (!userId) {
+            toast({ variant: "destructive", title: "Error", description: "Usuario no identificado." });
+            return;
+        }
         try {
             const docRef = doc(db, "users", userId, "activity", data.date);
             
@@ -79,17 +82,29 @@ export default function ActivityPage() {
             setEditingActivity(null);
         } catch (error) {
             console.error("Error saving activity:", error);
-            toast({ variant: "destructive", title: "Error", description: "No se pudo guardar la actividad." });
+            if ((error as any).code === 'unavailable') {
+                toast({ variant: "destructive", title: "Sin conexión", description: "No se pudo guardar la actividad. Revisa tu conexión a internet." });
+            } else {
+                toast({ variant: "destructive", title: "Error", description: "No se pudo guardar la actividad." });
+            }
         }
     };
 
     const handleDeleteActivity = async (id: string) => {
+        if (!userId) {
+            toast({ variant: "destructive", title: "Error", description: "Usuario no identificado." });
+            return;
+        }
         try {
             await deleteDoc(doc(db, "users", userId, "activity", id));
             toast({ title: "Registro de actividad eliminado", variant: "destructive" });
         } catch (error) {
             console.error("Error deleting activity:", error);
-            toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el registro." });
+            if ((error as any).code === 'unavailable') {
+                toast({ variant: "destructive", title: "Sin conexión", description: "No se pudo eliminar el registro. Revisa tu conexión a internet." });
+            } else {
+                toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el registro." });
+            }
         }
     };
 

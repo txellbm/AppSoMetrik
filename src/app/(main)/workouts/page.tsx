@@ -66,6 +66,7 @@ export default function WorkoutsPage() {
     }, [userId]);
     
     const handleSaveWorkoutDetails = async (id: string, details: CalendarEvent['workoutDetails']) => {
+        if (!userId) return;
         try {
             const docRef = doc(db, "users", userId, "events", id);
             
@@ -95,7 +96,11 @@ export default function WorkoutsPage() {
             setEditingWorkout(null);
         } catch (error) {
             console.error("Error saving workout details:", error);
-            toast({ variant: "destructive", title: "Error", description: "No se pudieron guardar los detalles." });
+            if ((error as any).code === 'unavailable') {
+                toast({ variant: "destructive", title: "Sin conexión", description: "No se pudieron guardar los detalles. Revisa tu conexión a internet." });
+            } else {
+                toast({ variant: "destructive", title: "Error", description: "No se pudieron guardar los detalles." });
+            }
         }
     };
 

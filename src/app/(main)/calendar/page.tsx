@@ -220,6 +220,10 @@ export default function CalendarPage() {
     };
 
     const handleSaveEvent = async (data: Omit<CalendarEvent, 'id'>) => {
+        if (!userId) {
+            toast({ variant: "destructive", title: "Error", description: "Usuario no identificado." });
+            return;
+        }
         try {
             await runTransaction(db, async (transaction) => {
                 const userEventsRef = collection(db, "users", userId, "events");
@@ -254,7 +258,11 @@ export default function CalendarPage() {
             setSelectedQuickEventType(null);
         } catch (error: any) {
             console.error("Error saving event:", error);
-            toast({ variant: "destructive", title: "Error", description: error.message || "No se pudo guardar el evento." });
+            if ((error as any).code === 'unavailable') {
+                toast({ variant: "destructive", title: "Sin conexión", description: "No se pudo guardar el evento. Revisa tu conexión a internet." });
+            } else {
+                toast({ variant: "destructive", title: "Error", description: error.message || "No se pudo guardar el evento." });
+            }
         }
     };
 
@@ -264,7 +272,7 @@ export default function CalendarPage() {
     }
 
     const handleDeleteEvent = async () => {
-        if (!eventToDelete) return;
+        if (!eventToDelete || !userId) return;
         
         try {
             await deleteDoc(doc(db, "users", userId, "events", eventToDelete));
@@ -273,7 +281,11 @@ export default function CalendarPage() {
             setSelectedEvent(null); 
         } catch (error) {
             console.error("Error deleting event:", error);
-            toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el evento." });
+            if ((error as any).code === 'unavailable') {
+                toast({ variant: "destructive", title: "Sin conexión", description: "No se pudo eliminar el evento. Revisa tu conexión a internet." });
+            } else {
+                toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el evento." });
+            }
         }
     };
 
@@ -382,7 +394,11 @@ export default function CalendarPage() {
             toast({ title: "Éxito", description: `${eventsToAdd.length} eventos de ${type} han sido añadidos al calendario.` });
         } catch (error) {
             console.error("Error scheduling events:", error);
-            toast({ variant: "destructive", title: "Error", description: "No se pudieron programar los eventos." });
+            if ((error as any).code === 'unavailable') {
+                toast({ variant: "destructive", title: "Sin conexión", description: "No se pudieron programar los eventos. Revisa tu conexión a internet." });
+            } else {
+                toast({ variant: "destructive", title: "Error", description: "No se pudieron programar los eventos." });
+            }
         }
     };
     

@@ -83,14 +83,18 @@ export default function MindfulnessPage() {
     }, [userId]);
 
     const handleSave = async () => {
-        if (!formattedDate) return;
+        if (!formattedDate || !userId) return;
         try {
             const docRef = doc(db, "users", userId, "mindfulness", formattedDate);
             await setDoc(docRef, { date: formattedDate, ...dailyData }, { merge: true });
             toast({ title: "¡Guardado!", description: `Tu estado para el ${formattedDate} ha sido guardado.` });
         } catch (error) {
             console.error("Error saving mindfulness data:", error);
-            toast({ variant: "destructive", title: "Error", description: "No se pudo guardar la información." });
+            if ((error as any).code === 'unavailable') {
+                toast({ variant: "destructive", title: "Sin conexión", description: "No se pudo guardar la información. Revisa tu conexión a internet." });
+            } else {
+                toast({ variant: "destructive", title: "Error", description: "No se pudo guardar la información." });
+            }
         }
     };
 

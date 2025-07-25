@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { RecoveryData, SleepData, DailyMetric, CalendarEvent, MindfulnessData, UserGoalsData } from "@/ai/schemas";
-import { collection, onSnapshot, query, doc, setDoc, getDocs, orderBy, limit, where, getDoc, updateDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, doc, setDoc, getDocs, orderBy, limit, where, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { HeartPulse, Wind, Moon, Dumbbell, Plus, Edit, Brain, Utensils } from "lucide-react";
@@ -61,7 +61,8 @@ export default function RecoveryPage() {
         }
     }, [userId, today]);
 
-    const handleSaveRecovery = async (data: Omit<RecoveryData, 'id' | 'date' | 'morningHrv'>) => {
+    const handleSaveRecovery = async (data: Omit<RecoveryData, 'id' | 'date'>) => {
+        if (!userId) return;
         try {
             const userRef = doc(db, "users", userId);
             const qSleep = query(collection(userRef, "sleep_manual"), where("date", "==", today));
@@ -96,7 +97,11 @@ export default function RecoveryPage() {
             setIsDialogOpen(false);
         } catch (error) {
             console.error("Error saving recovery data:", error);
-            toast({ variant: "destructive", title: "Error", description: "No se pudieron guardar los datos." });
+            if ((error as any).code === 'unavailable') {
+                toast({ variant: "destructive", title: "Sin conexión", description: "No se pudieron guardar los datos. Revisa tu conexión a internet." });
+            } else {
+                toast({ variant: "destructive", title: "Error", description: "No se pudieron guardar los datos." });
+            }
         }
     };
     
@@ -287,6 +292,10 @@ function SuggestionsCard({ recoveryScore, userId, today }: { recoveryScore: numb
 
     useEffect(() => {
         const fetchAndGenerate = async () => {
+            if (!userId) {
+                setIsLoading(false);
+                return;
+            }
             setIsLoading(true);
             try {
                 const userRef = doc(db, "users", userId);
@@ -342,7 +351,11 @@ function SuggestionsCard({ recoveryScore, userId, today }: { recoveryScore: numb
 
             } catch (err) {
                 console.error("Error generating suggestions:", err);
-                toast({ variant: "destructive", title: "Error", description: "No se pudieron generar las sugerencias." });
+                if ((err as any).code === 'unavailable') {
+                    toast({ variant: "destructive", title: "Sin conexión", description: "No se pudieron generar las sugerencias. Revisa tu conexión a internet." });
+                } else {
+                    toast({ variant: "destructive", title: "Error", description: "No se pudieron generar las sugerencias." });
+                }
             } finally {
                 setIsLoading(false);
             }

@@ -65,13 +65,18 @@ export default function DietPage() {
 
     const debouncedSave = useCallback(
         debounce(async (dataToSave: Partial<FoodIntakeData>) => {
+            if (!userId) return;
             try {
                 const docRef = doc(db, "users", userId, "food_intake", formattedDate);
                 await setDoc(docRef, dataToSave, { merge: true });
                 toast({ title: "Guardado", description: "Tus datos de alimentación se han guardado." });
             } catch (error) {
                 console.error("Error saving food intake data:", error);
-                toast({ variant: "destructive", title: "Error", description: "No se pudieron guardar los datos." });
+                if ((error as any).code === 'unavailable') {
+                    toast({ variant: "destructive", title: "Sin conexión", description: "Los cambios se guardarán cuando recuperes la conexión." });
+                } else {
+                    toast({ variant: "destructive", title: "Error", description: "No se pudieron guardar los datos." });
+                }
             }
         }, 1500),
         [formattedDate, userId, toast]

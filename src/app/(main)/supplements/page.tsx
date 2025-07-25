@@ -138,6 +138,7 @@ export default function SupplementsPage() {
             toast({ variant: "destructive", title: "Datos inválidos", description: "Selecciona un suplemento y una dosis válida." });
             return;
         }
+        if (!userId) return;
         const docRef = doc(db, "users", userId, "supplements", today);
 
         try {
@@ -153,11 +154,16 @@ export default function SupplementsPage() {
             });
         } catch (error) {
             console.error("Error adding supplement:", error);
-            toast({ variant: "destructive", title: "Error al añadir", description: "No se pudo añadir el suplemento." });
+             if ((error as any).code === 'unavailable') {
+                toast({ variant: "destructive", title: "Sin conexión", description: "No se pudo añadir el suplemento. Revisa tu conexión a internet." });
+            } else {
+                toast({ variant: "destructive", title: "Error al añadir", description: "No se pudo añadir el suplemento." });
+            }
         }
     };
     
     const handleRemoveSupplementFromDaily = async (moment: SupplementMoment, item: TakenSupplement) => {
+        if (!userId) return;
         const docRef = doc(db, "users", userId, "supplements", today);
         try {
             await updateDoc(docRef, { [moment]: arrayRemove(item) });
@@ -168,11 +174,16 @@ export default function SupplementsPage() {
             });
         } catch (error) {
             console.error("Error removing supplement:", error);
-             toast({ variant: "destructive", title: "Error al eliminar", description: "No se pudo eliminar el suplemento." });
+            if ((error as any).code === 'unavailable') {
+                toast({ variant: "destructive", title: "Sin conexión", description: "No se pudo eliminar el suplemento. Revisa tu conexión a internet." });
+            } else {
+                toast({ variant: "destructive", title: "Error al eliminar", description: "No se pudo eliminar el suplemento." });
+            }
         }
     };
 
     const handleSaveSupplementToInventory = async (data: Omit<SupplementDefinition, 'id'>) => {
+        if (!userId) return;
         try {
             if (editingSupplement) {
                 // Update
@@ -189,17 +200,26 @@ export default function SupplementsPage() {
             setEditingSupplement(null);
         } catch (error) {
             console.error("Error saving supplement to inventory:", error);
-            toast({ variant: "destructive", title: "Error", description: "No se pudo guardar el suplemento." });
+            if ((error as any).code === 'unavailable') {
+                toast({ variant: "destructive", title: "Sin conexión", description: "No se pudo guardar el suplemento. Revisa tu conexión a internet." });
+            } else {
+                toast({ variant: "destructive", title: "Error", description: "No se pudo guardar el suplemento." });
+            }
         }
     };
     
     const handleDeleteSupplementFromInventory = async (supplementId: string) => {
+        if (!userId) return;
         try {
             await deleteDoc(doc(db, "users", userId, "user_supplements", supplementId));
             toast({ title: "Suplemento eliminado del inventario", variant: 'destructive' });
         } catch(error) {
              console.error("Error deleting supplement from inventory:", error);
-            toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el suplemento del inventario." });
+            if ((error as any).code === 'unavailable') {
+                toast({ variant: "destructive", title: "Sin conexión", description: "No se pudo eliminar el suplemento. Revisa tu conexión a internet." });
+            } else {
+                toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el suplemento del inventario." });
+            }
         }
     };
 
@@ -598,5 +618,3 @@ function SupplementDialog({ isOpen, onClose, onSave, supplement }: SupplementDia
         </Dialog>
     );
 }
-
-    

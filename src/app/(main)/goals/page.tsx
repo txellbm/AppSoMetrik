@@ -73,13 +73,21 @@ export default function GoalsPage() {
     }, [userId, toast]);
 
     const handleSave = async () => {
+        if (!userId) {
+            toast({ variant: "destructive", title: "Error", description: "Usuario no identificado." });
+            return;
+        }
         try {
             const docRef = doc(db, "users", userId, "goals", "main");
             await setDoc(docRef, goals, { merge: true });
             toast({ title: "¡Objetivos guardados!", description: "Tus metas han sido actualizadas." });
         } catch (error) {
             console.error("Error saving goals:", error);
-            toast({ variant: "destructive", title: "Error", description: "No se pudieron guardar tus objetivos." });
+            if ((error as any).code === 'unavailable') {
+                toast({ variant: "destructive", title: "Sin conexión", description: "No se pudieron guardar tus objetivos. Revisa tu conexión a internet." });
+            } else {
+                toast({ variant: "destructive", title: "Error", description: "No se pudieron guardar tus objetivos." });
+            }
         }
     };
 
@@ -216,4 +224,3 @@ export default function GoalsPage() {
         </div>
     );
 }
-

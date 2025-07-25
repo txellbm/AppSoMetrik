@@ -86,6 +86,10 @@ export default function SleepPage() {
     }, [userId]);
 
     const handleSaveSleep = async (data: Omit<SleepData, 'id'> & { id?: string }) => {
+        if (!userId) {
+            toast({ variant: "destructive", title: "Error", description: "Usuario no identificado." });
+            return;
+        }
         try {
             const collectionRef = collection(db, "users", userId, "sleep_manual");
             
@@ -115,17 +119,26 @@ export default function SleepPage() {
             setEditingSleep(null);
         } catch (error) {
             console.error("Error saving sleep session:", error);
-            toast({ variant: "destructive", title: "Error", description: "No se pudo guardar la sesión de sueño." });
+            if ((error as any).code === 'unavailable') {
+                toast({ variant: "destructive", title: "Sin conexión", description: "No se pudo guardar la sesión de sueño. Revisa tu conexión a internet." });
+            } else {
+                toast({ variant: "destructive", title: "Error", description: "No se pudo guardar la sesión de sueño." });
+            }
         }
     };
     
     const handleDeleteSleep = async (id: string) => {
+        if (!userId) return;
         try {
             await deleteDoc(doc(db, "users", userId, "sleep_manual", id));
             toast({ title: "Sesión de sueño eliminada", variant: "destructive" });
         } catch (error) {
             console.error("Error deleting sleep session:", error);
-            toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar la sesión." });
+            if ((error as any).code === 'unavailable') {
+                toast({ variant: "destructive", title: "Sin conexión", description: "No se pudo eliminar la sesión. Revisa tu conexión a internet." });
+            } else {
+                toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar la sesión." });
+            }
         }
     }
     
@@ -582,5 +595,3 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
         </Dialog>
     );
 }
-
-    
