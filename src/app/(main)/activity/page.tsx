@@ -54,6 +54,7 @@ export default function ActivityPage() {
             return () => unsubscribe();
         } catch (error) {
              console.error("Error setting up Firestore listener for activity:", error);
+             toast({ variant: "destructive", title: "Error", description: "No se pudo configurar la carga de actividad." });
              setIsLoading(false);
         }
     }, [userId, toast]);
@@ -342,3 +343,4 @@ function ActivityDialog({ isOpen, onClose, onSave, activity }: ActivityDialogPro
     );
 }
 
+    

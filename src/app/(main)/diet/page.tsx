@@ -59,6 +59,7 @@ export default function DietPage() {
             return () => unsubscribe();
         } catch(error) {
             console.error("Error setting up Firestore listener for diet:", error);
+            toast({ variant: "destructive", title: "Error", description: "No se pudo configurar la carga de la dieta." });
             setIsLoading(false);
         }
     }, [userId, formattedDate, toast]);
@@ -322,3 +323,5 @@ function DietSkeleton() {
         </div>
     )
 }
+
+    

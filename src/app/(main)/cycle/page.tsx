@@ -67,6 +67,7 @@ export default function CyclePage() {
             return () => unsubscribe();
         } catch (error) {
             console.error("Error setting up Firestore listener for cycle:", error);
+            toast({ variant: "destructive", title: "Error", description: "No se pudo configurar la carga de métricas." });
             setIsLoading(false);
         }
     }, [userId, toast]);
@@ -430,3 +431,4 @@ export default function CyclePage() {
     );
 }
 
+    

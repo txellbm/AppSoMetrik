@@ -50,16 +50,19 @@ export default function RecoveryPage() {
                 console.error("Error loading recovery data:", error);
                  if ((error as any).code === 'unavailable') {
                     console.warn("Firestore is offline. Data will be loaded from cache if available.");
-                }
+                 } else {
+                    toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los datos de recuperación." });
+                 }
                 setIsLoading(false);
             });
 
             return () => unsubscribe();
         } catch (error) {
             console.error("Error setting up Firestore listener for recovery:", error);
+            toast({ variant: "destructive", title: "Error", description: "No se pudo configurar la carga de recuperación." });
             setIsLoading(false);
         }
-    }, [userId, today]);
+    }, [userId, today, toast]);
 
     const handleSaveRecovery = async (data: Omit<RecoveryData, 'id' | 'date'>) => {
         if (!userId) return;
@@ -395,3 +398,5 @@ function SuggestionsCard({ recoveryScore, userId, today }: { recoveryScore: numb
         </Card>
     );
 }
+
+    

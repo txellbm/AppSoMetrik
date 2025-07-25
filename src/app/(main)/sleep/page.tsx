@@ -74,16 +74,19 @@ export default function SleepPage() {
                 console.error("Error loading sleep data:", error);
                  if ((error as any).code === 'unavailable') {
                     console.warn("Firestore is offline. Data will be loaded from cache if available.");
-                }
+                 } else {
+                    toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los datos de sueño." });
+                 }
                 setIsLoading(false);
             });
 
             return () => unsubscribe();
         } catch(error) {
              console.error("Error setting up Firestore listener for sleep:", error);
+             toast({ variant: "destructive", title: "Error", description: "No se pudo configurar la carga de sueño." });
              setIsLoading(false);
         }
-    }, [userId]);
+    }, [userId, toast]);
 
     const handleSaveSleep = async (data: Omit<SleepData, 'id'> & { id?: string }) => {
         if (!userId) {
@@ -595,3 +598,5 @@ function SleepDialog({ isOpen, onClose, onSave, sleep }: SleepDialogProps) {
         </Dialog>
     );
 }
+
+    

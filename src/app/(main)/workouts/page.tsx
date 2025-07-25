@@ -54,16 +54,19 @@ export default function WorkoutsPage() {
                 console.error("Error loading workouts:", error);
                  if ((error as any).code === 'unavailable') {
                     console.warn("Firestore is offline. Data will be loaded from cache if available.");
-                }
+                 } else {
+                    toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los entrenamientos." });
+                 }
                 setIsLoading(false);
             });
 
             return () => unsubscribe();
         } catch(error) {
             console.error("Error setting up Firestore listener for workouts:", error);
+            toast({ variant: "destructive", title: "Error", description: "No se pudo configurar la carga de entrenamientos." });
             setIsLoading(false);
         }
-    }, [userId]);
+    }, [userId, toast]);
     
     const handleSaveWorkoutDetails = async (id: string, details: CalendarEvent['workoutDetails']) => {
         if (!userId) return;
@@ -510,3 +513,5 @@ function WorkoutDetailsDialog({ isOpen, onClose, onSave, workout }: WorkoutDetai
         </Dialog>
     );
 }
+
+    

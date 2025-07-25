@@ -68,6 +68,7 @@ export default function GoalsPage() {
             return () => unsubscribe();
         } catch (error) {
              console.error("Error setting up Firestore listener for goals:", error);
+             toast({ variant: "destructive", title: "Error", description: "No se pudo configurar la carga de objetivos." });
              setIsLoading(false);
         }
     }, [userId, toast]);
@@ -224,3 +225,5 @@ export default function GoalsPage() {
         </div>
     );
 }
+
+    

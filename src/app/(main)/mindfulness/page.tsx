@@ -48,14 +48,17 @@ export default function MindfulnessPage() {
                 console.error("Error fetching daily mindfulness data:", error);
                  if ((error as any).code === 'unavailable') {
                     console.warn("Firestore is offline. Data will be loaded from cache if available.");
+                } else {
+                    toast({ variant: "destructive", title: "Error", description: "No se pudo cargar el estado mental del día." });
                 }
             });
 
             return () => unsubscribe();
         } catch (error) {
             console.error("Error setting up Firestore listener for daily mindfulness:", error);
+             toast({ variant: "destructive", title: "Error", description: "No se pudo configurar la carga del estado mental." });
         }
-    }, [formattedDate, userId]);
+    }, [formattedDate, userId, toast]);
 
     // Fetch history
     useEffect(() => {
@@ -72,15 +75,18 @@ export default function MindfulnessPage() {
                 console.error("Error fetching mindfulness history:", error);
                 if ((error as any).code === 'unavailable') {
                     console.warn("Firestore is offline. Data will be loaded from cache if available.");
+                } else {
+                    toast({ variant: "destructive", title: "Error", description: "No se pudo cargar el historial." });
                 }
                 setIsLoading(false);
             });
             return () => unsubscribe();
         } catch (error) {
             console.error("Error setting up Firestore listener for mindfulness history:", error);
+            toast({ variant: "destructive", title: "Error", description: "No se pudo configurar la carga del historial." });
             setIsLoading(false);
         }
-    }, [userId]);
+    }, [userId, toast]);
 
     const handleSave = async () => {
         if (!formattedDate || !userId) return;
@@ -269,3 +275,5 @@ export default function MindfulnessPage() {
         </div>
     );
 }
+
+    

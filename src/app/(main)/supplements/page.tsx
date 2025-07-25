@@ -81,13 +81,16 @@ export default function SupplementsPage() {
                 console.error("Error loading daily supplements:", error);
                 if ((error as any).code === 'unavailable') {
                     console.warn("Firestore is offline. Data will be loaded from cache if available.");
+                } else {
+                    toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los suplementos diarios." });
                 }
             });
             return () => unsubscribe();
         } catch (error) {
             console.error("Error setting up Firestore listener for daily supplements:", error);
+            toast({ variant: "destructive", title: "Error", description: "No se pudo configurar la carga de suplementos." });
         }
-    }, [userId, today]);
+    }, [userId, today, toast]);
 
     // Fetch supplement inventory
     useEffect(() => {
@@ -103,15 +106,18 @@ export default function SupplementsPage() {
                 console.error("Error loading supplement inventory:", error);
                  if ((error as any).code === 'unavailable') {
                     console.warn("Firestore is offline. Data will be loaded from cache if available.");
-                }
+                 } else {
+                    toast({ variant: "destructive", title: "Error", description: "No se pudo cargar el inventario de suplementos." });
+                 }
                 setIsLoading(false);
             });
             return () => unsubscribe();
         } catch (error) {
             console.error("Error setting up Firestore listener for supplement inventory:", error);
+            toast({ variant: "destructive", title: "Error", description: "No se pudo configurar la carga del inventario." });
             setIsLoading(false);
         }
-    }, [userId]);
+    }, [userId, toast]);
 
     // Fetch today's events
     useEffect(() => {
@@ -127,11 +133,13 @@ export default function SupplementsPage() {
                 console.error("Error fetching today's events:", error);
                  if ((error as any).code === 'unavailable') {
                     console.warn("Firestore is offline. Events will not be loaded.");
+                } else {
+                    toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los eventos de hoy." });
                 }
             }
         };
         fetchTodaysEvents();
-    }, [userId, today]);
+    }, [userId, today, toast]);
     
     const handleAddSupplementToDaily = async (moment: SupplementMoment, item: TakenSupplement) => {
         if (!item.name.trim() || item.dose <= 0) {
@@ -618,3 +626,5 @@ function SupplementDialog({ isOpen, onClose, onSave, supplement }: SupplementDia
         </Dialog>
     );
 }
+
+    

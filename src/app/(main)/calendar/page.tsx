@@ -145,6 +145,7 @@ export default function CalendarPage() {
             return () => unsubscribe();
         } catch(error) {
              console.error("Error setting up Firestore listener for calendar:", error);
+             toast({ variant: "destructive", title: "Error", description: "No se pudo configurar la carga del calendario." });
              setIsLoading(false);
         }
     }, [viewStart, viewEnd, userId, toast]);
@@ -729,3 +730,5 @@ const QuickEventCard = ({ type, config, isSelected, onSelect }: QuickEventCardPr
         <Label className="font-semibold text-sm cursor-pointer">{type}</Label>
     </Badge>
 );
+
+    
